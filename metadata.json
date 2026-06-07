@@ -1,0 +1,6 @@
+{
+  "name": "SplitShare",
+  "description": "An offline-first, premium expense-sharing application to split costs with friends, couples, and groups.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
