@@ -46,7 +46,7 @@ private val LightColorScheme =
   )
 
 @Composable
-fun MyApplicationTheme(
+fun OpenSplitTheme(
   darkTheme: Boolean = isSystemInDarkTheme(),
   // Enable dynamic color for Material You system color syncing (disabled by default for brand consistency)
   dynamicColor: Boolean = false,

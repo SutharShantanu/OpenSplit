@@ -1,6 +1,6 @@
 {
-  "name": "SplitShare",
-  "description": "An offline-first, premium expense-sharing application to split costs with friends, couples, and groups.",
+  "name": "OpenSplit",
+  "description": "A free, open-source, fully-featured expense-splitting Android app.",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }
