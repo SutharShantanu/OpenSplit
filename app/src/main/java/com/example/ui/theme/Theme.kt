@@ -13,17 +13,20 @@ import androidx.compose.ui.platform.LocalContext
 
 private val DarkColorScheme =
   darkColorScheme(
-    primary = EmeraldPrimary,
-    background = DarkBg,
-    surface = DarkSurface,
-    onPrimary = Color.Black,
-    onBackground = Color.White,
-    onSurface = Color.White,
-    primaryContainer = EmeraldDark,
-    onPrimaryContainer = Color.White,
-    secondary = GraySecondary,
-    tertiary = MintGreen,
-    error = CoralRed
+    primary = SoftLavender,
+    background = ExpressiveDarkBg,
+    surface = ExpressiveDarkSurface,
+    onPrimary = Color(0xFF2D1673),
+    onBackground = Color(0xFFE6E1E5),
+    onSurface = Color(0xFFE6E1E5),
+    primaryContainer = Color(0xFF422E8A),
+    onPrimaryContainer = Color(0xFFEADDFF),
+    secondaryContainer = Color(0xFF2C2C35),
+    onSecondaryContainer = Color(0xFFE6E1E5),
+    secondary = GraySecondaryDark,
+    tertiary = MintGreenDark,
+    error = CoralRedDark,
+    outline = Color(0xFF938F99)
   )
 
 private val LightColorScheme =
@@ -35,18 +38,18 @@ private val LightColorScheme =
     onBackground = Color(0xFF1D1B1E),
     onSurface = Color(0xFF1D1B1E),
     primaryContainer = EmeraldLight,
-    onPrimaryContainer = Color(0xFF21005D), // Deep purple sleek label
-    secondary = GraySecondary,
-    tertiary = MintGreen,
-    error = CoralRed,
-    outline = Color(0xFFCAC4D0)
+    onPrimaryContainer = Color(0xFF21005D),
+    secondary = GraySecondaryLight,
+    tertiary = MintGreenLight,
+    error = CoralRedLight,
+    outline = Color(0xFF79747E)
   )
 
 @Composable
 fun MyApplicationTheme(
   darkTheme: Boolean = isSystemInDarkTheme(),
-  // Enable dynamic color for Material You system color syncing
-  dynamicColor: Boolean = true,
+  // Enable dynamic color for Material You system color syncing (disabled by default for brand consistency)
+  dynamicColor: Boolean = false,
   content: @Composable () -> Unit,
 ) {
   val colorScheme =
