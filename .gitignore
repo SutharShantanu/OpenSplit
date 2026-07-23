@@ -10,9 +10,14 @@
 /.idea/assetWizardSettings.xml
 .DS_Store
 /build
+**/build/
 /captures
 .externalNativeBuild
 .cxx
 local.properties
 .env
 debug.keystore
+
+# Firebase config — supply your own; never commit
+app/google-services.json
+google-services.json

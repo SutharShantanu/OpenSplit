@@ -8,11 +8,11 @@ plugins {
 }
 
 android {
-  namespace = "com.example"
+  namespace = "com.opensplit"
   compileSdk { version = release(36) { minorApiLevel = 1 } }
 
   defaultConfig {
-    applicationId = "open.split_07"
+    applicationId = "com.opensplit"
     minSdk = 24
     targetSdk = 36
     versionCode = 1
