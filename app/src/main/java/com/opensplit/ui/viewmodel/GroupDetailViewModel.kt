@@ -11,8 +11,12 @@ import com.opensplit.domain.repository.ActivityRepository
 import com.opensplit.domain.repository.AuthRepository
 import com.opensplit.domain.repository.ExpenseRepository
 import com.opensplit.domain.repository.GroupRepository
+import com.opensplit.domain.repository.SettlementRepository
 import com.opensplit.domain.repository.UserRepository
+import com.opensplit.domain.logic.BalanceCalculator
+import com.opensplit.domain.logic.DebtSimplifier
 import com.opensplit.domain.model.PendingInvite
+import com.opensplit.domain.model.Settlement
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
@@ -24,7 +28,8 @@ data class GroupDetailUiState(
     val expenses: List<Expense>,
     val members: List<User>,
     val balances: Map<String, Double>,
-    val simplifiedSettlements: List<com.opensplit.domain.logic.DebtSimplifier.SettlementSuggestion>,
+    val simplifiedSettlements: List<DebtSimplifier.SettlementSuggestion>,
+    val settlements: List<Settlement> = emptyList(),
     val pendingInvites: List<PendingInvite> = emptyList()
 )
 
@@ -34,6 +39,7 @@ class GroupDetailViewModel(
     private val expenseRepository: ExpenseRepository,
     private val userRepository: UserRepository,
     private val activityRepository: ActivityRepository,
+    private val settlementRepository: SettlementRepository,
     private val authRepository: AuthRepository? = null
 ) : ViewModel() {
 
@@ -52,10 +58,19 @@ class GroupDetailViewModel(
                 val g = groupRepository.getGroup(groupId) ?: throw Exception("Group not found")
                 val members = loadMembers(g.memberIds)
 
-                expenseRepository.getExpensesForGroup(groupId).collect { expList ->
-                    val (balances, settlements) = calculateBalances(expList, g.simplifyDebts, g.currency)
-                    emit(ScreenState.Success(GroupDetailUiState(g, expList, members, balances, settlements, pendingList)))
-                }
+                combine(
+                    expenseRepository.getExpensesForGroup(groupId),
+                    settlementRepository.getSettlementsForGroup(groupId)
+                ) { expList, settleList -> expList to settleList }
+                    .collect { (expList, settleList) ->
+                        val balances = BalanceCalculator.netBalances(expList, settleList)
+                        val suggestions = BalanceCalculator.settlementSuggestions(expList, settleList, g.simplifyDebts)
+                        emit(
+                            ScreenState.Success(
+                                GroupDetailUiState(g, expList, members, balances, suggestions, settleList, pendingList)
+                            )
+                        )
+                    }
             } catch (e: Exception) {
                 emit(ScreenState.Error(e.message ?: "Unknown error") { retry() })
             }
@@ -70,46 +85,6 @@ class GroupDetailViewModel(
                 async { userRepository.getUser(uid) }
             }.awaitAll().filterNotNull()
         }
-    }
-
-    private fun calculateBalances(expList: List<Expense>, simplifyDebts: Boolean, groupCurrency: String): Pair<Map<String, Double>, List<com.opensplit.domain.logic.DebtSimplifier.SettlementSuggestion>> {
-        val bals = mutableMapOf<String, Double>()
-
-        for (expense in expList) {
-            val rate = 1.0
-            val convertedAmount = expense.amount * rate
-            val payers: Map<String, Double> = expense.multiPayer
-                ?: mapOf(expense.paidBy to convertedAmount)
-
-            for ((uid, amount) in payers) {
-                bals[uid] = (bals[uid] ?: 0.0) + (amount * rate)
-            }
-
-            for (split in expense.splits) {
-                bals[split.uid] = (bals[split.uid] ?: 0.0) - (split.amount * rate)
-            }
-        }
-
-        val settlements = if (simplifyDebts) {
-            com.opensplit.domain.logic.DebtSimplifier.simplify(bals)
-        } else {
-            // Raw pairwise: one suggestion per ordered (debtor, creditor) pair
-            bals.entries
-                .filter { it.value < -0.01 }
-                .flatMap { debtor ->
-                    bals.entries
-                        .filter { it.value > 0.01 }
-                        .map { creditor ->
-                            com.opensplit.domain.logic.DebtSimplifier.SettlementSuggestion(
-                                fromUid = debtor.key,
-                                toUid = creditor.key,
-                                amount = minOf(-debtor.value, creditor.value)
-                            )
-                        }
-                }
-                .filter { it.amount > 0.01 }
-        }
-        return bals to settlements
     }
 
     fun addExpense(expense: Expense, onSuccess: () -> Unit = {}) {

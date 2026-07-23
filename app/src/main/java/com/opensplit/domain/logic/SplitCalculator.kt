@@ -75,18 +75,32 @@ object SplitCalculator {
                         }
                     }
                 }
-                // Distribute remaining amount (e.g. tax/tip) equally among participants who had items assigned
-                // Wait, prompt says: "an optional even split of tax/tip across all items proportionally". 
-                // Let us just compute a simple version: sum of item splits. Tax/tip can be handled by scaling.
+                // Reconcile item totals to the entered amount, scaling proportionally in
+                // EITHER direction: up covers tax/tip that raises the total, down covers a
+                // discount/coupon that lowers it. This keeps owed == paid.
                 val assignedSum = personOwed.values.sum()
-                if (assignedSum > 0 && totalAmount > assignedSum) {
+                if (assignedSum > 0 && kotlin.math.abs(totalAmount - assignedSum) > 1e-9) {
                     val scale = totalAmount / assignedSum
                     personOwed.keys.forEach {
                         personOwed[it] = personOwed[it]!! * scale
                     }
                 }
+                // Round each and push the rounding remainder onto the last assigned
+                // participant so the splits sum exactly to totalAmount.
+                val assignedParticipants = participants.filter { (personOwed[it] ?: 0.0) != 0.0 }
+                val amounts = mutableMapOf<String, Double>()
+                var remaining = roundToTwoDecimals(totalAmount)
+                assignedParticipants.forEachIndexed { index, uid ->
+                    val amount = if (index == assignedParticipants.lastIndex) {
+                        roundToTwoDecimals(remaining)
+                    } else {
+                        roundToTwoDecimals(personOwed[uid] ?: 0.0)
+                    }
+                    remaining -= amount
+                    amounts[uid] = amount
+                }
                 participants.map { uid ->
-                    ExpenseSplit(uid = uid, amount = roundToTwoDecimals(personOwed[uid] ?: 0.0))
+                    ExpenseSplit(uid = uid, amount = amounts[uid] ?: 0.0)
                 }
             }
             SplitType.SHARES -> {

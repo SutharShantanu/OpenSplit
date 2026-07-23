@@ -1,6 +1,7 @@
 package com.opensplit.util
 
 import java.text.DecimalFormat
+import java.text.DecimalFormatSymbols
 import java.util.Locale
 
 object CurrencyFormatter {
@@ -11,7 +12,13 @@ object CurrencyFormatter {
         "EUR" -> "€"
         "GBP" -> "£"
         "JPY" -> "¥"
-        else -> "₹"
+        else -> code.uppercase()
+    }
+
+    /** Number of fractional digits (minor units) for a currency. JPY has none. */
+    private fun fractionDigits(code: String): Int = when (code.uppercase()) {
+        "JPY" -> 0
+        else -> 2
     }
 
     fun getCurrencyFlag(code: String): String = when (code.uppercase()) {
@@ -38,9 +45,13 @@ object CurrencyFormatter {
     ): String {
         val symbol = getCurrencySymbol(currencyCode)
         val absAmount = kotlin.math.abs(amount)
-        
-        // Format with commas and 2 decimal places
-        val formatter = DecimalFormat("#,##,##0.00")
+
+        // Indian lakh/crore grouping only for INR; standard thousands grouping otherwise.
+        // Decimal places follow the currency's minor units (e.g. JPY has none).
+        val grouping = if (currencyCode.equals("INR", ignoreCase = true)) "#,##,##0" else "#,##0"
+        val digits = fractionDigits(currencyCode)
+        val pattern = if (digits > 0) "$grouping.${"0".repeat(digits)}" else grouping
+        val formatter = DecimalFormat(pattern, DecimalFormatSymbols(Locale.US))
         val formattedNum = formatter.format(absAmount)
 
         val base = if (showSymbol) "$symbol$formattedNum" else formattedNum
