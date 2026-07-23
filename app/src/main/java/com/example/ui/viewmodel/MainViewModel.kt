@@ -14,6 +14,9 @@ import com.example.domain.repository.FriendRepository
 import com.example.domain.repository.GroupRepository
 import com.example.domain.repository.UserRepository
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 
@@ -51,9 +54,11 @@ class MainViewModel(
     val recentActivity: StateFlow<ScreenState<List<Activity>>> = combine(authRepository.getAuthState(), retryTrigger) { state, _ -> state }
         .flatMapLatest { authState ->
             if (authState is AuthState.LoggedIn) {
-                activityRepository.getActivityForUser(authState.uid, emptyList())
-                    .map<List<Activity>, ScreenState<List<Activity>>> { ScreenState.Success(it) }
-                    .catch { emit(ScreenState.Error(it.message ?: "Failed to load activity", ::retry)) }
+                groupRepository.getGroupsForUser(authState.uid).flatMapLatest { groups ->
+                    val groupIds = groups.map { it.id }
+                    activityRepository.getActivityForUser(authState.uid, groupIds)
+                        .map<List<Activity>, ScreenState<List<Activity>>> { ScreenState.Success(it) }
+                }.catch { emit(ScreenState.Error(it.message ?: "Failed to load activity", ::retry)) }
             } else {
                 flowOf(ScreenState.Success(emptyList()))
             }
@@ -73,14 +78,16 @@ class MainViewModel(
             }
         }
         .flatMapLatest { balancesMap ->
-            flow {
-                val friendBalancesList = balancesMap.mapNotNull { (uid, balance) ->
-                    val user = userRepository.getUser(uid)
-                    if (user != null) {
-                        FriendBalance(user, balance)
-                    } else null
+            flow<ScreenState<List<FriendBalance>>> {
+                val friendBalancesList = coroutineScope {
+                    balancesMap.map { (uid, balance) ->
+                        async {
+                            val user = userRepository.getUser(uid)
+                            if (user != null) FriendBalance(user, balance) else null
+                        }
+                    }.awaitAll().filterNotNull()
                 }
-                emit(ScreenState.Success(friendBalancesList) as ScreenState<List<FriendBalance>>)
+                emit(ScreenState.Success(friendBalancesList))
             }.catch { emit(ScreenState.Error(it.message ?: "Failed to load friends", ::retry)) }
         }
         .stateIn(

@@ -14,16 +14,20 @@ class SettlementRepositoryImpl(
 ) : SettlementRepository {
 
     override fun getSettlementsForGroup(groupId: String): Flow<List<Settlement>> = callbackFlow {
+        if (groupId.isBlank()) {
+            trySend(emptyList())
+            awaitClose {}
+            return@callbackFlow
+        }
         val listener = firestore.collection("groups").document(groupId)
             .collection("settlements")
-            .orderBy("date", com.google.firebase.firestore.Query.Direction.DESCENDING)
             .addSnapshotListener { snapshot, error ->
                 if (error != null) {
-                    close(error)
+                    trySend(emptyList())
                     return@addSnapshotListener
                 }
                 val settlements = snapshot?.documents?.mapNotNull { it.toObject(Settlement::class.java)?.copy(id = it.id) } ?: emptyList()
-                trySend(settlements)
+                trySend(settlements.sortedByDescending { it.date })
             }
         awaitClose { listener.remove() }
     }
@@ -33,6 +37,17 @@ class SettlementRepositoryImpl(
             val docRef = firestore.collection("groups").document(groupId)
                 .collection("settlements")
                 .add(settlement).await()
+
+            activityRepository.logActivity(
+                groupId,
+                com.example.domain.model.Activity(
+                    type = com.example.domain.model.ActivityType.SETTLEMENT_ADDED,
+                    actorUid = settlement.fromUid,
+                    message = "logged a settlement",
+                    timestamp = settlement.date
+                )
+            )
+
             Result.success(docRef.id)
         } catch (e: Exception) {
             Result.failure(e)

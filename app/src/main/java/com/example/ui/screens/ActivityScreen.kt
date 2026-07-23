@@ -12,6 +12,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import com.example.domain.model.ActivityType
 import com.example.ui.components.BellWavesIllustration
 import com.example.ui.components.StateLayout
 import com.example.ui.components.appHazeHeader
@@ -19,6 +20,7 @@ import com.example.ui.components.appHazeSource
 import com.example.ui.theme.OpenSplitIcons
 import com.example.ui.theme.OpenSplitTokens
 import com.example.ui.viewmodel.ActivityCategoryFilter
+import com.example.ui.viewmodel.ActivitySortOrder
 import com.example.ui.viewmodel.ActivityViewModel
 import dev.chrisbanes.haze.HazeState
 import java.text.SimpleDateFormat
@@ -62,11 +64,120 @@ fun ActivityScreen(
                         .padding(horizontal = OpenSplitTokens.SpaceLG)
                 ) {
 
-                    // Filter Chips Row
-                    Row(
+                    // Search Bar
+                    OutlinedTextField(
+                        value = uiState.searchQuery,
+                        onValueChange = { viewModel.setSearchQuery(it) },
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(vertical = OpenSplitTokens.SpaceSM),
+                        placeholder = { Text("Search activities...") },
+                        leadingIcon = { Icon(OpenSplitIcons.Search, contentDescription = "Search") },
+                        trailingIcon = {
+                            if (uiState.searchQuery.isNotEmpty()) {
+                                IconButton(onClick = { viewModel.setSearchQuery("") }) {
+                                    Icon(OpenSplitIcons.Close, contentDescription = "Clear search")
+                                }
+                            }
+                        },
+                        singleLine = true,
+                        shape = MaterialTheme.shapes.medium
+                    )
+
+                    // Group Selector & Sort Controls
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(bottom = OpenSplitTokens.SpaceXS),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        // Group dropdown
+                        var groupDropdownExpanded by remember { mutableStateOf(false) }
+                        val currentGroupName = remember(uiState.selectedGroupId, uiState.groups) {
+                            if (uiState.selectedGroupId == null) "All Groups"
+                            else uiState.groups.find { it.id == uiState.selectedGroupId }?.name ?: "Selected Group"
+                        }
+
+                        Box {
+                            FilterChip(
+                                selected = uiState.selectedGroupId != null,
+                                onClick = { groupDropdownExpanded = true },
+                                label = { Text(currentGroupName) },
+                                trailingIcon = { Icon(OpenSplitIcons.Dropdown, contentDescription = null, modifier = Modifier.size(16.dp)) },
+                                shape = MaterialTheme.shapes.medium
+                            )
+
+                            DropdownMenu(
+                                expanded = groupDropdownExpanded,
+                                onDismissRequest = { groupDropdownExpanded = false }
+                            ) {
+                                DropdownMenuItem(
+                                    text = { Text("All Groups") },
+                                    onClick = {
+                                        viewModel.setGroupFilter(null)
+                                        groupDropdownExpanded = false
+                                    },
+                                    leadingIcon = {
+                                        if (uiState.selectedGroupId == null) {
+                                            Icon(OpenSplitIcons.Check, contentDescription = null)
+                                        }
+                                    }
+                                )
+                                uiState.groups.forEach { group ->
+                                    DropdownMenuItem(
+                                        text = { Text(group.name) },
+                                        onClick = {
+                                            viewModel.setGroupFilter(group.id)
+                                            groupDropdownExpanded = false
+                                        },
+                                        leadingIcon = {
+                                            if (uiState.selectedGroupId == group.id) {
+                                                Icon(OpenSplitIcons.Check, contentDescription = null)
+                                            }
+                                        }
+                                    )
+                                }
+                            }
+                        }
+
+                        // Sort Order
+                        var sortDropdownExpanded by remember { mutableStateOf(false) }
+                        Box {
+                            AssistChip(
+                                onClick = { sortDropdownExpanded = true },
+                                label = { Text(uiState.sortOrder.label) },
+                                leadingIcon = { Icon(OpenSplitIcons.Sort, contentDescription = "Sort", modifier = Modifier.size(16.dp)) },
+                                shape = MaterialTheme.shapes.medium
+                            )
+
+                            DropdownMenu(
+                                expanded = sortDropdownExpanded,
+                                onDismissRequest = { sortDropdownExpanded = false }
+                            ) {
+                                ActivitySortOrder.values().forEach { order ->
+                                    DropdownMenuItem(
+                                        text = { Text(order.label) },
+                                        onClick = {
+                                            viewModel.setSortOrder(order)
+                                            sortDropdownExpanded = false
+                                        },
+                                        leadingIcon = {
+                                            if (uiState.sortOrder == order) {
+                                                Icon(OpenSplitIcons.Check, contentDescription = null)
+                                            }
+                                        }
+                                    )
+                                }
+                            }
+                        }
+                    }
+
+                    // Category Filter Chips Row
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(bottom = OpenSplitTokens.SpaceSM),
                         horizontalArrangement = Arrangement.spacedBy(OpenSplitTokens.SpaceSM),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
@@ -87,7 +198,7 @@ fun ActivityScreen(
                         }
                     }
 
-                    Spacer(modifier = Modifier.height(OpenSplitTokens.SpaceSM))
+                    Spacer(modifier = Modifier.height(OpenSplitTokens.SpaceXS))
 
                     if (uiState.activities.isEmpty()) {
                         Box(
@@ -103,13 +214,13 @@ fun ActivityScreen(
                                 BellWavesIllustration(size = 140.dp)
                                 Spacer(modifier = Modifier.height(OpenSplitTokens.SpaceXL))
                                 Text(
-                                    text = "No Activity Yet",
+                                    text = if (uiState.searchQuery.isNotBlank()) "No Matching Activity" else "No Activity Yet",
                                     style = MaterialTheme.typography.titleLarge,
                                     fontWeight = FontWeight.Bold
                                 )
                                 Spacer(modifier = Modifier.height(OpenSplitTokens.SpaceSM))
                                 Text(
-                                    text = "Activity will show up here as your groups do things.",
+                                    text = if (uiState.searchQuery.isNotBlank()) "Try refining your search query or filters." else "Activity will show up here as your groups do things.",
                                     style = MaterialTheme.typography.bodyMedium,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                                     textAlign = TextAlign.Center
@@ -125,6 +236,13 @@ fun ActivityScreen(
                                 val timeStr = remember(act.timestamp) {
                                     SimpleDateFormat("MMM d, yyyy • h:mm a", Locale.getDefault())
                                         .format(act.timestamp.toDate())
+                                }
+
+                                val icon = when (act.type) {
+                                    ActivityType.EXPENSE_ADDED, ActivityType.EXPENSE_EDITED, ActivityType.EXPENSE_DELETED -> OpenSplitIcons.CategoryBills
+                                    ActivityType.SETTLEMENT_ADDED -> OpenSplitIcons.Settle
+                                    ActivityType.GROUP_CREATED, ActivityType.MEMBER_ADDED, ActivityType.MEMBER_REMOVED -> OpenSplitIcons.Groups
+                                    ActivityType.COMMENT_ADDED -> OpenSplitIcons.CategoryOther
                                 }
 
                                 ListItem(
@@ -153,7 +271,7 @@ fun ActivityScreen(
                                         ) {
                                             Box(contentAlignment = Alignment.Center) {
                                                 Icon(
-                                                    imageVector = OpenSplitIcons.Activity,
+                                                    imageVector = icon,
                                                     contentDescription = null,
                                                     tint = MaterialTheme.colorScheme.primary,
                                                     modifier = Modifier.size(20.dp)
@@ -171,4 +289,5 @@ fun ActivityScreen(
         }
     }
 }
+
 

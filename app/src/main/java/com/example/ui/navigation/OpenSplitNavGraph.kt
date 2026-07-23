@@ -173,7 +173,13 @@ fun MainNavHost(navController: NavHostController, appContainer: AppContainer, au
 
         composable("person_balance/{friendId}") { backStackEntry ->
             val friendId = backStackEntry.arguments?.getString("friendId") ?: return@composable
-            com.example.ui.screens.PersonBalanceScreen(friendId = friendId, onNavigateBack = { navController.popBackStack() })
+            val vm: com.example.ui.viewmodel.PersonBalanceViewModel = androidx.lifecycle.viewmodel.compose.viewModel(
+                factory = com.example.ui.viewmodel.PersonBalanceViewModelFactory(friendId, appContainer)
+            )
+            com.example.ui.screens.PersonBalanceScreen(
+                viewModel = vm,
+                onNavigateBack = { navController.popBackStack() }
+            )
         }
 
         composable("add_expense/{groupId}") { backStackEntry ->

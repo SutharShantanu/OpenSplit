@@ -5,8 +5,9 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.rounded.Send
 import androidx.compose.material.icons.rounded.Delete
-import androidx.compose.material.icons.rounded.Send
+import com.example.util.CurrencyFormatter
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -81,7 +82,7 @@ fun ExpenseDetailScreen(
                                 )
                                 Spacer(modifier = Modifier.height(8.dp))
                                 Text(
-                                    text = "$${String.format("%.2f", exp.amount)}",
+                                    text = CurrencyFormatter.format(exp.amount, exp.currency),
                                     style = MaterialTheme.typography.displaySmall,
                                     fontWeight = FontWeight.Bold,
                                     color = MaterialTheme.colorScheme.primary
@@ -158,7 +159,7 @@ fun ExpenseDetailScreen(
                                 },
                                 enabled = commentText.isNotBlank()
                             ) {
-                                Icon(Icons.Rounded.Send, contentDescription = "Send comment")
+                                Icon(Icons.AutoMirrored.Rounded.Send, contentDescription = "Send comment")
                             }
                         }
                     }

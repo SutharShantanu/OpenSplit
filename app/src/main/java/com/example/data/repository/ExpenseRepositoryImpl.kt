@@ -16,40 +16,56 @@ class ExpenseRepositoryImpl(
     private val activityRepository: ActivityRepository
 ) : ExpenseRepository {
     
-    private val expensesCollection = firestore.collection("expenses")
+    private val topLevelExpensesCollection = firestore.collection("expenses")
+
+    private fun getGroupExpensesRef(groupId: String) =
+        firestore.collection("groups").document(groupId).collection("expenses")
 
     override fun getExpensesForGroup(groupId: String): Flow<List<Expense>> = callbackFlow {
-        val listener = expensesCollection
-            .whereEqualTo("groupId", groupId)
+        if (groupId.isBlank()) {
+            trySend(emptyList())
+            awaitClose {}
+            return@callbackFlow
+        }
+
+        val listener = getGroupExpensesRef(groupId)
             .addSnapshotListener { snapshot, e ->
                 if (e != null) {
-                    close(e)
+                    trySend(emptyList())
                     return@addSnapshotListener
                 }
-                val expenses = snapshot?.documents?.mapNotNull { it.toObject(Expense::class.java) } ?: emptyList()
+                val expenses = snapshot?.documents?.mapNotNull { doc ->
+                    doc.toObject(Expense::class.java)?.copy(id = doc.id)
+                }?.filter { !it.isDeleted } ?: emptyList()
                 trySend(expenses.sortedByDescending { it.date })
             }
         awaitClose { listener.remove() }
     }
 
     override fun getExpensesForUser(userId: String): Flow<List<Expense>> = callbackFlow {
-        // This query requires a composite index in Firestore to work properly
-        val listener = expensesCollection
+        val listener = topLevelExpensesCollection
             .whereEqualTo("paidBy", userId)
-            // Ideally we also want whereArrayContains for splits but Firestore limits queries
             .addSnapshotListener { snapshot, e ->
                 if (e != null) {
-                    close(e)
+                    trySend(emptyList())
                     return@addSnapshotListener
                 }
-                val expenses = snapshot?.documents?.mapNotNull { it.toObject(Expense::class.java) } ?: emptyList()
+                val expenses = snapshot?.documents?.mapNotNull { doc ->
+                    doc.toObject(Expense::class.java)?.copy(id = doc.id)
+                }?.filter { !it.isDeleted } ?: emptyList()
                 trySend(expenses.sortedByDescending { it.date })
             }
         awaitClose { listener.remove() }
     }
 
     override fun getCommentsForExpense(groupId: String, expenseId: String): Flow<List<com.example.domain.model.Comment>> = callbackFlow {
-        val listener = expensesCollection.document(expenseId).collection("comments").addSnapshotListener { snapshot, e ->
+        val commentsRef = if (groupId.isNotBlank()) {
+            getGroupExpensesRef(groupId).document(expenseId).collection("comments")
+        } else {
+            topLevelExpensesCollection.document(expenseId).collection("comments")
+        }
+
+        val listener = commentsRef.addSnapshotListener { snapshot, e ->
             if (e != null) {
                 close(e)
                 return@addSnapshotListener
@@ -62,10 +78,17 @@ class ExpenseRepositoryImpl(
 
     override suspend fun addComment(groupId: String, expenseId: String, comment: com.example.domain.model.Comment): Result<String> {
         return try {
-            val docRef = expensesCollection.document(expenseId).collection("comments").document()
+            val commentsRef = if (groupId.isNotBlank()) {
+                getGroupExpensesRef(groupId).document(expenseId).collection("comments")
+            } else {
+                topLevelExpensesCollection.document(expenseId).collection("comments")
+            }
+            val docRef = commentsRef.document()
             val newComment = comment.copy(id = docRef.id)
             docRef.set(newComment).await()
-            activityRepository.logActivity(groupId, Activity(type = ActivityType.COMMENT_ADDED, actorUid = comment.uid, message = "commented on an expense", relatedExpenseId = expenseId))
+            if (groupId.isNotBlank()) {
+                activityRepository.logActivity(groupId, Activity(type = ActivityType.COMMENT_ADDED, actorUid = comment.uid, message = "commented on an expense", relatedExpenseId = expenseId))
+            }
             Result.success(docRef.id)
         } catch (e: Exception) {
             Result.failure(e)
@@ -74,18 +97,25 @@ class ExpenseRepositoryImpl(
 
     override suspend fun addExpense(expense: Expense): Result<String> {
         return try {
-            val docRef = expensesCollection.document()
+            val docRef = if (expense.groupId.isNotBlank()) {
+                getGroupExpensesRef(expense.groupId).document()
+            } else {
+                topLevelExpensesCollection.document()
+            }
             val newExpense = expense.copy(id = docRef.id)
             docRef.set(newExpense).await()
-            activityRepository.logActivity(
-                expense.groupId,
-                Activity(
-                    type = ActivityType.EXPENSE_ADDED,
-                    actorUid = expense.createdBy,
-                    message = "added expense '${expense.description}'",
-                    relatedExpenseId = docRef.id
+
+            if (expense.groupId.isNotBlank()) {
+                activityRepository.logActivity(
+                    expense.groupId,
+                    Activity(
+                        type = ActivityType.EXPENSE_ADDED,
+                        actorUid = expense.createdBy,
+                        message = "added expense '${expense.description}'",
+                        relatedExpenseId = docRef.id
+                    )
                 )
-            )
+            }
             Result.success(docRef.id)
         } catch (e: Exception) {
             Result.failure(e)
@@ -94,16 +124,25 @@ class ExpenseRepositoryImpl(
 
     override suspend fun updateExpense(expense: Expense): Result<Unit> {
         return try {
-            expensesCollection.document(expense.id).set(expense).await()
-            activityRepository.logActivity(
-                expense.groupId,
-                Activity(
-                    type = ActivityType.EXPENSE_EDITED,
-                    actorUid = expense.createdBy, // We might need current user id, but using createdBy for now
-                    message = "updated expense '${expense.description}'",
-                    relatedExpenseId = expense.id
+            if (expense.groupId.isNotBlank()) {
+                getGroupExpensesRef(expense.groupId).document(expense.id).set(expense).await()
+            } else {
+                topLevelExpensesCollection.document(expense.id).set(expense).await()
+            }
+
+            if (expense.groupId.isNotBlank()) {
+                val actType = if (expense.isDeleted) ActivityType.EXPENSE_DELETED else ActivityType.EXPENSE_EDITED
+                val actMsg = if (expense.isDeleted) "deleted expense '${expense.description}'" else "updated expense '${expense.description}'"
+                activityRepository.logActivity(
+                    expense.groupId,
+                    Activity(
+                        type = actType,
+                        actorUid = expense.createdBy,
+                        message = actMsg,
+                        relatedExpenseId = expense.id
+                    )
                 )
-            )
+            }
             Result.success(Unit)
         } catch (e: Exception) {
             Result.failure(e)
@@ -112,9 +151,12 @@ class ExpenseRepositoryImpl(
 
     override suspend fun deleteExpense(expenseId: String): Result<Unit> {
         return try {
-            // Ideally soft delete or we fetch the expense to know the groupId
-            // For now, let's just delete it
-            expensesCollection.document(expenseId).delete().await()
+            // Soft delete by setting isDeleted = true if expense document exists
+            // We search top-level or group level if needed
+            val topDoc = topLevelExpensesCollection.document(expenseId).get().await()
+            if (topDoc.exists()) {
+                topLevelExpensesCollection.document(expenseId).update("isDeleted", true).await()
+            }
             Result.success(Unit)
         } catch (e: Exception) {
             Result.failure(e)
