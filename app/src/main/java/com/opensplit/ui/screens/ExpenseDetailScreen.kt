@@ -110,7 +110,7 @@ fun ExpenseDetailScreen(
                             modifier = Modifier.weight(1f),
                             verticalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
-                            items(detailState.comments) { comment ->
+                            items(detailState.comments, key = { it.id }) { comment ->
                                 Card(
                                     modifier = Modifier.fillMaxWidth(),
                                     colors = CardDefaults.cardColors(

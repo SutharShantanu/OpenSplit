@@ -232,7 +232,7 @@ fun ActivityScreen(
                             verticalArrangement = Arrangement.spacedBy(OpenSplitTokens.SpaceXS),
                             contentPadding = PaddingValues(bottom = OpenSplitTokens.SpaceLG)
                         ) {
-                            items(uiState.activities) { act ->
+                            items(uiState.activities, key = { it.id }) { act ->
                                 val timeStr = remember(act.timestamp) {
                                     SimpleDateFormat("MMM d, yyyy • h:mm a", Locale.getDefault())
                                         .format(act.timestamp.toDate())

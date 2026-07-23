@@ -8,6 +8,7 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -35,8 +36,8 @@ fun GroupsScreen(
 ) {
     val groupsState by viewModel.userGroups.collectAsState()
     var showCreateGroupDialog by remember { mutableStateOf(false) }
-    var searchQuery by remember { mutableStateOf("") }
-    var selectedSort by remember { mutableStateOf(GroupSortOption.RECENT) }
+    var searchQuery by rememberSaveable { mutableStateOf("") }
+    var selectedSort by rememberSaveable { mutableStateOf(GroupSortOption.RECENT) }
     val listState = rememberLazyListState()
 
     val isExpanded by remember {
@@ -153,7 +154,7 @@ fun GroupsScreen(
                             verticalArrangement = Arrangement.spacedBy(OpenSplitTokens.SpaceXS),
                             modifier = Modifier.fillMaxSize()
                         ) {
-                            items(filteredGroups) { group ->
+                            items(filteredGroups, key = { it.id }) { group ->
                                 ListItem(
                                     modifier = Modifier
                                         .fillMaxWidth()

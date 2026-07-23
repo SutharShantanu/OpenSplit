@@ -259,7 +259,7 @@ fun HomeScreen(
                             horizontalArrangement = Arrangement.spacedBy(OpenSplitTokens.SpaceMD),
                             contentPadding = PaddingValues(vertical = OpenSplitTokens.SpaceXS)
                         ) {
-                            items(homeState.recentGroups) { groupWithBal ->
+                            items(homeState.recentGroups, key = { it.group.id }) { groupWithBal ->
                                 var menuExpanded by remember { mutableStateOf(false) }
                                 val bal = groupWithBal.balance
                                 val formattedAmount = com.opensplit.util.CurrencyFormatter.format(

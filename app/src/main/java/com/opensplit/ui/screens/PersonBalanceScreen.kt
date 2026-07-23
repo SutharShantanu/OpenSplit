@@ -163,7 +163,7 @@ fun PersonBalanceScreen(
                             modifier = Modifier.weight(1f),
                             verticalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
-                            items(uiState.sharedExpenses) { expense ->
+                            items(uiState.sharedExpenses, key = { it.id }) { expense ->
                                 Card(
                                     modifier = Modifier.fillMaxWidth(),
                                     colors = CardDefaults.cardColors(

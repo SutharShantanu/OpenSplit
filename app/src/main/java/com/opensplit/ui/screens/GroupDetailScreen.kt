@@ -13,6 +13,7 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -43,9 +44,9 @@ fun GroupDetailScreen(
     val uiState by viewModel.uiState.collectAsState()
     var showAddMember by remember { mutableStateOf(false) }
     var showExportSheet by remember { mutableStateOf(false) }
-    var searchQuery by remember { mutableStateOf("") }
-    var selectedCategory by remember { mutableStateOf("All") }
-    var selectedTab by remember { mutableStateOf(0) }
+    var searchQuery by rememberSaveable { mutableStateOf("") }
+    var selectedCategory by rememberSaveable { mutableStateOf("All") }
+    var selectedTab by rememberSaveable { mutableStateOf(0) }
     val tabTitles = listOf("Expenses", "Balances", "Members")
 
     val context = LocalContext.current
@@ -209,7 +210,7 @@ fun GroupDetailScreen(
                                         verticalArrangement = Arrangement.spacedBy(OpenSplitTokens.SpaceXS),
                                         modifier = Modifier.fillMaxSize()
                                     ) {
-                                        items(filteredExpenses) { exp ->
+                                        items(filteredExpenses, key = { it.id }) { exp ->
                                             val categoryIcon = getCategoryIcon(exp.category)
                                             val categoryColor = getCategoryColor(exp.category)
                                             val dateStr = remember(exp.date) {
@@ -357,7 +358,7 @@ fun GroupDetailScreen(
                                         )
                                     }
 
-                                    items(data.members) { user ->
+                                    items(data.members, key = { it.uid }) { user ->
                                         ListItem(
                                             headlineContent = { Text(user.displayName, fontWeight = FontWeight.SemiBold) },
                                             supportingContent = { Text(user.email, style = MaterialTheme.typography.bodySmall) },
@@ -392,7 +393,7 @@ fun GroupDetailScreen(
                                             )
                                         }
 
-                                        items(data.pendingInvites) { invite ->
+                                        items(data.pendingInvites, key = { it.id }) { invite ->
                                             val expiryStr = remember(invite.expiresAt) {
                                                 try {
                                                     SimpleDateFormat("MMM d, yyyy", Locale.getDefault()).format(invite.expiresAt.toDate())

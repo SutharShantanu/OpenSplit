@@ -12,6 +12,7 @@ import androidx.compose.material.icons.rounded.Notifications
 import androidx.compose.material.icons.rounded.People
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -42,7 +43,7 @@ fun MainDashboard(
     appContainer: AppContainer,
     rootNavController: NavHostController
 ) {
-    var selectedTab by remember { mutableStateOf(0) }
+    var selectedTab by rememberSaveable { mutableStateOf(0) }
     val tabTitles = listOf("OpenSplit", "Groups", "Friends", "Analytics")
     val tabIcons = listOf(
         OpenSplitIcons.Home,
@@ -59,11 +60,16 @@ fun MainDashboard(
     val analyticsViewModel: AnalyticsViewModel = viewModel(factory = ViewModelFactory(appContainer))
 
     val currentUid = appContainer.authRepository.currentUser?.uid ?: ""
-    val currentUserState by appContainer.userRepository.getUserFlow(currentUid).collectAsState(initial = null)
+    // Remember the flows so recomposition doesn't rebuild and re-subscribe them each pass.
+    val currentUserFlow = remember(currentUid) { appContainer.userRepository.getUserFlow(currentUid) }
+    val currentUserState by currentUserFlow.collectAsState(initial = null)
     val userGroupsState by mainViewModel.userGroups.collectAsState()
 
     val groupIds = (userGroupsState as? ScreenState.Success)?.data?.map { it.id } ?: emptyList()
-    val activitiesState by appContainer.activityRepository.getActivityForUser(currentUid, groupIds).collectAsState(initial = emptyList())
+    val activitiesFlow = remember(currentUid, groupIds) {
+        appContainer.activityRepository.getActivityForUser(currentUid, groupIds)
+    }
+    val activitiesState by activitiesFlow.collectAsState(initial = emptyList())
 
     val unreadCount = remember(activitiesState, currentUserState) {
         val lastSeen = currentUserState?.lastSeenActivityTimestamp
