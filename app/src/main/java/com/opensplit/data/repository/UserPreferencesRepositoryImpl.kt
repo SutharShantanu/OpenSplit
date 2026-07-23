@@ -17,6 +17,7 @@ class UserPreferencesRepositoryImpl(private val context: Context) : UserPreferen
 
     private val THEME_KEY = stringPreferencesKey("theme")
     private val PERMISSION_PRIMER_KEY = booleanPreferencesKey("has_completed_permission_primer")
+    private val NOTIFICATIONS_KEY = booleanPreferencesKey("notifications_enabled")
 
     override val themeFlow: Flow<String> = context.dataStore.data
         .map { preferences ->
@@ -37,6 +38,17 @@ class UserPreferencesRepositoryImpl(private val context: Context) : UserPreferen
     override suspend fun setHasCompletedPermissionPrimer(completed: Boolean) {
         context.dataStore.edit { preferences ->
             preferences[PERMISSION_PRIMER_KEY] = completed
+        }
+    }
+
+    override val notificationsEnabledFlow: Flow<Boolean> = context.dataStore.data
+        .map { preferences ->
+            preferences[NOTIFICATIONS_KEY] ?: true
+        }
+
+    override suspend fun setNotificationsEnabled(enabled: Boolean) {
+        context.dataStore.edit { preferences ->
+            preferences[NOTIFICATIONS_KEY] = enabled
         }
     }
 }

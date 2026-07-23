@@ -1,6 +1,11 @@
 package com.opensplit.ui.screens
 
 import android.content.Intent
+import android.content.pm.PackageManager
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.core.content.ContextCompat
+import androidx.compose.ui.graphics.vector.ImageVector
 import android.net.Uri
 import android.widget.Toast
 import androidx.compose.animation.AnimatedContent
@@ -278,13 +283,10 @@ fun AccountScreen(
                                 headlineContent = { Text("Push Notifications", fontWeight = FontWeight.Medium) },
                                 supportingContent = { Text("Notify on new expenses & settlements") },
                                 trailingContent = {
-                                    var notifEnabled by remember { mutableStateOf(true) }
+                                    val notifEnabled by viewModel.notificationsEnabledFlow.collectAsState(initial = true)
                                     Switch(
                                         checked = notifEnabled,
-                                        onCheckedChange = {
-                                            notifEnabled = it
-                                            Toast.makeText(context, if (it) "Notifications enabled" else "Notifications disabled", Toast.LENGTH_SHORT).show()
-                                        }
+                                        onCheckedChange = { viewModel.setNotificationsEnabled(it) }
                                     )
                                 }
                             )
@@ -300,47 +302,29 @@ fun AccountScreen(
                         shape = MaterialTheme.shapes.large
                     ) {
                         Column {
-                            ListItem(
-                                headlineContent = { Text("Camera Access", fontWeight = FontWeight.Medium) },
-                                supportingContent = { Text("Scan receipts with AI OCR") },
-                                leadingContent = { Icon(OpenSplitIcons.Camera, contentDescription = null) },
-                                trailingContent = {
-                                    AssistChip(
-                                        onClick = { },
-                                        label = { Text("Granted") },
-                                        leadingIcon = { Icon(OpenSplitIcons.Check, contentDescription = null, modifier = Modifier.size(16.dp)) }
-                                    )
-                                }
+                            PermissionListItem(
+                                title = "Camera Access",
+                                subtitle = "Scan receipts with AI OCR",
+                                icon = OpenSplitIcons.Camera,
+                                permission = android.Manifest.permission.CAMERA
                             )
 
                             HorizontalDivider()
 
-                            ListItem(
-                                headlineContent = { Text("Storage & Export", fontWeight = FontWeight.Medium) },
-                                supportingContent = { Text("Save CSV, PDF reports") },
-                                leadingContent = { Icon(OpenSplitIcons.Download, contentDescription = null) },
-                                trailingContent = {
-                                    AssistChip(
-                                        onClick = { },
-                                        label = { Text("Granted") },
-                                        leadingIcon = { Icon(OpenSplitIcons.Check, contentDescription = null, modifier = Modifier.size(16.dp)) }
-                                    )
-                                }
+                            PermissionListItem(
+                                title = "Contacts Sync",
+                                subtitle = "Find friends by phone or email",
+                                icon = OpenSplitIcons.Contacts,
+                                permission = android.Manifest.permission.READ_CONTACTS
                             )
 
                             HorizontalDivider()
 
-                            ListItem(
-                                headlineContent = { Text("Contacts Sync", fontWeight = FontWeight.Medium) },
-                                supportingContent = { Text("Find friends by phone or email") },
-                                leadingContent = { Icon(OpenSplitIcons.Person, contentDescription = null) },
-                                trailingContent = {
-                                    AssistChip(
-                                        onClick = { },
-                                        label = { Text("Granted") },
-                                        leadingIcon = { Icon(OpenSplitIcons.Check, contentDescription = null, modifier = Modifier.size(16.dp)) }
-                                    )
-                                }
+                            PermissionListItem(
+                                title = "Notifications",
+                                subtitle = "Get notified about new activity",
+                                icon = OpenSplitIcons.Activity,
+                                permission = android.Manifest.permission.POST_NOTIFICATIONS
                             )
                         }
                     }
@@ -671,5 +655,43 @@ private fun StatChip(
             }
         }
     }
+}
+
+@Composable
+private fun PermissionListItem(
+    title: String,
+    subtitle: String,
+    icon: ImageVector,
+    permission: String
+) {
+    val context = LocalContext.current
+    var granted by remember {
+        mutableStateOf(
+            ContextCompat.checkSelfPermission(context, permission) == PackageManager.PERMISSION_GRANTED
+        )
+    }
+    val launcher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { isGranted -> granted = isGranted }
+
+    ListItem(
+        headlineContent = { Text(title, fontWeight = FontWeight.Medium) },
+        supportingContent = { Text(subtitle) },
+        leadingContent = { Icon(icon, contentDescription = null) },
+        trailingContent = {
+            if (granted) {
+                AssistChip(
+                    onClick = { },
+                    label = { Text("Granted") },
+                    leadingIcon = { Icon(OpenSplitIcons.Check, contentDescription = null, modifier = Modifier.size(16.dp)) }
+                )
+            } else {
+                AssistChip(
+                    onClick = { launcher.launch(permission) },
+                    label = { Text("Grant") }
+                )
+            }
+        }
+    )
 }
 

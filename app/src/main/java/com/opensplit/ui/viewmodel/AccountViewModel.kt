@@ -30,10 +30,17 @@ class AccountViewModel(
     private val retryTrigger = MutableStateFlow(0)
 
     val themeFlow = userPreferencesRepository.themeFlow
-    
+    val notificationsEnabledFlow = userPreferencesRepository.notificationsEnabledFlow
+
     fun setTheme(theme: String) {
         viewModelScope.launch {
             userPreferencesRepository.setTheme(theme)
+        }
+    }
+
+    fun setNotificationsEnabled(enabled: Boolean) {
+        viewModelScope.launch {
+            userPreferencesRepository.setNotificationsEnabled(enabled)
         }
     }
 

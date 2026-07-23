@@ -8,5 +8,8 @@ interface UserPreferencesRepository {
 
     val hasCompletedPermissionPrimer: Flow<Boolean>
     suspend fun setHasCompletedPermissionPrimer(completed: Boolean)
+
+    val notificationsEnabledFlow: Flow<Boolean>
+    suspend fun setNotificationsEnabled(enabled: Boolean)
 }
 
