@@ -72,7 +72,24 @@ fun AddExpenseScreen(
             val selectedParticipants = remember { mutableStateListOf<String>().apply { addAll(members.map { it.uid }) } }
             val participantMembers = members.filter { selectedParticipants.contains(it.uid) }
 
+            // Metadata: notes, date, and optional multiple payers.
+            var notes by remember { mutableStateOf("") }
+            var selectedDateMillis by remember { mutableStateOf(System.currentTimeMillis()) }
+            var showDatePicker by remember { mutableStateOf(false) }
+            var multiplePayers by remember { mutableStateOf(false) }
+            val payerAmounts = remember { mutableStateMapOf<String, String>() }
+
             val totalAmount = amountText.toDoubleOrNull() ?: 0.0
+
+            // Multi-payer map (uid -> amount), only when the toggle is on; must sum to total.
+            val payerMap: Map<String, Double>? = if (multiplePayers) {
+                members.associate { it.uid to (payerAmounts[it.uid]?.toDoubleOrNull() ?: 0.0) }
+                    .filterValues { it > 0.0 }
+            } else null
+            val payersValid = if (multiplePayers) {
+                payerMap != null && payerMap.isNotEmpty() &&
+                    kotlin.math.abs(payerMap.values.sum() - totalAmount) < 0.01
+            } else true
 
             fun validateAndBuildSplits(): Pair<SplitType, List<ExpenseSplit>>? {
                 if (totalAmount <= 0) return null
@@ -139,7 +156,7 @@ fun AddExpenseScreen(
                 validateAndBuildSplits()
             }
 
-            val isFormValid = description.isNotBlank() && totalAmount > 0 && splitResult != null && selectedParticipants.isNotEmpty() && !isSaving
+            val isFormValid = description.isNotBlank() && totalAmount > 0 && splitResult != null && selectedParticipants.isNotEmpty() && payersValid && !isSaving
 
             Column(
                 modifier = Modifier
@@ -230,29 +247,89 @@ fun AddExpenseScreen(
                     )
                 }
 
-                // Paid By Selection
+                // Date + Notes
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(OpenSplitTokens.SpaceSM)
+                ) {
+                    Text("Date", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                    Spacer(modifier = Modifier.weight(1f))
+                    OutlinedButton(onClick = { showDatePicker = true }) {
+                        Text(
+                            java.text.SimpleDateFormat("MMM d, yyyy", java.util.Locale.getDefault())
+                                .format(java.util.Date(selectedDateMillis))
+                        )
+                    }
+                }
+                OutlinedTextField(
+                    value = notes,
+                    onValueChange = { notes = it },
+                    label = { Text("Notes (optional)") },
+                    keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences),
+                    modifier = Modifier.fillMaxWidth()
+                )
+
+                // Paid By Selection (single payer, or split across multiple payers)
                 Column {
-                    Text(
-                        text = "Paid by",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold
-                    )
-                    Spacer(modifier = Modifier.height(OpenSplitTokens.SpaceXS))
                     Row(
-                        horizontalArrangement = Arrangement.spacedBy(OpenSplitTokens.SpaceSM),
-                        modifier = Modifier.fillMaxWidth()
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        members.forEach { user ->
-                            val isSelected = paidBy == user.uid
-                            FilterChip(
-                                selected = isSelected,
-                                onClick = { paidBy = user.uid },
-                                label = { Text(user.displayName) },
-                                leadingIcon = {
-                                    if (isSelected) {
-                                        Icon(OpenSplitIcons.Check, contentDescription = null, modifier = Modifier.size(16.dp))
+                        Text(
+                            text = "Paid by",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Spacer(modifier = Modifier.weight(1f))
+                        Text("Multiple", style = MaterialTheme.typography.bodySmall)
+                        Spacer(modifier = Modifier.width(OpenSplitTokens.SpaceXS))
+                        Switch(checked = multiplePayers, onCheckedChange = { multiplePayers = it })
+                    }
+                    Spacer(modifier = Modifier.height(OpenSplitTokens.SpaceXS))
+                    if (!multiplePayers) {
+                        FlowRow(
+                            horizontalArrangement = Arrangement.spacedBy(OpenSplitTokens.SpaceSM),
+                            verticalArrangement = Arrangement.spacedBy(OpenSplitTokens.SpaceXS),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            members.forEach { user ->
+                                val isSelected = paidBy == user.uid
+                                FilterChip(
+                                    selected = isSelected,
+                                    onClick = { paidBy = user.uid },
+                                    label = { Text(user.displayName) },
+                                    leadingIcon = {
+                                        if (isSelected) {
+                                            Icon(OpenSplitIcons.Check, contentDescription = null, modifier = Modifier.size(16.dp))
+                                        }
                                     }
+                                )
+                            }
+                        }
+                    } else {
+                        Column(verticalArrangement = Arrangement.spacedBy(OpenSplitTokens.SpaceXS)) {
+                            members.forEach { user ->
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    Text(user.displayName, modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium)
+                                    OutlinedTextField(
+                                        value = payerAmounts[user.uid] ?: "",
+                                        onValueChange = { payerAmounts[user.uid] = it },
+                                        placeholder = { Text("0.00") },
+                                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                                        singleLine = true,
+                                        modifier = Modifier.width(120.dp)
+                                    )
                                 }
+                            }
+                            val paidSum = payerMap?.values?.sum() ?: 0.0
+                            Text(
+                                text = "Payers total: ${com.opensplit.util.CurrencyFormatter.format(paidSum, group.currency)} of ${com.opensplit.util.CurrencyFormatter.format(totalAmount, group.currency)}",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = if (payersValid) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error
                             )
                         }
                     }
@@ -486,21 +563,24 @@ fun AddExpenseScreen(
                     onClick = {
                         if (isSaving) return@Button
                         val evaluated = splitResult
-                        if (description.isNotBlank() && totalAmount > 0 && evaluated != null) {
+                        if (description.isNotBlank() && totalAmount > 0 && evaluated != null && payersValid) {
                             isSaving = true
                             val (sType, splitsList) = evaluated
+                            val effectivePaidBy = if (multiplePayers) (payerMap?.keys?.firstOrNull() ?: paidBy) else paidBy
                             val newExpense = Expense(
                                 groupId = group.id,
                                 description = description.trim(),
                                 amount = totalAmount,
-                                paidBy = paidBy,
+                                paidBy = effectivePaidBy,
+                                multiPayer = if (multiplePayers) payerMap else null,
                                 category = category,
                                 currency = group.currency,
                                 splitType = sType,
                                 splits = splitsList,
                                 items = if (sType == SplitType.ITEMIZED) itemizedList.toList() else null,
+                                notes = notes.trim().ifBlank { null },
                                 createdBy = paidBy,
-                                date = Timestamp.now()
+                                date = Timestamp(java.util.Date(selectedDateMillis))
                             )
 
                             viewModel.addExpense(newExpense) {
@@ -519,6 +599,24 @@ fun AddExpenseScreen(
                         Text("Saving...")
                     } else {
                         Text("Save Expense", fontWeight = FontWeight.Bold)
+                    }
+                }
+
+                if (showDatePicker) {
+                    val dateState = rememberDatePickerState(initialSelectedDateMillis = selectedDateMillis)
+                    DatePickerDialog(
+                        onDismissRequest = { showDatePicker = false },
+                        confirmButton = {
+                            TextButton(onClick = {
+                                dateState.selectedDateMillis?.let { selectedDateMillis = it }
+                                showDatePicker = false
+                            }) { Text("OK") }
+                        },
+                        dismissButton = {
+                            TextButton(onClick = { showDatePicker = false }) { Text("Cancel") }
+                        }
+                    ) {
+                        DatePicker(state = dateState)
                     }
                 }
             }
