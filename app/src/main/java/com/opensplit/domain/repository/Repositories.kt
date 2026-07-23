@@ -69,6 +69,12 @@ interface SettlementRepository {
     suspend fun addSettlement(groupId: String, settlement: com.opensplit.domain.model.Settlement): Result<String>
 }
 
+interface PendingInviteRepository {
+    fun getPendingInvites(groupId: String): Flow<List<com.opensplit.domain.model.PendingInvite>>
+    suspend fun addInvite(invite: com.opensplit.domain.model.PendingInvite): Result<String>
+    suspend fun revokeInvite(groupId: String, inviteId: String): Result<Unit>
+}
+
 interface ActivityRepository {
     fun getActivityForGroup(groupId: String): Flow<List<com.opensplit.domain.model.Activity>>
     fun getActivityForUser(userId: String, groupIds: List<String>): Flow<List<com.opensplit.domain.model.Activity>>

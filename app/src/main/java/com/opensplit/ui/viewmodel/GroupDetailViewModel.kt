@@ -11,6 +11,7 @@ import com.opensplit.domain.repository.ActivityRepository
 import com.opensplit.domain.repository.AuthRepository
 import com.opensplit.domain.repository.ExpenseRepository
 import com.opensplit.domain.repository.GroupRepository
+import com.opensplit.domain.repository.PendingInviteRepository
 import com.opensplit.domain.repository.SettlementRepository
 import com.opensplit.domain.repository.UserRepository
 import com.opensplit.domain.logic.BalanceCalculator
@@ -40,18 +41,13 @@ class GroupDetailViewModel(
     private val userRepository: UserRepository,
     private val activityRepository: ActivityRepository,
     private val settlementRepository: SettlementRepository,
+    private val pendingInviteRepository: PendingInviteRepository,
     private val authRepository: AuthRepository? = null
 ) : ViewModel() {
 
     private val retryTrigger = MutableStateFlow(0)
-    private val _pendingInvites = MutableStateFlow<List<PendingInvite>>(emptyList())
 
-    val uiState: StateFlow<ScreenState<GroupDetailUiState>> = combine(
-        retryTrigger,
-        _pendingInvites
-    ) { _, pendingList ->
-        pendingList
-    }.flatMapLatest { pendingList ->
+    val uiState: StateFlow<ScreenState<GroupDetailUiState>> = retryTrigger.flatMapLatest {
         flow {
             emit(ScreenState.Loading)
             try {
@@ -60,9 +56,10 @@ class GroupDetailViewModel(
 
                 combine(
                     expenseRepository.getExpensesForGroup(groupId),
-                    settlementRepository.getSettlementsForGroup(groupId)
-                ) { expList, settleList -> expList to settleList }
-                    .collect { (expList, settleList) ->
+                    settlementRepository.getSettlementsForGroup(groupId),
+                    pendingInviteRepository.getPendingInvites(groupId)
+                ) { expList, settleList, pendingList -> Triple(expList, settleList, pendingList) }
+                    .collect { (expList, settleList, pendingList) ->
                         val balances = BalanceCalculator.netBalances(expList, settleList)
                         val suggestions = BalanceCalculator.settlementSuggestions(expList, settleList, g.simplifyDebts)
                         emit(
@@ -124,28 +121,33 @@ class GroupDetailViewModel(
                     retry()
                 }
             } else {
-                // User not registered yet - create pending invite
-                val newInvite = PendingInvite(
-                    id = java.util.UUID.randomUUID().toString(),
-                    groupId = groupId,
-                    email = trimmedEmail,
-                    invitedBy = actorUid
-                )
-                _pendingInvites.update { current -> current.filterNot { it.email.equals(trimmedEmail, ignoreCase = true) } + newInvite }
-                activityRepository.logActivity(
-                    groupId,
-                    Activity(
-                        type = ActivityType.MEMBER_ADDED,
-                        actorUid = actorUid,
-                        message = "sent invite to '$trimmedEmail'"
+                // User not registered yet - persist a pending invite in Firestore.
+                val alreadyInvited = currentState.data.pendingInvites
+                    .any { it.email.equals(trimmedEmail, ignoreCase = true) }
+                if (!alreadyInvited) {
+                    val newInvite = PendingInvite(
+                        groupId = groupId,
+                        email = trimmedEmail,
+                        invitedBy = actorUid
                     )
-                )
+                    pendingInviteRepository.addInvite(newInvite)
+                    activityRepository.logActivity(
+                        groupId,
+                        Activity(
+                            type = ActivityType.MEMBER_ADDED,
+                            actorUid = actorUid,
+                            message = "sent invite to '$trimmedEmail'"
+                        )
+                    )
+                }
             }
         }
     }
 
     fun revokeInvite(inviteId: String) {
-        _pendingInvites.update { list -> list.filterNot { it.id == inviteId } }
+        viewModelScope.launch {
+            pendingInviteRepository.revokeInvite(groupId, inviteId)
+        }
     }
 
     fun addMemberFromContact(emailOrPhone: String, context: android.content.Context) {

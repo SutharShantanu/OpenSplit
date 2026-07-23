@@ -75,6 +75,7 @@ class GroupDetailViewModelFactory(
                 userRepository = container.userRepository,
                 activityRepository = container.activityRepository,
                 settlementRepository = container.settlementRepository,
+                pendingInviteRepository = container.pendingInviteRepository,
                 authRepository = container.authRepository
             ) as T
         }

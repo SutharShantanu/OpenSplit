@@ -59,6 +59,9 @@ class AppContainer(private val applicationContext: Context) {
     val settlementRepository: com.opensplit.domain.repository.SettlementRepository by lazy {
         com.opensplit.data.repository.SettlementRepositoryImpl(firestore, activityRepository)
     }
+    val pendingInviteRepository: com.opensplit.domain.repository.PendingInviteRepository by lazy {
+        com.opensplit.data.repository.PendingInviteRepositoryImpl(firestore)
+    }
     val userPreferencesRepository: UserPreferencesRepository by lazy {
         UserPreferencesRepositoryImpl(applicationContext)
     }
