@@ -102,6 +102,68 @@ class GroupDetailViewModel(
         }
     }
 
+    // --- Group management ---
+
+    private fun currentGroup(): Group? = (uiState.value as? ScreenState.Success)?.data?.group
+
+    fun renameGroup(newName: String) {
+        val g = currentGroup() ?: return
+        if (newName.isBlank() || newName.trim() == g.name) return
+        viewModelScope.launch {
+            groupRepository.updateGroup(g.copy(name = newName.trim()))
+            retry()
+        }
+    }
+
+    fun setGroupCurrency(currency: String) {
+        val g = currentGroup() ?: return
+        if (currency == g.currency) return
+        viewModelScope.launch {
+            groupRepository.updateGroup(g.copy(currency = currency))
+            retry()
+        }
+    }
+
+    fun setSimplifyDebts(enabled: Boolean) {
+        val g = currentGroup() ?: return
+        if (enabled == g.simplifyDebts) return
+        viewModelScope.launch {
+            groupRepository.updateGroup(g.copy(simplifyDebts = enabled))
+            retry()
+        }
+    }
+
+    fun removeMember(uid: String) {
+        val g = currentGroup() ?: return
+        if (!g.memberIds.contains(uid)) return
+        viewModelScope.launch {
+            groupRepository.updateGroup(g.copy(memberIds = g.memberIds - uid))
+            val actor = authRepository?.getCurrentUserId() ?: ""
+            val name = (uiState.value as? ScreenState.Success)?.data?.members?.find { it.uid == uid }?.displayName ?: "a member"
+            activityRepository.logActivity(
+                groupId,
+                Activity(type = ActivityType.MEMBER_REMOVED, actorUid = actor, message = "removed '$name'")
+            )
+            retry()
+        }
+    }
+
+    fun leaveGroup(onDone: () -> Unit) {
+        val g = currentGroup() ?: return
+        viewModelScope.launch {
+            val uid = authRepository?.getCurrentUserId() ?: return@launch
+            groupRepository.updateGroup(g.copy(memberIds = g.memberIds - uid))
+            onDone()
+        }
+    }
+
+    fun deleteGroup(onDone: () -> Unit) {
+        viewModelScope.launch {
+            groupRepository.deleteGroup(groupId)
+            onDone()
+        }
+    }
+
     fun addMemberByEmail(email: String) {
         val trimmedEmail = email.trim()
         if (trimmedEmail.isBlank()) return

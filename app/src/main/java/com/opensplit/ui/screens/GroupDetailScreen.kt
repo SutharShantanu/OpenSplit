@@ -45,6 +45,7 @@ fun GroupDetailScreen(
     val uiState by viewModel.uiState.collectAsState()
     var showAddMember by remember { mutableStateOf(false) }
     var showExportSheet by remember { mutableStateOf(false) }
+    var showSettings by remember { mutableStateOf(false) }
     var searchQuery by rememberSaveable { mutableStateOf("") }
     var selectedCategory by rememberSaveable { mutableStateOf("All") }
     var selectedTab by rememberSaveable { mutableStateOf(0) }
@@ -101,6 +102,9 @@ fun GroupDetailScreen(
                     }
                     IconButton(onClick = { showAddMember = true }) {
                         Icon(OpenSplitIcons.Invite, contentDescription = "Add Member")
+                    }
+                    IconButton(onClick = { showSettings = true }) {
+                        Icon(OpenSplitIcons.More, contentDescription = "Group settings")
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
@@ -546,6 +550,119 @@ fun GroupDetailScreen(
                 }
             }
         )
+    }
+
+    if (showSettings) {
+        val success = uiState as? ScreenState.Success
+        if (success != null) {
+            val group = success.data.group
+            val members = success.data.members
+            val currentUid = com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.uid
+            var renameText by remember(group.name) { mutableStateOf(group.name) }
+            var confirmDelete by remember { mutableStateOf(false) }
+            val currencies = listOf("INR", "USD", "EUR", "GBP", "JPY", "AUD", "CAD")
+
+            ModalBottomSheet(onDismissRequest = { showSettings = false }) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(OpenSplitTokens.SpaceLG),
+                    verticalArrangement = Arrangement.spacedBy(OpenSplitTokens.SpaceMD)
+                ) {
+                    Text("Group settings", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+
+                    // Rename
+                    OutlinedTextField(
+                        value = renameText,
+                        onValueChange = { renameText = it },
+                        label = { Text("Group name") },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    Button(
+                        onClick = { viewModel.renameGroup(renameText) },
+                        enabled = renameText.isNotBlank() && renameText.trim() != group.name,
+                        modifier = Modifier.fillMaxWidth()
+                    ) { Text("Rename") }
+
+                    // Currency
+                    Text("Currency", fontWeight = FontWeight.SemiBold)
+                    FlowRow(horizontalArrangement = Arrangement.spacedBy(OpenSplitTokens.SpaceSM)) {
+                        currencies.forEach { c ->
+                            FilterChip(
+                                selected = group.currency == c,
+                                onClick = { viewModel.setGroupCurrency(c) },
+                                label = { Text(c) }
+                            )
+                        }
+                    }
+
+                    // Simplify debts toggle
+                    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text("Simplify debts", fontWeight = FontWeight.SemiBold)
+                            Text(
+                                "Minimize the number of payments to settle up",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                        Switch(checked = group.simplifyDebts, onCheckedChange = { viewModel.setSimplifyDebts(it) })
+                    }
+
+                    // Members (remove; can't remove the creator)
+                    Text("Members", fontWeight = FontWeight.SemiBold)
+                    members.forEach { m ->
+                        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
+                            Text(m.displayName, modifier = Modifier.weight(1f))
+                            if (m.uid != group.createdBy) {
+                                TextButton(onClick = { viewModel.removeMember(m.uid) }) {
+                                    Text("Remove", color = MaterialTheme.colorScheme.error)
+                                }
+                            } else {
+                                Text("Owner", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            }
+                        }
+                    }
+
+                    HorizontalDivider()
+
+                    OutlinedButton(
+                        onClick = { viewModel.leaveGroup { showSettings = false; onNavigateBack() } },
+                        modifier = Modifier.fillMaxWidth()
+                    ) { Text("Leave group") }
+
+                    if (currentUid == group.createdBy) {
+                        Button(
+                            onClick = { confirmDelete = true },
+                            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error),
+                            modifier = Modifier.fillMaxWidth()
+                        ) { Text("Delete group") }
+                    }
+                    Spacer(modifier = Modifier.height(OpenSplitTokens.SpaceLG))
+                }
+            }
+
+            if (confirmDelete) {
+                AlertDialog(
+                    onDismissRequest = { confirmDelete = false },
+                    title = { Text("Delete group?") },
+                    text = { Text("This permanently deletes '${group.name}' and its expenses for everyone.") },
+                    confirmButton = {
+                        Button(
+                            onClick = {
+                                confirmDelete = false
+                                viewModel.deleteGroup { showSettings = false; onNavigateBack() }
+                            },
+                            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
+                        ) { Text("Delete") }
+                    },
+                    dismissButton = {
+                        TextButton(onClick = { confirmDelete = false }) { Text("Cancel") }
+                    }
+                )
+            }
+        }
     }
 }
 
