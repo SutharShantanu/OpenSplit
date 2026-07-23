@@ -29,11 +29,11 @@ fun SettleUpScreen(
     val currentUserId by viewModel.currentUserId.collectAsState()
     val currency by viewModel.currency.collectAsState()
     
-    var fromUid by remember { mutableStateOf(currentUserId ?: "") }
-    var toUid by remember { mutableStateOf(suggestedToUid ?: "") }
-    var amountText by remember { mutableStateOf(suggestedAmount?.toString() ?: "") }
-    var note by remember { mutableStateOf("") }
-    var method by remember { mutableStateOf(SettlementMethod.CASH) }
+    var fromUid by rememberSaveable { mutableStateOf(currentUserId ?: "") }
+    var toUid by rememberSaveable { mutableStateOf(suggestedToUid ?: "") }
+    var amountText by rememberSaveable { mutableStateOf(suggestedAmount?.toString() ?: "") }
+    var note by rememberSaveable { mutableStateOf("") }
+    var method by rememberSaveable { mutableStateOf(SettlementMethod.CASH) }
     
     LaunchedEffect(currentUserId) {
         if (fromUid.isEmpty() && currentUserId != null) {
@@ -54,7 +54,7 @@ fun SettleUpScreen(
                     TextButton(
                         onClick = {
                             val amount = amountText.toDoubleOrNull()
-                            if (amount != null && fromUid.isNotBlank() && toUid.isNotBlank()) {
+                            if (amount != null && amount > 0 && fromUid.isNotBlank() && toUid.isNotBlank() && fromUid != toUid) {
                                 viewModel.addSettlement(
                                     fromUid = fromUid,
                                     toUid = toUid,
@@ -65,7 +65,8 @@ fun SettleUpScreen(
                                 )
                             }
                         },
-                        enabled = fromUid.isNotBlank() && toUid.isNotBlank() && amountText.toDoubleOrNull() != null
+                        enabled = fromUid.isNotBlank() && toUid.isNotBlank() && fromUid != toUid &&
+                            (amountText.toDoubleOrNull()?.let { it > 0 } == true)
                     ) {
                         Text("Save", fontWeight = FontWeight.Bold)
                     }

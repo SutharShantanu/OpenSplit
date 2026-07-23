@@ -256,7 +256,7 @@ fun GroupDetailScreen(
                                                 },
                                                 trailingContent = {
                                                     Text(
-                                                        text = "${exp.currency}${String.format("%.2f", exp.amount)}",
+                                                        text = com.opensplit.util.CurrencyFormatter.format(exp.amount, exp.currency),
                                                         style = MaterialTheme.typography.titleMedium,
                                                         fontWeight = FontWeight.Bold
                                                     )
@@ -295,9 +295,9 @@ fun GroupDetailScreen(
                                             val color = if (bal > 0.01) OpenSplitTokens.OwedPositive else if (bal < -0.01) OpenSplitTokens.OwedNegative else OpenSplitTokens.OwedNeutral
                                             val currency = data.group.currency
                                             val text = if (bal > 0.01) {
-                                                "Gets back $currency ${String.format("%.2f", bal)}"
+                                                "Gets back ${com.opensplit.util.CurrencyFormatter.format(bal, currency)}"
                                             } else if (bal < -0.01) {
-                                                "Owes $currency ${String.format("%.2f", -bal)}"
+                                                "Owes ${com.opensplit.util.CurrencyFormatter.format(-bal, currency)}"
                                             } else {
                                                 "Settled up"
                                             }

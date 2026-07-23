@@ -100,7 +100,8 @@ class PersonBalanceViewModel(
                 }
             }
         }.collect { emit(it) }
-    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), ScreenState.Loading)
+    }.catch { emit(ScreenState.Error(it.message ?: "Failed to load balance")) }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), ScreenState.Loading)
 }
 
 class PersonBalanceViewModelFactory(

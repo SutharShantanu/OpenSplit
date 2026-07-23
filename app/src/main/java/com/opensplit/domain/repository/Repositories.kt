@@ -61,7 +61,7 @@ interface ExpenseRepository {
     suspend fun addComment(groupId: String, expenseId: String, comment: com.opensplit.domain.model.Comment): Result<String>
     suspend fun addExpense(expense: Expense): Result<String>
     suspend fun updateExpense(expense: Expense): Result<Unit>
-    suspend fun deleteExpense(expenseId: String): Result<Unit>
+    suspend fun deleteExpense(groupId: String, expenseId: String): Result<Unit>
 }
 
 interface SettlementRepository {

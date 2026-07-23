@@ -149,13 +149,30 @@ class ExpenseRepositoryImpl(
         }
     }
 
-    override suspend fun deleteExpense(expenseId: String): Result<Unit> {
+    override suspend fun deleteExpense(groupId: String, expenseId: String): Result<Unit> {
         return try {
-            // Soft delete by setting isDeleted = true if expense document exists
-            // We search top-level or group level if needed
-            val topDoc = topLevelExpensesCollection.document(expenseId).get().await()
-            if (topDoc.exists()) {
-                topLevelExpensesCollection.document(expenseId).update("isDeleted", true).await()
+            // Group expenses live under groups/{groupId}/expenses; personal ones live at
+            // the top level. Soft-delete in the correct collection.
+            val docRef = if (groupId.isNotBlank()) {
+                getGroupExpensesRef(groupId).document(expenseId)
+            } else {
+                topLevelExpensesCollection.document(expenseId)
+            }
+            val snapshot = docRef.get().await()
+            if (snapshot.exists()) {
+                docRef.update("isDeleted", true).await()
+                if (groupId.isNotBlank()) {
+                    val expense = snapshot.toObject(Expense::class.java)
+                    activityRepository.logActivity(
+                        groupId,
+                        Activity(
+                            type = ActivityType.EXPENSE_DELETED,
+                            actorUid = expense?.createdBy ?: "",
+                            message = "deleted expense '${expense?.description ?: ""}'",
+                            relatedExpenseId = expenseId
+                        )
+                    )
+                }
             }
             Result.success(Unit)
         } catch (e: Exception) {

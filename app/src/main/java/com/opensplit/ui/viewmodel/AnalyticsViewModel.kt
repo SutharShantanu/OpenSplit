@@ -126,7 +126,8 @@ class AnalyticsViewModel(private val appContainer: AppContainer) : ViewModel() {
             }
         }.flatMapLatest { it }
             .collect { emit(it) }
-    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), ScreenState.Loading)
+    }.catch { emit(ScreenState.Error(it.message ?: "Failed to load analytics")) }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), ScreenState.Loading)
 
     fun selectGroupScope(groupId: String?) {
         _selectedGroupId.value = groupId

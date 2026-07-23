@@ -115,7 +115,8 @@ class HomeViewModel(private val appContainer: AppContainer) : ViewModel() {
             }
         }.flatMapLatest { it }
             .collect { emit(it) }
-    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), ScreenState.Loading)
+    }.catch { emit(ScreenState.Error(it.message ?: "Failed to load home")) }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), ScreenState.Loading)
 
     fun dismissNudge(suggestion: DebtSimplifier.SettlementSuggestion) {
         _dismissedNudgeKeys.value = _dismissedNudgeKeys.value + nudgeKey(suggestion)

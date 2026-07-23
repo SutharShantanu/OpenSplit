@@ -66,6 +66,9 @@ class SettleUpViewModel(
         note: String?,
         onSuccess: () -> Unit
     ) {
+        // Guard against invalid settlements (self-payment or non-positive amount).
+        if (fromUid == toUid || amount <= 0) return
+
         viewModelScope.launch {
             val settlement = Settlement(
                 fromUid = fromUid,
@@ -77,12 +80,15 @@ class SettleUpViewModel(
             )
             val result = settlementRepository.addSettlement(groupId, settlement)
             if (result.isSuccess) {
+                val fromName = _members.value.find { it.uid == fromUid }?.displayName ?: "Someone"
+                val toName = _members.value.find { it.uid == toUid }?.displayName ?: "someone"
+                val formatted = com.opensplit.util.CurrencyFormatter.format(amount, _currency.value)
                 activityRepository.logActivity(
                     groupId,
                     Activity(
                         type = ActivityType.SETTLEMENT_ADDED,
                         actorUid = fromUid,
-                        message = "recorded a settlement of ${_currency.value} $amount to someone", // ideally we show the names but need user objects
+                        message = "$fromName paid $toName $formatted",
                         relatedExpenseId = result.getOrNull()
                     )
                 )

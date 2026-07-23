@@ -44,7 +44,9 @@ class ExpenseDetailViewModel(
                     } else {
                         ScreenState.Error("Expense not found")
                     }
-                }.collect {
+                }
+                .catch { e -> _uiState.value = ScreenState.Error(e.message ?: "Failed to load expense") { loadData() } }
+                .collect {
                     _uiState.value = it
                 }
         }
@@ -64,7 +66,7 @@ class ExpenseDetailViewModel(
 
     fun deleteExpense(onSuccess: () -> Unit) {
         viewModelScope.launch {
-            val result = appContainer.expenseRepository.deleteExpense(expenseId)
+            val result = appContainer.expenseRepository.deleteExpense(groupId, expenseId)
             if (result.isSuccess) {
                 onSuccess()
             }

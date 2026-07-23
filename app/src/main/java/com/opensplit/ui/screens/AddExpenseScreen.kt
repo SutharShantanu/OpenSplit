@@ -281,7 +281,7 @@ fun AddExpenseScreen(
                         if (totalAmount > 0) {
                             val perPerson = totalAmount / maxOf(1, members.size)
                             Text(
-                                text = "Split equally: ${group.currency} ${String.format("%.2f", perPerson)} / person",
+                                text = "Split equally: ${com.opensplit.util.CurrencyFormatter.format(perPerson, group.currency)} / person",
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = MaterialTheme.colorScheme.primary,
                                 fontWeight = FontWeight.Medium
@@ -426,7 +426,7 @@ fun AddExpenseScreen(
                                         modifier = Modifier.fillMaxWidth(),
                                         horizontalArrangement = Arrangement.SpaceBetween
                                     ) {
-                                        Text("${item.name} (${group.currency}${item.price})")
+                                        Text("${item.name} (${com.opensplit.util.CurrencyFormatter.format(item.price, group.currency)})")
                                         Text("${item.assignedUids.size} people")
                                     }
                                 }
