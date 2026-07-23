@@ -102,4 +102,55 @@ class SplitCalculatorTest {
         assertEquals(15.0, splits.first { it.uid == "user1" }.amount, 0.001)
         assertEquals(10.0, splits.first { it.uid == "user2" }.amount, 0.001)
     }
+
+    @Test
+    fun testItemizedScalesUpForTaxTip() {
+        // Items total 25, but the entered amount is 30 (tax/tip). Splits must sum to 30.
+        val participants = listOf("user1", "user2")
+        val items = listOf(
+            ExpenseItem(id = "1", name = "Pizza", price = 20.0, assignedUids = listOf("user1", "user2")),
+            ExpenseItem(id = "2", name = "Soda", price = 5.0, assignedUids = listOf("user1"))
+        )
+        val splits = SplitCalculator.calculateSplits(
+            totalAmount = 30.0,
+            splitType = SplitType.ITEMIZED,
+            participants = participants,
+            items = items
+        )
+        assertEquals(30.0, splits.sumOf { it.amount }, 0.001)
+        assertEquals(18.0, splits.first { it.uid == "user1" }.amount, 0.001)
+        assertEquals(12.0, splits.first { it.uid == "user2" }.amount, 0.001)
+    }
+
+    @Test
+    fun testItemizedScalesDownForDiscount() {
+        // Items total 25, but a discount brings the entered amount to 20. Splits must sum to 20
+        // (previously the code only scaled up, leaving owed != paid).
+        val participants = listOf("user1", "user2")
+        val items = listOf(
+            ExpenseItem(id = "1", name = "Pizza", price = 20.0, assignedUids = listOf("user1", "user2")),
+            ExpenseItem(id = "2", name = "Soda", price = 5.0, assignedUids = listOf("user1"))
+        )
+        val splits = SplitCalculator.calculateSplits(
+            totalAmount = 20.0,
+            splitType = SplitType.ITEMIZED,
+            participants = participants,
+            items = items
+        )
+        assertEquals(20.0, splits.sumOf { it.amount }, 0.001)
+        assertEquals(12.0, splits.first { it.uid == "user1" }.amount, 0.001)
+        assertEquals(8.0, splits.first { it.uid == "user2" }.amount, 0.001)
+    }
+
+    @Test
+    fun testEqualSplitRemainderReconciles() {
+        // 100 / 3 does not divide evenly; splits must still sum exactly to 100.
+        val participants = listOf("a", "b", "c")
+        val splits = SplitCalculator.calculateSplits(
+            totalAmount = 100.0,
+            splitType = SplitType.EQUAL,
+            participants = participants
+        )
+        assertEquals(100.0, splits.sumOf { it.amount }, 0.0001)
+    }
 }
