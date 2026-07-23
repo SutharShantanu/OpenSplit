@@ -156,7 +156,8 @@ fun MainNavHost(navController: NavHostController, appContainer: AppContainer, au
                 viewModel = groupDetailViewModel,
                 onNavigateBack = { navController.popBackStack() },
                 onNavigateToAddExpense = { navController.navigate("add_expense/$groupId") },
-                onNavigateToExpenseDetail = { gId, eId -> navController.navigate("expense_detail/$gId/$eId") }
+                onNavigateToExpenseDetail = { gId, eId -> navController.navigate("expense_detail/$gId/$eId") },
+                onNavigateToSettleUp = { navController.navigate("settle_up/$groupId") }
             )
         }
         composable("expense_detail/{groupId}/{expenseId}") { backStackEntry ->

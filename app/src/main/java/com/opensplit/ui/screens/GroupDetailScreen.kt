@@ -39,7 +39,8 @@ fun GroupDetailScreen(
     viewModel: GroupDetailViewModel,
     onNavigateBack: () -> Unit,
     onNavigateToAddExpense: () -> Unit,
-    onNavigateToExpenseDetail: (String, String) -> Unit
+    onNavigateToExpenseDetail: (String, String) -> Unit,
+    onNavigateToSettleUp: () -> Unit = {}
 ) {
     val uiState by viewModel.uiState.collectAsState()
     var showAddMember by remember { mutableStateOf(false) }
@@ -276,6 +277,43 @@ fun GroupDetailScreen(
                                     .fillMaxSize()
                                     .padding(OpenSplitTokens.SpaceLG)
                             ) {
+                                val nameOf: (String) -> String = { uid ->
+                                    data.members.find { it.uid == uid }?.displayName ?: uid.take(6)
+                                }
+                                Button(
+                                    onClick = onNavigateToSettleUp,
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    Icon(OpenSplitIcons.Settle, contentDescription = null)
+                                    Spacer(modifier = Modifier.width(OpenSplitTokens.SpaceSM))
+                                    Text("Settle Up")
+                                }
+                                Spacer(modifier = Modifier.height(OpenSplitTokens.SpaceMD))
+                                if (data.simplifiedSettlements.isNotEmpty()) {
+                                    Card(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        shape = MaterialTheme.shapes.large,
+                                        colors = CardDefaults.cardColors(
+                                            containerColor = MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.4f)
+                                        )
+                                    ) {
+                                        Column(modifier = Modifier.padding(OpenSplitTokens.SpaceLG)) {
+                                            Text(
+                                                text = "Suggested payments",
+                                                style = MaterialTheme.typography.titleMedium,
+                                                fontWeight = FontWeight.Bold
+                                            )
+                                            Spacer(modifier = Modifier.height(OpenSplitTokens.SpaceSM))
+                                            data.simplifiedSettlements.forEach { s ->
+                                                Text(
+                                                    text = "${nameOf(s.fromUid)} → ${nameOf(s.toUid)}: ${com.opensplit.util.CurrencyFormatter.format(s.amount, data.group.currency)}",
+                                                    style = MaterialTheme.typography.bodyMedium
+                                                )
+                                            }
+                                        }
+                                    }
+                                    Spacer(modifier = Modifier.height(OpenSplitTokens.SpaceMD))
+                                }
                                 Card(
                                     modifier = Modifier.fillMaxWidth(),
                                     shape = MaterialTheme.shapes.large,
