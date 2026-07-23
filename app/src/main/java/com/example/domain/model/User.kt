@@ -9,5 +9,6 @@ data class User(
     val photoUrl: String? = null,
     val createdAt: Timestamp = Timestamp.now(),
     val defaultCurrency: String = "USD",
-    val fcmToken: String? = null
+    val fcmToken: String? = null,
+    val lastSeenActivityTimestamp: Timestamp? = null
 )

@@ -1,15 +1,24 @@
 package com.example.ui.screens
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+import com.example.domain.model.Expense
+import com.example.domain.model.ExpenseSplit
+import com.example.ui.components.StateLayout
 import com.example.ui.viewmodel.GroupDetailViewModel
+import com.google.firebase.Timestamp
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -17,91 +26,137 @@ fun AddExpenseScreen(
     viewModel: GroupDetailViewModel,
     onNavigateBack: () -> Unit
 ) {
-    val group by viewModel.group.collectAsState()
-    val members by viewModel.members.collectAsState()
+    val uiState by viewModel.uiState.collectAsState()
 
-    var description by remember { mutableStateOf("") }
-    var amountText by remember { mutableStateOf("") }
-    // In a real app we'd let user select who paid. For now we assume current user.
-    // However, since we don't have current user directly available here, we'll just pick the first member
-    var paidBy by remember { mutableStateOf(members.firstOrNull()?.uid ?: "") }
+    StateLayout(state = uiState) { data ->
+        val group = data.group
+        val members = data.members
 
-    LaunchedEffect(members) {
-        if (paidBy.isEmpty() && members.isNotEmpty()) {
-            paidBy = members.first().uid
-        }
-    }
+        var description by remember { mutableStateOf("") }
+        var amountText by remember { mutableStateOf("") }
+        var category by remember { mutableStateOf("General") }
+        var paidBy by remember { mutableStateOf(members.firstOrNull()?.uid ?: "") }
+        var categoryMenuExpanded by remember { mutableStateOf(false) }
 
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text("Add Expense") },
-                navigationIcon = {
-                    IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.Filled.Close, contentDescription = "Close")
+        val categories = listOf("General", "Food & Drink", "Transportation", "Entertainment", "Utilities", "Rent", "Groceries")
+
+        Scaffold(
+            topBar = {
+                TopAppBar(
+                    title = { Text("Add Expense", fontWeight = FontWeight.Bold) },
+                    navigationIcon = {
+                        IconButton(onClick = onNavigateBack) {
+                            Icon(Icons.Filled.Close, contentDescription = "Close")
+                        }
+                    },
+                    actions = {
+                        TextButton(
+                            onClick = {
+                                val amt = amountText.toDoubleOrNull()
+                                if (description.isNotBlank() && amt != null && amt > 0) {
+                                    val equalSplitAmount = amt / maxOf(1, members.size)
+                                    val splits = members.map { member ->
+                                        ExpenseSplit(uid = member.uid, amount = equalSplitAmount)
+                                    }
+
+                                    val newExpense = Expense(
+                                        groupId = group.id,
+                                        description = description.trim(),
+                                        amount = amt,
+                                        paidBy = paidBy,
+                                        category = category,
+                                        currency = group.currency,
+                                        splits = splits,
+                                        createdBy = paidBy,
+                                        date = Timestamp.now()
+                                    )
+
+                                    viewModel.addExpense(newExpense, onSuccess = onNavigateBack)
+                                }
+                            },
+                            enabled = description.isNotBlank() && (amountText.toDoubleOrNull() ?: 0.0) > 0
+                        ) {
+                            Text("Save", fontWeight = FontWeight.Bold)
+                        }
                     }
-                },
-                actions = {
-                    TextButton(
-                        onClick = {
-                            val amount = amountText.toDoubleOrNull()
-                            if (amount != null && description.isNotBlank() && paidBy.isNotBlank()) {
-                                viewModel.addExpense(description, amount, paidBy)
-                                onNavigateBack()
-                            }
-                        },
-                        enabled = description.isNotBlank() && amountText.toDoubleOrNull() != null
+                )
+            }
+        ) { padding ->
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(padding)
+                    .verticalScroll(rememberScrollState())
+                    .padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                OutlinedTextField(
+                    value = description,
+                    onValueChange = { description = it },
+                    label = { Text("Description") },
+                    placeholder = { Text("e.g. Dinner, Rent, Groceries") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth()
+                )
+
+                OutlinedTextField(
+                    value = amountText,
+                    onValueChange = { amountText = it },
+                    label = { Text("Amount (${group.currency})") },
+                    placeholder = { Text("0.00") },
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                    modifier = Modifier.fillMaxWidth()
+                )
+
+                Box {
+                    OutlinedTextField(
+                        value = category,
+                        onValueChange = {},
+                        readOnly = true,
+                        label = { Text("Category") },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { categoryMenuExpanded = true }
+                    )
+
+                    DropdownMenu(
+                        expanded = categoryMenuExpanded,
+                        onDismissRequest = { categoryMenuExpanded = false }
                     ) {
-                        Text("Save")
+                        categories.forEach { cat ->
+                            DropdownMenuItem(
+                                text = { Text(cat) },
+                                onClick = {
+                                    category = cat
+                                    categoryMenuExpanded = false
+                                }
+                            )
+                        }
                     }
                 }
-            )
-        }
-    ) { padding ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(padding)
-                .padding(16.dp)
-        ) {
-            OutlinedTextField(
-                value = description,
-                onValueChange = { description = it },
-                label = { Text("Description") },
-                singleLine = true,
-                modifier = Modifier.fillMaxWidth()
-            )
-            Spacer(modifier = Modifier.height(16.dp))
-            OutlinedTextField(
-                value = amountText,
-                onValueChange = { amountText = it },
-                label = { Text("Amount (${group?.currency ?: "USD"})") },
-                singleLine = true,
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                modifier = Modifier.fillMaxWidth()
-            )
 
-            Spacer(modifier = Modifier.height(24.dp))
-            Text("Paid by", style = MaterialTheme.typography.titleMedium)
-            Spacer(modifier = Modifier.height(8.dp))
-            
-            // simple dropdown or list of members
-            members.forEach { user ->
-                Row(
-                    verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
-                    modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)
-                ) {
-                    RadioButton(
-                        selected = paidBy == user.uid,
-                        onClick = { paidBy = user.uid }
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(user.displayName)
+                Text("Paid by", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+
+                Column {
+                    members.forEach { user ->
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable { paidBy = user.uid }
+                                .padding(vertical = 4.dp)
+                        ) {
+                            RadioButton(
+                                selected = paidBy == user.uid,
+                                onClick = { paidBy = user.uid }
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(user.displayName)
+                        }
+                    }
                 }
             }
-
-            Spacer(modifier = Modifier.height(24.dp))
-            Text("Split equally between all members", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
     }
 }

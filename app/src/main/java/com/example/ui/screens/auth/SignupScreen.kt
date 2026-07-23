@@ -137,18 +137,36 @@ fun SignupScreen(
                         val result = credentialManager.getCredential(context, request)
                         val credential = result.credential
                         
-                        if (credential is com.google.android.libraries.identity.googleid.GoogleIdTokenCredential) {
+                        val googleIdTokenCredential = try {
+                            if (credential is com.google.android.libraries.identity.googleid.GoogleIdTokenCredential) {
+                                credential
+                            } else {
+                                com.google.android.libraries.identity.googleid.GoogleIdTokenCredential.createFrom(credential.data)
+                            }
+                        } catch (e: Exception) {
+                            null
+                        }
+
+                        if (googleIdTokenCredential != null) {
                             viewModel.signInWithGoogle(
-                                idToken = credential.idToken,
-                                displayName = credential.displayName,
-                                email = credential.id,
-                                photoUrl = credential.profilePictureUri?.toString()
+                                idToken = googleIdTokenCredential.idToken,
+                                displayName = googleIdTokenCredential.displayName,
+                                email = googleIdTokenCredential.id,
+                                photoUrl = googleIdTokenCredential.profilePictureUri?.toString()
                             )
                         } else {
-                            Toast.makeText(context, "Unexpected credential type", Toast.LENGTH_SHORT).show()
+                            Toast.makeText(context, "Unexpected credential type: ${credential.type}", Toast.LENGTH_SHORT).show()
                         }
                     } catch (e: androidx.credentials.exceptions.GetCredentialException) {
-                        Toast.makeText(context, "Google Sign-In failed: ${e.message}", Toast.LENGTH_SHORT).show()
+                        if (e.message?.contains("credentials available", ignoreCase = true) == true) {
+                            Toast.makeText(context, "No Google account found. Please add one.", Toast.LENGTH_LONG).show()
+                            val intent = android.content.Intent(android.provider.Settings.ACTION_ADD_ACCOUNT).apply {
+                                putExtra(android.provider.Settings.EXTRA_ACCOUNT_TYPES, arrayOf("com.google"))
+                            }
+                            context.startActivity(intent)
+                        } else {
+                            Toast.makeText(context, "Google Sign-In failed: ${e.message}", Toast.LENGTH_LONG).show()
+                        }
                     } catch (e: Exception) {
                         Toast.makeText(context, "Google Sign-In error: ${e.message}", Toast.LENGTH_SHORT).show()
                     }

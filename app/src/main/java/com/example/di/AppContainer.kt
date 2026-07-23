@@ -9,6 +9,8 @@ import com.example.domain.repository.AuthRepository
 import com.example.domain.repository.ExpenseRepository
 import com.example.domain.repository.GroupRepository
 import com.example.domain.repository.UserRepository
+import com.example.domain.repository.UserPreferencesRepository
+import com.example.data.repository.UserPreferencesRepositoryImpl
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 
@@ -28,12 +30,25 @@ class AppContainer(private val applicationContext: Context) {
         UserRepositoryImpl(firestore)
     }
 
+    val activityRepository: com.example.domain.repository.ActivityRepository by lazy {
+        com.example.data.repository.ActivityRepositoryImpl(firestore)
+    }
+    
     val groupRepository: GroupRepository by lazy {
-        GroupRepositoryImpl(firestore)
+        GroupRepositoryImpl(firestore, activityRepository)
     }
 
     val expenseRepository: ExpenseRepository by lazy {
-        ExpenseRepositoryImpl(firestore)
+        ExpenseRepositoryImpl(firestore, activityRepository)
+    }
+    val settlementRepository: com.example.domain.repository.SettlementRepository by lazy {
+        com.example.data.repository.SettlementRepositoryImpl(firestore, activityRepository)
+    }
+    val userPreferencesRepository: UserPreferencesRepository by lazy {
+        UserPreferencesRepositoryImpl(applicationContext)
+    }
+    val friendRepository: com.example.domain.repository.FriendRepository by lazy {
+        com.example.data.repository.FriendRepositoryImpl(groupRepository, expenseRepository, settlementRepository)
     }
 }
 

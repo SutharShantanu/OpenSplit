@@ -13,6 +13,7 @@ class AuthRepositoryImpl(
     private val auth: FirebaseAuth
 ) : AuthRepository {
 
+    override val currentUser: com.google.firebase.auth.FirebaseUser? get() = auth.currentUser
     override fun getAuthState(): Flow<AuthState> = callbackFlow {
         val listener = FirebaseAuth.AuthStateListener { firebaseAuth ->
             val user = firebaseAuth.currentUser
@@ -67,6 +68,32 @@ class AuthRepositoryImpl(
         }
     }
 
+    override suspend fun updateProfile(displayName: String): Result<Unit> {
+        return try {
+            val updateRequest = com.google.firebase.auth.UserProfileChangeRequest.Builder()
+                .setDisplayName(displayName)
+                .build()
+            auth.currentUser?.updateProfile(updateRequest)?.await()
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    override suspend fun reauthenticateWithEmail(password: String): Result<Unit> {
+        return try {
+            val user = auth.currentUser
+            if (user != null && user.email != null) {
+                val credential = com.google.firebase.auth.EmailAuthProvider.getCredential(user.email!!, password)
+                user.reauthenticate(credential).await()
+                Result.success(Unit)
+            } else {
+                Result.failure(Exception("No user or email"))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
     override suspend fun deleteAccount(): Result<Unit> {
         return try {
             auth.currentUser?.delete()?.await()

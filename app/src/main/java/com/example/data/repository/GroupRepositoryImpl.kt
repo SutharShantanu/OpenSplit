@@ -1,6 +1,9 @@
 package com.example.data.repository
 
 import com.example.domain.model.Group
+import com.example.domain.model.Activity
+import com.example.domain.model.ActivityType
+import com.example.domain.repository.ActivityRepository
 import com.example.domain.repository.GroupRepository
 import com.google.firebase.firestore.FirebaseFirestore
 import kotlinx.coroutines.channels.awaitClose
@@ -9,7 +12,8 @@ import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.tasks.await
 
 class GroupRepositoryImpl(
-    private val firestore: FirebaseFirestore
+    private val firestore: FirebaseFirestore,
+    private val activityRepository: ActivityRepository
 ) : GroupRepository {
     
     private val groupsCollection = firestore.collection("groups")
@@ -41,6 +45,14 @@ class GroupRepositoryImpl(
             val docRef = groupsCollection.document()
             val newGroup = group.copy(id = docRef.id)
             docRef.set(newGroup).await()
+            activityRepository.logActivity(
+                docRef.id,
+                Activity(
+                    type = ActivityType.GROUP_CREATED,
+                    actorUid = group.createdBy,
+                    message = "created group '${group.name}'"
+                )
+            )
             Result.success(docRef.id)
         } catch (e: Exception) {
             Result.failure(e)

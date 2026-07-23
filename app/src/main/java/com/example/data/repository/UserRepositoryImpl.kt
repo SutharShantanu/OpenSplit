@@ -22,6 +22,17 @@ class UserRepositoryImpl(
         }
     }
 
+    override fun getUserFlow(uid: String): Flow<User?> = callbackFlow {
+        val listener = usersCollection.document(uid).addSnapshotListener { snapshot, e ->
+            if (e != null) {
+                close(e)
+                return@addSnapshotListener
+            }
+            trySend(snapshot?.toObject(User::class.java))
+        }
+        awaitClose { listener.remove() }
+    }
+
     override suspend fun saveUser(user: User): Result<Unit> {
         return try {
             usersCollection.document(user.uid).set(user).await()
@@ -54,6 +65,36 @@ class UserRepositoryImpl(
         }
     }
 
+    override suspend fun updateCurrency(currency: String): Result<Unit> {
+        val uid = com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.uid ?: return Result.failure(Exception("No user"))
+        return try {
+            usersCollection.document(uid).update("currency", currency).await()
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    override suspend fun updateUser(user: User): Result<Unit> {
+        return try {
+            usersCollection.document(user.uid).update("displayName", user.displayName).await()
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    override suspend fun updateLastSeenActivity(
+        uid: String,
+        timestamp: com.google.firebase.Timestamp
+    ): Result<Unit> {
+        return try {
+            usersCollection.document(uid).update("lastSeenActivityTimestamp", timestamp).await()
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
     override fun searchUsersByEmail(query: String): Flow<List<User>> = callbackFlow {
         if (query.isBlank()) {
             trySend(emptyList())

@@ -2,80 +2,116 @@ package com.example.ui.viewmodel
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.domain.model.Activity
+import com.example.domain.model.Expense
 import com.example.domain.model.Group
+import com.example.domain.model.User
+import com.example.domain.repository.ActivityRepository
 import com.example.domain.repository.AuthRepository
+import com.example.domain.repository.AuthState
+import com.example.domain.repository.ExpenseRepository
+import com.example.domain.repository.FriendRepository
 import com.example.domain.repository.GroupRepository
-import kotlinx.coroutines.flow.SharingStarted
-import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.emptyFlow
-import kotlinx.coroutines.flow.flatMapLatest
-import kotlinx.coroutines.flow.stateIn
+import com.example.domain.repository.UserRepository
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 
-import com.example.domain.repository.UserRepository
-import com.example.domain.repository.ExpenseRepository
+data class FriendBalance(val user: User, val balance: Double)
 
+@OptIn(ExperimentalCoroutinesApi::class)
 class MainViewModel(
     private val authRepository: AuthRepository,
     private val groupRepository: GroupRepository,
     private val expenseRepository: ExpenseRepository,
-    private val userRepository: UserRepository
+    private val userRepository: UserRepository,
+    private val friendRepository: FriendRepository,
+    private val activityRepository: ActivityRepository
 ) : ViewModel() {
 
-    // Fetch groups for the current user
-    val userGroups: StateFlow<List<Group>> = authRepository.getAuthState()
+    private val retryTrigger = MutableStateFlow(0)
+    fun retry() { retryTrigger.value++ }
+
+    val userGroups: StateFlow<ScreenState<List<Group>>> = combine(authRepository.getAuthState(), retryTrigger) { state, _ -> state }
         .flatMapLatest { authState ->
-            if (authState is com.example.domain.repository.AuthState.LoggedIn) {
+            if (authState is AuthState.LoggedIn) {
                 groupRepository.getGroupsForUser(authState.uid)
+                    .map<List<Group>, ScreenState<List<Group>>> { ScreenState.Success(it) }
+                    .catch { emit(ScreenState.Error(it.message ?: "Failed to load groups", ::retry)) }
             } else {
-                emptyFlow()
+                flowOf(ScreenState.Success(emptyList()))
             }
         }
         .stateIn(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(5000),
-            initialValue = emptyList()
+            initialValue = ScreenState.Loading
         )
 
-    val recentExpenses: StateFlow<List<com.example.domain.model.Expense>> = authRepository.getAuthState()
+    val recentActivity: StateFlow<ScreenState<List<Activity>>> = combine(authRepository.getAuthState(), retryTrigger) { state, _ -> state }
         .flatMapLatest { authState ->
-            if (authState is com.example.domain.repository.AuthState.LoggedIn) {
-                expenseRepository.getExpensesForUser(authState.uid)
+            if (authState is AuthState.LoggedIn) {
+                activityRepository.getActivityForUser(authState.uid, emptyList())
+                    .map<List<Activity>, ScreenState<List<Activity>>> { ScreenState.Success(it) }
+                    .catch { emit(ScreenState.Error(it.message ?: "Failed to load activity", ::retry)) }
             } else {
-                emptyFlow()
+                flowOf(ScreenState.Success(emptyList()))
             }
         }
         .stateIn(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(5000),
-            initialValue = emptyList()
+            initialValue = ScreenState.Loading
         )
 
-    val friends: StateFlow<List<com.example.domain.model.User>> = userGroups
-        .flatMapLatest { groups ->
-            val allMemberIds = groups.flatMap { it.memberIds }.distinct()
-            val currentUserId = authRepository.getCurrentUserId()
-            val friendIds = allMemberIds.filter { it != currentUserId }
-            // Fetch users for these ids
-            kotlinx.coroutines.flow.flow {
-                val friendsList = friendIds.mapNotNull { uid ->
-                    userRepository.getUser(uid)
+    val friendsBalances: StateFlow<ScreenState<List<FriendBalance>>> = combine(authRepository.getAuthState(), retryTrigger) { state, _ -> state }
+        .flatMapLatest { authState ->
+            if (authState is AuthState.LoggedIn) {
+                friendRepository.getFriendsBalances(authState.uid)
+            } else {
+                flowOf(emptyMap())
+            }
+        }
+        .flatMapLatest { balancesMap ->
+            flow {
+                val friendBalancesList = balancesMap.mapNotNull { (uid, balance) ->
+                    val user = userRepository.getUser(uid)
+                    if (user != null) {
+                        FriendBalance(user, balance)
+                    } else null
                 }
-                emit(friendsList)
+                emit(ScreenState.Success(friendBalancesList) as ScreenState<List<FriendBalance>>)
+            }.catch { emit(ScreenState.Error(it.message ?: "Failed to load friends", ::retry)) }
+        }
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5000),
+            initialValue = ScreenState.Loading
+        )
+
+    val recentExpenses: StateFlow<ScreenState<List<Expense>>> = combine(authRepository.getAuthState(), retryTrigger) { state, _ -> state }
+        .flatMapLatest { authState ->
+            if (authState is AuthState.LoggedIn) {
+                expenseRepository.getExpensesForUser(authState.uid)
+                    .map<List<Expense>, ScreenState<List<Expense>>> { ScreenState.Success(it) }
+                    .catch { emit(ScreenState.Error(it.message ?: "Failed to load expenses", ::retry)) }
+            } else {
+                flowOf(ScreenState.Success(emptyList()))
             }
         }
         .stateIn(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(5000),
-            initialValue = emptyList()
+            initialValue = ScreenState.Loading
         )
+
     fun createGroup(name: String, currency: String = "USD") {
         viewModelScope.launch {
             val uid = authRepository.getCurrentUserId() ?: return@launch
             val newGroup = Group(
                 name = name,
                 createdBy = uid,
-                memberIds = listOf(uid), // Add creator as a member
+                memberIds = listOf(uid),
                 currency = currency
             )
             groupRepository.createGroup(newGroup)

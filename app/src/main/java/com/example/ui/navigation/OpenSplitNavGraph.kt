@@ -14,6 +14,9 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
@@ -24,6 +27,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.example.di.AppContainer
 import com.example.domain.repository.AuthState
+import com.example.ui.screens.SplashScreen
 import com.example.ui.screens.auth.ForgotPasswordScreen
 import com.example.ui.screens.auth.LoginScreen
 import com.example.ui.screens.auth.SignupScreen
@@ -40,19 +44,25 @@ fun OpenSplitNavGraph(
     val authViewModel: AuthViewModel = viewModel(
         factory = ViewModelFactory(appContainer)
     )
-    val authState by appContainer.authRepository.getAuthState().collectAsState(initial = AuthState.Loading)
 
-    when (authState) {
-        is AuthState.Loading -> {
-            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                CircularProgressIndicator()
+    val authState by appContainer.authRepository.getAuthState().collectAsState(initial = AuthState.Loading)
+    var splashFinished by remember { mutableStateOf(false) }
+
+    if (!splashFinished) {
+        SplashScreen(onTimeout = { splashFinished = true })
+    } else {
+        when (authState) {
+            is AuthState.Loading -> {
+                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    CircularProgressIndicator()
+                }
             }
-        }
-        is AuthState.LoggedOut -> {
-            AuthNavHost(navController = navController, authViewModel = authViewModel)
-        }
-        is AuthState.LoggedIn -> {
-            MainNavHost(navController = navController, appContainer = appContainer, authViewModel = authViewModel)
+            is AuthState.LoggedOut -> {
+                AuthNavHost(navController = navController, authViewModel = authViewModel)
+            }
+            is AuthState.LoggedIn -> {
+                MainNavHost(navController = navController, appContainer = appContainer, authViewModel = authViewModel)
+            }
         }
     }
 }
@@ -99,9 +109,43 @@ fun AuthNavHost(navController: NavHostController, authViewModel: AuthViewModel) 
 
 @Composable
 fun MainNavHost(navController: NavHostController, appContainer: AppContainer, authViewModel: AuthViewModel) {
-    NavHost(navController = navController, startDestination = "home") {
+    val hasCompletedPrimer by appContainer.userPreferencesRepository.hasCompletedPermissionPrimer.collectAsState(initial = true)
+    val startDest = if (!hasCompletedPrimer) "permission_primer" else "home"
+
+    NavHost(navController = navController, startDestination = startDest) {
+        composable("permission_primer") {
+            val vm = remember { com.example.ui.viewmodel.PermissionPrimerViewModel(appContainer.userPreferencesRepository) }
+            com.example.ui.screens.PermissionPrimerScreen(
+                viewModel = vm,
+                onComplete = {
+                    navController.navigate("home") {
+                        popUpTo("permission_primer") { inclusive = true }
+                    }
+                }
+            )
+        }
         composable("home") {
             com.example.ui.screens.MainDashboard(appContainer = appContainer, rootNavController = navController)
+        }
+
+        composable("activity") {
+            val activityViewModel: com.example.ui.viewmodel.ActivityViewModel = androidx.lifecycle.viewmodel.compose.viewModel(
+                factory = ViewModelFactory(appContainer)
+            )
+            com.example.ui.screens.ActivityScreen(
+                viewModel = activityViewModel,
+                onNavigateBack = { navController.popBackStack() }
+            )
+        }
+        composable("account") {
+            val accountViewModel: com.example.ui.viewmodel.AccountViewModel = androidx.lifecycle.viewmodel.compose.viewModel(
+                factory = ViewModelFactory(appContainer)
+            )
+            com.example.ui.screens.AccountScreen(
+                appContainer = appContainer,
+                rootNavController = navController,
+                viewModel = accountViewModel
+            )
         }
         composable("group_detail/{groupId}") { backStackEntry ->
             val groupId = backStackEntry.arguments?.getString("groupId") ?: return@composable
@@ -111,9 +155,27 @@ fun MainNavHost(navController: NavHostController, appContainer: AppContainer, au
             com.example.ui.screens.GroupDetailScreen(
                 viewModel = groupDetailViewModel,
                 onNavigateBack = { navController.popBackStack() },
-                onNavigateToAddExpense = { navController.navigate("add_expense/$groupId") }
+                onNavigateToAddExpense = { navController.navigate("add_expense/$groupId") },
+                onNavigateToExpenseDetail = { gId, eId -> navController.navigate("expense_detail/$gId/$eId") }
             )
         }
+        composable("expense_detail/{groupId}/{expenseId}") { backStackEntry ->
+            val groupId = backStackEntry.arguments?.getString("groupId") ?: return@composable
+            val expenseId = backStackEntry.arguments?.getString("expenseId") ?: return@composable
+            val vm: com.example.ui.viewmodel.ExpenseDetailViewModel = androidx.lifecycle.viewmodel.compose.viewModel(
+                factory = com.example.ui.viewmodel.ExpenseDetailViewModelFactory(groupId, expenseId, appContainer)
+            )
+            com.example.ui.screens.ExpenseDetailScreen(
+                viewModel = vm,
+                onNavigateBack = { navController.popBackStack() }
+            )
+        }
+
+        composable("person_balance/{friendId}") { backStackEntry ->
+            val friendId = backStackEntry.arguments?.getString("friendId") ?: return@composable
+            com.example.ui.screens.PersonBalanceScreen(friendId = friendId, onNavigateBack = { navController.popBackStack() })
+        }
+
         composable("add_expense/{groupId}") { backStackEntry ->
             val groupId = backStackEntry.arguments?.getString("groupId") ?: return@composable
             val groupDetailViewModel: com.example.ui.viewmodel.GroupDetailViewModel = androidx.lifecycle.viewmodel.compose.viewModel(
@@ -121,6 +183,24 @@ fun MainNavHost(navController: NavHostController, appContainer: AppContainer, au
             )
             com.example.ui.screens.AddExpenseScreen(
                 viewModel = groupDetailViewModel,
+                onNavigateBack = { navController.popBackStack() }
+            )
+        }
+
+        composable("settle_up/{groupId}") { backStackEntry ->
+            val groupId = backStackEntry.arguments?.getString("groupId") ?: return@composable
+            val vm: com.example.ui.viewmodel.SettleUpViewModel = androidx.lifecycle.viewmodel.compose.viewModel(
+                factory = com.example.ui.viewmodel.SettleUpViewModelFactory(
+                    groupId = groupId,
+                    suggestedToUid = null,
+                    suggestedAmount = null,
+                    container = appContainer
+                )
+            )
+            com.example.ui.screens.SettleUpScreen(
+                viewModel = vm,
+                suggestedToUid = null,
+                suggestedAmount = null,
                 onNavigateBack = { navController.popBackStack() }
             )
         }

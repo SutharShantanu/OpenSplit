@@ -1,0 +1,42 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Deny all by default
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    match /users/{userId} {
+      // Owner can read and write their own document
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+      // Other authenticated users can read (for display names and photo URLs)
+      allow read: if request.auth != null;
+    }
+
+    match /groups/{groupId} {
+      // Read/Write only if requester is a member
+      allow read, update, delete: if request.auth != null && (request.auth.uid in resource.data.memberIds);
+      // Create only if requester sets themselves as a member
+      allow create: if request.auth != null && (request.auth.uid in request.resource.data.memberIds);
+      
+      match /expenses/{expenseId} {
+        // Must be a member of the parent group
+        allow read, write: if request.auth != null && (request.auth.uid in get(/databases/$(database)/documents/groups/$(groupId)).data.memberIds);
+        // Validations on create (assuming actorUid / createdBy matches)
+        allow create: if request.auth != null && (request.resource.data.createdBy == request.auth.uid);
+      }
+      
+      match /settlements/{settlementId} {
+        // Must be a member of the parent group
+        allow read, write: if request.auth != null && (request.auth.uid in get(/databases/$(database)/documents/groups/$(groupId)).data.memberIds);
+      }
+      
+      match /activity/{activityId} {
+        // Must be a member of the parent group
+        allow read, write: if request.auth != null && (request.auth.uid in get(/databases/$(database)/documents/groups/$(groupId)).data.memberIds);
+        allow create: if request.auth != null && (request.resource.data.actorUid == request.auth.uid || request.resource.data.actorUid == "");
+      }
+    }
+  }
+}
