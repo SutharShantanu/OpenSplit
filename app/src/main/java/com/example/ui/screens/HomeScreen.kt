@@ -89,7 +89,10 @@ fun HomeScreen(
             }
         } else {
             val scrollState = rememberScrollState()
-            val firstName = homeState.user.displayName.split(" ").firstOrNull() ?: "there"
+            val rawName = homeState.user.displayName.takeIf { it.isNotBlank() && !it.equals("User", ignoreCase = true) }
+                ?: com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.displayName?.takeIf { it.isNotBlank() }
+                ?: homeState.user.email.substringBefore("@").replaceFirstChar { it.uppercase() }
+            val firstName = rawName.split(" ").firstOrNull()?.ifBlank { "Friend" } ?: "Friend"
             val currentDate = remember { SimpleDateFormat("EEEE, MMM d", Locale.getDefault()).format(Date()) }
 
             Column(
@@ -244,9 +247,17 @@ fun HomeScreen(
                             contentPadding = PaddingValues(vertical = OpenSplitTokens.SpaceXS)
                         ) {
                             items(homeState.recentGroups) { groupWithBal ->
+                                var menuExpanded by remember { mutableStateOf(false) }
+                                val bal = groupWithBal.balance
+                                val formattedAmount = com.example.util.CurrencyFormatter.format(
+                                    amount = bal,
+                                    currencyCode = groupWithBal.group.currency,
+                                    showSymbol = true
+                                )
+
                                 ElevatedCard(
                                     modifier = Modifier
-                                        .width(160.dp)
+                                        .width(220.dp)
                                         .clickable { onNavigateToGroupDetail(groupWithBal.group.id) },
                                     shape = MaterialTheme.shapes.large,
                                     colors = CardDefaults.elevatedCardColors(
@@ -254,43 +265,120 @@ fun HomeScreen(
                                     )
                                 ) {
                                     Column(modifier = Modifier.padding(OpenSplitTokens.SpaceMD)) {
-                                        Surface(
-                                            shape = MaterialTheme.shapes.medium,
-                                            color = MaterialTheme.colorScheme.primaryContainer,
-                                            modifier = Modifier.size(40.dp)
+                                        Row(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            horizontalArrangement = Arrangement.SpaceBetween,
+                                            verticalAlignment = Alignment.CenterVertically
                                         ) {
-                                            Box(contentAlignment = Alignment.Center) {
-                                                Text(
-                                                    text = groupWithBal.group.name.take(1).uppercase(),
-                                                    style = MaterialTheme.typography.titleMedium,
-                                                    fontWeight = FontWeight.Bold,
-                                                    color = MaterialTheme.colorScheme.onPrimaryContainer
-                                                )
+                                            Surface(
+                                                shape = MaterialTheme.shapes.medium,
+                                                color = MaterialTheme.colorScheme.primaryContainer,
+                                                modifier = Modifier.size(40.dp)
+                                            ) {
+                                                Box(contentAlignment = Alignment.Center) {
+                                                    Text(
+                                                        text = groupWithBal.group.name.take(1).uppercase(),
+                                                        style = MaterialTheme.typography.titleMedium,
+                                                        fontWeight = FontWeight.Bold,
+                                                        color = MaterialTheme.colorScheme.onPrimaryContainer
+                                                    )
+                                                }
+                                            }
+
+                                            Box {
+                                                IconButton(
+                                                    onClick = { menuExpanded = true },
+                                                    modifier = Modifier.size(28.dp)
+                                                ) {
+                                                    Icon(
+                                                        imageVector = OpenSplitIcons.More,
+                                                        contentDescription = "Quick Actions",
+                                                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                                    )
+                                                }
+
+                                                DropdownMenu(
+                                                    expanded = menuExpanded,
+                                                    onDismissRequest = { menuExpanded = false }
+                                                ) {
+                                                    DropdownMenuItem(
+                                                        text = { Text("Add Expense") },
+                                                        leadingIcon = { Icon(OpenSplitIcons.AddExpense, contentDescription = null) },
+                                                        onClick = {
+                                                            menuExpanded = false
+                                                            onNavigateToAddExpense(groupWithBal.group.id)
+                                                        }
+                                                    )
+                                                    DropdownMenuItem(
+                                                        text = { Text("Settle Up") },
+                                                        leadingIcon = { Icon(OpenSplitIcons.Settle, contentDescription = null) },
+                                                        onClick = {
+                                                            menuExpanded = false
+                                                            onNavigateToSettleUp(groupWithBal.group.id)
+                                                        }
+                                                    )
+                                                    DropdownMenuItem(
+                                                        text = { Text("View Group") },
+                                                        leadingIcon = { Icon(OpenSplitIcons.Groups, contentDescription = null) },
+                                                        onClick = {
+                                                            menuExpanded = false
+                                                            onNavigateToGroupDetail(groupWithBal.group.id)
+                                                        }
+                                                    )
+                                                }
                                             }
                                         }
+
                                         Spacer(modifier = Modifier.height(OpenSplitTokens.SpaceSM))
+
                                         Text(
                                             text = groupWithBal.group.name,
                                             style = MaterialTheme.typography.titleSmall,
                                             fontWeight = FontWeight.SemiBold,
                                             maxLines = 1
                                         )
-                                        Spacer(modifier = Modifier.height(OpenSplitTokens.SpaceXS))
-                                        val bal = groupWithBal.balance
-                                        val color = getBalanceColor(bal)
-                                        val balText = if (bal > 0.01) {
-                                            "You are owed ${homeState.currency}${String.format("%.2f", bal)}"
-                                        } else if (bal < -0.01) {
-                                            "You owe ${homeState.currency}${String.format("%.2f", -bal)}"
-                                        } else {
-                                            "Settled up"
-                                        }
+
                                         Text(
-                                            text = balText,
-                                            style = MaterialTheme.typography.labelMedium,
-                                            color = color,
-                                            fontWeight = FontWeight.Medium
+                                            text = "${groupWithBal.group.memberIds.size} members",
+                                            style = MaterialTheme.typography.labelSmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
                                         )
+
+                                        Spacer(modifier = Modifier.height(OpenSplitTokens.SpaceSM))
+
+                                        // Status badge
+                                        val (badgeBg, badgeFg, statusLabel) = when {
+                                            bal > 0.01 -> Triple(
+                                                OpenSplitTokens.OwedPositive.copy(alpha = 0.15f),
+                                                OpenSplitTokens.OwedPositive,
+                                                "Owed $formattedAmount"
+                                            )
+                                            bal < -0.01 -> Triple(
+                                                OpenSplitTokens.OwedNegative.copy(alpha = 0.15f),
+                                                OpenSplitTokens.OwedNegative,
+                                                "You owe ${com.example.util.CurrencyFormatter.format(-bal, groupWithBal.group.currency)}"
+                                            )
+                                            else -> Triple(
+                                                MaterialTheme.colorScheme.surfaceContainerHigh,
+                                                MaterialTheme.colorScheme.onSurfaceVariant,
+                                                "Settled up"
+                                            )
+                                        }
+
+                                        Surface(
+                                            shape = MaterialTheme.shapes.small,
+                                            color = badgeBg,
+                                            modifier = Modifier.fillMaxWidth()
+                                        ) {
+                                            Text(
+                                                text = statusLabel,
+                                                style = MaterialTheme.typography.labelMedium,
+                                                color = badgeFg,
+                                                fontWeight = FontWeight.Bold,
+                                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                                                maxLines = 1
+                                            )
+                                        }
                                     }
                                 }
                             }

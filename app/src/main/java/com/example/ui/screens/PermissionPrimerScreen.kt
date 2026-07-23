@@ -1,5 +1,7 @@
 package com.example.ui.screens
 
+import android.Manifest
+import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.*
@@ -12,12 +14,13 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import com.example.ui.theme.OpenSplitTokens
 import com.example.ui.viewmodel.PermissionPrimerViewModel
-import com.example.ui.viewmodel.PermissionStep
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -26,56 +29,35 @@ fun PermissionPrimerScreen(
     onComplete: () -> Unit
 ) {
     val context = LocalContext.current
-    val pendingSteps = remember { viewModel.getPendingSteps(context) }
-    var currentStepIndex by remember { mutableIntStateOf(0) }
 
-    LaunchedEffect(pendingSteps) {
-        if (pendingSteps.isEmpty()) {
-            viewModel.markPrimerCompleted()
-            onComplete()
+    val permissionsToRequest = remember {
+        val list = mutableListOf(
+            Manifest.permission.READ_CONTACTS,
+            Manifest.permission.CAMERA
+        )
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            list.add(Manifest.permission.POST_NOTIFICATIONS)
         }
+        list.toTypedArray()
     }
 
-    if (pendingSteps.isEmpty() || currentStepIndex >= pendingSteps.size) {
-        LaunchedEffect(Unit) {
-            viewModel.markPrimerCompleted()
-            onComplete()
-        }
-        return
-    }
-
-    val currentStep = pendingSteps[currentStepIndex]
-
-    val permissionLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.RequestPermission()
+    val multiplePermissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestMultiplePermissions()
     ) { _ ->
-        if (currentStepIndex + 1 < pendingSteps.size) {
-            currentStepIndex++
-        } else {
-            viewModel.markPrimerCompleted()
-            onComplete()
-        }
-    }
-
-    fun advanceStep() {
-        if (currentStepIndex + 1 < pendingSteps.size) {
-            currentStepIndex++
-        } else {
-            viewModel.markPrimerCompleted()
-            onComplete()
-        }
+        viewModel.markPrimerCompleted()
+        onComplete()
     }
 
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("App Setup", fontWeight = FontWeight.Bold) },
+                title = { Text("Permissions", fontWeight = FontWeight.Bold) },
                 actions = {
                     TextButton(onClick = {
                         viewModel.markPrimerCompleted()
                         onComplete()
                     }) {
-                        Text("Skip All")
+                        Text("Skip")
                     }
                 }
             )
@@ -97,91 +79,135 @@ fun PermissionPrimerScreen(
             ) {
                 Column(
                     modifier = Modifier
-                        .padding(28.dp)
+                        .padding(24.dp)
                         .fillMaxWidth(),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    // Step indicator
-                    Text(
-                        text = "Step ${currentStepIndex + 1} of ${pendingSteps.size}",
-                        style = MaterialTheme.typography.labelMedium,
-                        color = MaterialTheme.colorScheme.primary,
-                        fontWeight = FontWeight.SemiBold
-                    )
-
-                    Spacer(modifier = Modifier.height(20.dp))
-
-                    // Step Icon
                     Surface(
                         shape = MaterialTheme.shapes.large,
                         color = MaterialTheme.colorScheme.primaryContainer,
-                        modifier = Modifier.size(72.dp)
+                        modifier = Modifier.size(64.dp)
                     ) {
                         Box(contentAlignment = Alignment.Center) {
-                            val icon = when (currentStep) {
-                                PermissionStep.NOTIFICATIONS -> Icons.Rounded.Notifications
-                                PermissionStep.CONTACTS -> Icons.Rounded.Contacts
-                                PermissionStep.CAMERA -> Icons.Rounded.CameraAlt
-                            }
                             Icon(
-                                imageVector = icon,
+                                imageVector = Icons.Rounded.Shield,
                                 contentDescription = null,
-                                modifier = Modifier.size(36.dp),
+                                modifier = Modifier.size(32.dp),
                                 tint = MaterialTheme.colorScheme.onPrimaryContainer
                             )
                         }
                     }
 
-                    Spacer(modifier = Modifier.height(24.dp))
+                    Spacer(modifier = Modifier.height(16.dp))
 
                     Text(
-                        text = currentStep.title,
+                        text = "Enable OpenSplit Features",
                         style = MaterialTheme.typography.headlineSmall,
                         fontWeight = FontWeight.Bold,
                         textAlign = TextAlign.Center
                     )
 
-                    Spacer(modifier = Modifier.height(12.dp))
+                    Spacer(modifier = Modifier.height(8.dp))
 
                     Text(
-                        text = currentStep.description,
+                        text = "To give you the best experience, OpenSplit works best with these permissions enabled:",
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         textAlign = TextAlign.Center
                     )
 
-                    Spacer(modifier = Modifier.height(32.dp))
+                    Spacer(modifier = Modifier.height(24.dp))
 
-                    // Primary button: Allow
-                    Button(
-                        onClick = {
-                            val perm = currentStep.permission
-                            if (perm != null) {
-                                permissionLauncher.launch(perm)
-                            } else {
-                                advanceStep()
-                            }
-                        },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(50.dp)
-                    ) {
-                        Text("Allow", style = MaterialTheme.typography.titleMedium)
-                    }
+                    PermissionRow(
+                        icon = Icons.Rounded.Contacts,
+                        title = "Contacts",
+                        description = "Quickly invite and split expenses with friends"
+                    )
 
                     Spacer(modifier = Modifier.height(12.dp))
 
-                    // Secondary button: Not now
-                    OutlinedButton(
-                        onClick = { advanceStep() },
+                    PermissionRow(
+                        icon = Icons.Rounded.CameraAlt,
+                        title = "Camera",
+                        description = "Scan paper receipts with AI OCR for automatic splitting"
+                    )
+
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    PermissionRow(
+                        icon = Icons.Rounded.Notifications,
+                        title = "Notifications",
+                        description = "Get real-time updates when expenses or settlements are added"
+                    )
+
+                    Spacer(modifier = Modifier.height(28.dp))
+
+                    Button(
+                        onClick = {
+                            multiplePermissionLauncher.launch(permissionsToRequest)
+                        },
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(50.dp)
+                            .height(50.dp),
+                        shape = MaterialTheme.shapes.medium
                     ) {
-                        Text("Not now", style = MaterialTheme.typography.titleMedium)
+                        Text("Grant All Permissions", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                    }
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    TextButton(
+                        onClick = {
+                            viewModel.markPrimerCompleted()
+                            onComplete()
+                        }
+                    ) {
+                        Text("Not now", color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun PermissionRow(
+    icon: ImageVector,
+    title: String,
+    description: String
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Surface(
+            shape = MaterialTheme.shapes.medium,
+            color = MaterialTheme.colorScheme.secondaryContainer,
+            modifier = Modifier.size(40.dp)
+        ) {
+            Box(contentAlignment = Alignment.Center) {
+                Icon(
+                    imageVector = icon,
+                    contentDescription = null,
+                    modifier = Modifier.size(20.dp),
+                    tint = MaterialTheme.colorScheme.onSecondaryContainer
+                )
+            }
+        }
+
+        Spacer(modifier = Modifier.width(16.dp))
+
+        Column {
+            Text(
+                text = title,
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.SemiBold
+            )
+            Text(
+                text = description,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
         }
     }
 }

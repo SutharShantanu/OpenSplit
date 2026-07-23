@@ -47,7 +47,7 @@ class AccountViewModel(
                 expenseRepository.getExpensesForUser(currentUser.uid),
                 flow {
                     val user = userRepository.getUser(currentUser.uid)
-                    emit(user?.defaultCurrency ?: "USD")
+                    emit(user?.defaultCurrency ?: "INR")
                 }
             ) { groups, friendsBalances, expenses, currency ->
                 val groupCount = groups.size

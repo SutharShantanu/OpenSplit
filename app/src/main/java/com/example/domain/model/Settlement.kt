@@ -9,7 +9,7 @@ data class Settlement(
     val fromUid: String = "",
     val toUid: String = "",
     val amount: Double = 0.0,
-    val currency: String = "USD",
+    val currency: String = "INR",
     val date: Timestamp = Timestamp.now(),
     val note: String? = null,
     val method: SettlementMethod = SettlementMethod.CASH

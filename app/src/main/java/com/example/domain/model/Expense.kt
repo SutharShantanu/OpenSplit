@@ -33,7 +33,7 @@ data class Expense(
     val groupId: String = "",
     val description: String = "",
     val amount: Double = 0.0,
-    val currency: String = "USD",
+    val currency: String = "INR",
     val paidBy: String = "",
     val multiPayer: Map<String, Double>? = null, 
     val splitType: SplitType = SplitType.EQUAL,

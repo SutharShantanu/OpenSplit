@@ -8,7 +8,7 @@ data class Group(
     val imageUrl: String? = null,
     val createdBy: String = "",
     val memberIds: List<String> = emptyList(),
-    val currency: String = "USD",
+    val currency: String = "INR",
     val createdAt: Timestamp = Timestamp.now(),
     val simplifyDebts: Boolean = true
 )

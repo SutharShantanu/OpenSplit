@@ -46,14 +46,81 @@ class ActivityViewModel(private val appContainer: AppContainer) : ViewModel() {
 
         groupsFlow.flatMapLatest { groups ->
             val groupIds = groups.map { it.id }
-            val activitiesFlow = appContainer.activityRepository.getActivityForUser(uid, groupIds)
+            val loggedActivitiesFlow = appContainer.activityRepository.getActivityForUser(uid, groupIds)
 
-            combine(activitiesFlow, _selectedGroupId, _selectedTypeFilter) { activities, selectedGroup, selectedType ->
-                var filtered = activities
+            // Flow of expenses from all user groups
+            val expensesFlows = groupIds.map { appContainer.expenseRepository.getExpensesForGroup(it) }
+            val combinedExpensesFlow = if (expensesFlows.isEmpty()) flowOf(emptyList()) else combine(expensesFlows) { arrays -> arrays.flatMap { it } }
+
+            // Flow of settlements from all user groups
+            val settlementsFlows = groupIds.map { appContainer.settlementRepository.getSettlementsForGroup(it) }
+            val combinedSettlementsFlow = if (settlementsFlows.isEmpty()) flowOf(emptyList()) else combine(settlementsFlows) { arrays -> arrays.flatMap { it } }
+
+            combine(
+                loggedActivitiesFlow,
+                combinedExpensesFlow,
+                combinedSettlementsFlow,
+                _selectedGroupId,
+                _selectedTypeFilter
+            ) { logged, expenses, settlements, selectedGroup, selectedType ->
+                val allActivities = mutableListOf<Activity>()
+                allActivities.addAll(logged)
+
+                // Synthesize group creation activities
+                groups.forEach { group ->
+                    allActivities.add(
+                        Activity(
+                            id = "grp_${group.id}",
+                            type = ActivityType.GROUP_CREATED,
+                            actorUid = group.createdBy,
+                            message = "Group '${group.name}' was created",
+                            timestamp = group.createdAt
+                        )
+                    )
+                }
+
+                // Synthesize expense activities
+                expenses.forEach { exp ->
+                    val groupName = groups.find { it.id == exp.groupId }?.name ?: "Group"
+                    val formattedAmt = com.example.util.CurrencyFormatter.format(exp.amount, exp.currency)
+                    allActivities.add(
+                        Activity(
+                            id = "exp_${exp.id}",
+                            type = ActivityType.EXPENSE_ADDED,
+                            actorUid = exp.createdBy,
+                            message = "Expense '${exp.description}' ($formattedAmt) was added in '$groupName'",
+                            timestamp = exp.date,
+                            relatedExpenseId = exp.id
+                        )
+                    )
+                }
+
+                // Synthesize settlement activities
+                settlements.forEach { set ->
+                    val formattedAmt = com.example.util.CurrencyFormatter.format(set.amount, set.currency)
+                    allActivities.add(
+                        Activity(
+                            id = "set_${set.id}",
+                            type = ActivityType.SETTLEMENT_ADDED,
+                            actorUid = set.fromUid,
+                            message = "Settlement of $formattedAmt was logged",
+                            timestamp = set.date
+                        )
+                    )
+                }
+
+                // Deduplicate by distinct key / id and sort by timestamp DESC
+                val distinctActivities = allActivities
+                    .distinctBy { "${it.type}_${it.message}_${it.timestamp.seconds}" }
+                    .sortedByDescending { it.timestamp.seconds }
+
+                var filtered = distinctActivities
 
                 if (selectedGroup != null) {
-                    // Filter by specific group if logged with group context or ID matching
-                    filtered = filtered.filter { it.message.contains(selectedGroup) || true } // group filter
+                    val targetGroup = groups.find { it.id == selectedGroup }
+                    if (targetGroup != null) {
+                        filtered = filtered.filter { it.message.contains(targetGroup.name, ignoreCase = true) }
+                    }
                 }
 
                 when (selectedType) {

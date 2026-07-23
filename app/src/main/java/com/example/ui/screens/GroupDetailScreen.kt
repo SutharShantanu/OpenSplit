@@ -29,6 +29,9 @@ import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Locale
 
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.ui.text.input.KeyboardCapitalization
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun GroupDetailScreen(
@@ -344,6 +347,16 @@ fun GroupDetailScreen(
                                 LazyColumn(
                                     verticalArrangement = Arrangement.spacedBy(OpenSplitTokens.SpaceXS)
                                 ) {
+                                    item {
+                                        Text(
+                                            text = "Active Members (${data.members.size})",
+                                            style = MaterialTheme.typography.titleSmall,
+                                            fontWeight = FontWeight.Bold,
+                                            color = MaterialTheme.colorScheme.primary,
+                                            modifier = Modifier.padding(vertical = OpenSplitTokens.SpaceXS)
+                                        )
+                                    }
+
                                     items(data.members) { user ->
                                         ListItem(
                                             headlineContent = { Text(user.displayName, fontWeight = FontWeight.SemiBold) },
@@ -365,6 +378,64 @@ fun GroupDetailScreen(
                                             }
                                         )
                                         HorizontalDivider(color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+                                    }
+
+                                    if (data.pendingInvites.isNotEmpty()) {
+                                        item {
+                                            Spacer(modifier = Modifier.height(OpenSplitTokens.SpaceMD))
+                                            Text(
+                                                text = "Pending Invites (${data.pendingInvites.size})",
+                                                style = MaterialTheme.typography.titleSmall,
+                                                fontWeight = FontWeight.Bold,
+                                                color = MaterialTheme.colorScheme.secondary,
+                                                modifier = Modifier.padding(vertical = OpenSplitTokens.SpaceXS)
+                                            )
+                                        }
+
+                                        items(data.pendingInvites) { invite ->
+                                            val expiryStr = remember(invite.expiresAt) {
+                                                try {
+                                                    SimpleDateFormat("MMM d, yyyy", Locale.getDefault()).format(invite.expiresAt.toDate())
+                                                } catch (e: Exception) { "7 days" }
+                                            }
+                                            ListItem(
+                                                headlineContent = { Text(invite.email, fontWeight = FontWeight.Medium) },
+                                                supportingContent = {
+                                                    Text(
+                                                        text = "Invite expires $expiryStr",
+                                                        style = MaterialTheme.typography.bodySmall,
+                                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                                    )
+                                                },
+                                                leadingContent = {
+                                                    Surface(
+                                                        shape = CircleShape,
+                                                        color = MaterialTheme.colorScheme.secondaryContainer,
+                                                        modifier = Modifier.size(40.dp)
+                                                    ) {
+                                                        Box(contentAlignment = Alignment.Center) {
+                                                            Icon(
+                                                                OpenSplitIcons.Invite,
+                                                                contentDescription = "Pending",
+                                                                tint = MaterialTheme.colorScheme.onSecondaryContainer,
+                                                                modifier = Modifier.size(20.dp)
+                                                            )
+                                                        }
+                                                    }
+                                                },
+                                                trailingContent = {
+                                                    TextButton(
+                                                        onClick = {
+                                                            viewModel.revokeInvite(invite.id)
+                                                            Toast.makeText(context, "Invite revoked for ${invite.email}", Toast.LENGTH_SHORT).show()
+                                                        }
+                                                    ) {
+                                                        Text("Revoke", color = MaterialTheme.colorScheme.error)
+                                                    }
+                                                }
+                                            )
+                                            HorizontalDivider(color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+                                        }
                                     }
                                 }
                             }
@@ -398,6 +469,7 @@ fun GroupDetailScreen(
                         onValueChange = { emailQuery = it },
                         label = { Text("Email") },
                         singleLine = true,
+                        keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.None),
                         modifier = Modifier.fillMaxWidth(),
                         shape = MaterialTheme.shapes.medium
                     )
@@ -421,6 +493,7 @@ fun GroupDetailScreen(
                 Button(
                     onClick = {
                         viewModel.addMemberByEmail(emailQuery)
+                        Toast.makeText(context, "Member / Invite added", Toast.LENGTH_SHORT).show()
                         showAddMember = false
                     },
                     enabled = emailQuery.isNotBlank()
@@ -441,44 +514,48 @@ fun GroupDetailScreen(
 suspend fun extractEmailOrPhoneFromContact(context: Context, contactUri: android.net.Uri): String? {
     return kotlinx.coroutines.Dispatchers.IO.let {
         kotlinx.coroutines.withContext(it) {
-            var result: String? = null
-            var contactId: String? = null
-            context.contentResolver.query(contactUri, null, null, null, null)?.use { cursor ->
-                if (cursor.moveToFirst()) {
-                    contactId = cursor.getString(cursor.getColumnIndexOrThrow(ContactsContract.Contacts._ID))
-                }
-            }
-
-            if (contactId != null) {
-                // Try to get email first
-                context.contentResolver.query(
-                    ContactsContract.CommonDataKinds.Email.CONTENT_URI,
-                    null,
-                    "${ContactsContract.CommonDataKinds.Email.CONTACT_ID} = ?",
-                    arrayOf(contactId),
-                    null
-                )?.use { cursor ->
+            try {
+                var result: String? = null
+                var contactId: String? = null
+                context.contentResolver.query(contactUri, null, null, null, null)?.use { cursor ->
                     if (cursor.moveToFirst()) {
-                        result = cursor.getString(cursor.getColumnIndexOrThrow(ContactsContract.CommonDataKinds.Email.DATA))
+                        contactId = cursor.getString(cursor.getColumnIndexOrThrow(ContactsContract.Contacts._ID))
                     }
                 }
 
-                // If no email, try phone
-                if (result == null) {
+                if (contactId != null) {
+                    // Try to get email first
                     context.contentResolver.query(
-                        ContactsContract.CommonDataKinds.Phone.CONTENT_URI,
+                        ContactsContract.CommonDataKinds.Email.CONTENT_URI,
                         null,
-                        "${ContactsContract.CommonDataKinds.Phone.CONTACT_ID} = ?",
+                        "${ContactsContract.CommonDataKinds.Email.CONTACT_ID} = ?",
                         arrayOf(contactId),
                         null
                     )?.use { cursor ->
                         if (cursor.moveToFirst()) {
-                            result = cursor.getString(cursor.getColumnIndexOrThrow(ContactsContract.CommonDataKinds.Phone.NUMBER))
+                            result = cursor.getString(cursor.getColumnIndexOrThrow(ContactsContract.CommonDataKinds.Email.DATA))
+                        }
+                    }
+
+                    // If no email, try phone
+                    if (result == null) {
+                        context.contentResolver.query(
+                            ContactsContract.CommonDataKinds.Phone.CONTENT_URI,
+                            null,
+                            "${ContactsContract.CommonDataKinds.Phone.CONTACT_ID} = ?",
+                            arrayOf(contactId),
+                            null
+                        )?.use { cursor ->
+                            if (cursor.moveToFirst()) {
+                                result = cursor.getString(cursor.getColumnIndexOrThrow(ContactsContract.CommonDataKinds.Phone.NUMBER))
+                            }
                         }
                     }
                 }
+                result
+            } catch (e: Exception) {
+                null
             }
-            result
         }
     }
 }

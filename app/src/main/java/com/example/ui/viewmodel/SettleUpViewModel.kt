@@ -12,6 +12,9 @@ import com.example.domain.repository.AuthRepository
 import com.example.domain.repository.GroupRepository
 import com.example.domain.repository.SettlementRepository
 import com.example.domain.repository.UserRepository
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -34,7 +37,7 @@ class SettleUpViewModel(
     private val _currentUserId = MutableStateFlow<String?>(null)
     val currentUserId: StateFlow<String?> = _currentUserId.asStateFlow()
 
-    private val _currency = MutableStateFlow<String>("USD")
+    private val _currency = MutableStateFlow<String>("INR")
     val currency: StateFlow<String> = _currency.asStateFlow()
 
     init {
@@ -45,9 +48,10 @@ class SettleUpViewModel(
             val group = groupRepository.getGroup(groupId)
             if (group != null) {
                 _currency.value = group.currency
-                val loadedMembers = mutableListOf<User>()
-                for (memberId in group.memberIds) {
-                    userRepository.getUser(memberId)?.let { loadedMembers.add(it) }
+                val loadedMembers = coroutineScope {
+                    group.memberIds.map { memberId ->
+                        async { userRepository.getUser(memberId) }
+                    }.awaitAll().filterNotNull()
                 }
                 _members.value = loadedMembers
             }

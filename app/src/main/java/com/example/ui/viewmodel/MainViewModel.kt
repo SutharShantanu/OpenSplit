@@ -105,7 +105,7 @@ class MainViewModel(
             initialValue = ScreenState.Loading
         )
 
-    fun createGroup(name: String, currency: String = "USD") {
+    fun createGroup(name: String, currency: String = "INR") {
         viewModelScope.launch {
             val uid = authRepository.getCurrentUserId() ?: return@launch
             val newGroup = Group(

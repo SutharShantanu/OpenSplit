@@ -45,7 +45,7 @@ class AnalyticsViewModel(private val appContainer: AppContainer) : ViewModel() {
         }
 
         val user = appContainer.userRepository.getUser(uid)
-        val defaultCurrency = user?.defaultCurrency?.ifEmpty { "USD" } ?: "USD"
+        val defaultCurrency = user?.defaultCurrency?.ifEmpty { "INR" } ?: "INR"
         val currencySymbol = if (defaultCurrency == "INR") "₹" else if (defaultCurrency == "EUR") "€" else "$"
 
         val groupsFlow = appContainer.groupRepository.getGroupsForUser(uid)

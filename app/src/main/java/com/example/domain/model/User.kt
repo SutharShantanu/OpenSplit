@@ -8,7 +8,7 @@ data class User(
     val email: String = "",
     val photoUrl: String? = null,
     val createdAt: Timestamp = Timestamp.now(),
-    val defaultCurrency: String = "USD",
+    val defaultCurrency: String = "INR",
     val fcmToken: String? = null,
     val lastSeenActivityTimestamp: Timestamp? = null
 )

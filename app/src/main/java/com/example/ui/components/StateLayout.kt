@@ -17,6 +17,22 @@ fun <T> StateLayout(
     Box(modifier = modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
         when (state) {
             is ScreenState.Loading -> CircularProgressIndicator()
+            is ScreenState.Empty -> {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(24.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text(
+                            text = if (state.message.isNotBlank()) state.message else "No items found",
+                            style = MaterialTheme.typography.titleMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+            }
             is ScreenState.Error -> {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     Text(state.message, color = MaterialTheme.colorScheme.error)

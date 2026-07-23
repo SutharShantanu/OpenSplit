@@ -70,7 +70,7 @@ class HomeViewModel(private val appContainer: AppContainer) : ViewModel() {
 
             combine(groupBalancesCombined, activitiesFlow) { groupWithBalances, activities ->
                 val netBalance = groupWithBalances.sumOf { it.balance }
-                val currency = currentUser.defaultCurrency.ifEmpty { "USD" }
+                val currency = currentUser.defaultCurrency.ifEmpty { "INR" }
 
                 // Recent groups sorted by recent activity or group creation
                 val sortedGroups = groupWithBalances.take(5)

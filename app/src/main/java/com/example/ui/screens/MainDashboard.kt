@@ -75,6 +75,7 @@ fun MainDashboard(
     }
 
     var menuExpanded by remember { mutableStateOf(false) }
+    var showGlobalSearchSheet by remember { mutableStateOf(false) }
 
     Scaffold(
         topBar = {
@@ -91,6 +92,14 @@ fun MainDashboard(
                 ),
                 modifier = Modifier.appHazeHeader(hazeState),
                 actions = {
+                    // Global Search Button
+                    IconButton(onClick = { showGlobalSearchSheet = true }) {
+                        Icon(
+                            imageVector = OpenSplitIcons.Search,
+                            contentDescription = "Search"
+                        )
+                    }
+
                     // Activity bell with badge
                     IconButton(onClick = { rootNavController.navigate("activity") }) {
                         BadgedBox(
@@ -117,37 +126,13 @@ fun MainDashboard(
                             modifier = Modifier
                                 .size(36.dp)
                                 .clip(CircleShape)
-                                .clickable { menuExpanded = true },
-                            contentAlignment = Alignment.Center
+                                .clickable { menuExpanded = true }
                         ) {
-                            val photoUrl = currentUserState?.photoUrl
-                            if (!photoUrl.isNullOrEmpty()) {
-                                AsyncImage(
-                                    model = photoUrl,
-                                    contentDescription = "Account Profile",
-                                    modifier = Modifier.fillMaxSize(),
-                                    contentScale = ContentScale.Crop
-                                )
-                            } else {
-                                val displayName = currentUserState?.displayName ?: "User"
-                                val initial = displayName.take(1).uppercase()
-                                val hue = abs(displayName.hashCode() % 360).toFloat()
-                                val avatarColor = Color.hsv(hue, 0.6f, 0.75f)
-
-                                Box(
-                                    modifier = Modifier
-                                        .fillMaxSize()
-                                        .background(avatarColor),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Text(
-                                        text = initial,
-                                        style = MaterialTheme.typography.titleSmall,
-                                        color = Color.White,
-                                        fontWeight = FontWeight.Bold
-                                    )
-                                }
-                            }
+                            com.example.ui.components.UserAvatar(
+                                photoUrl = currentUserState?.photoUrl,
+                                displayName = currentUserState?.displayName,
+                                size = 36.dp
+                            )
                         }
 
                         com.example.ui.components.AccountDropdownMenu(
@@ -220,6 +205,22 @@ fun MainDashboard(
                 )
             }
         }
+    }
+
+    if (showGlobalSearchSheet) {
+        com.example.ui.components.GlobalSearchSheet(
+            appContainer = appContainer,
+            onDismiss = { showGlobalSearchSheet = false },
+            onNavigateToGroup = { groupId ->
+                rootNavController.navigate("group_detail/$groupId")
+            },
+            onNavigateToExpense = { groupId, expenseId ->
+                rootNavController.navigate("expense_detail/$groupId/$expenseId")
+            },
+            onNavigateToFriend = { friendId ->
+                rootNavController.navigate("person_balance/$friendId")
+            }
+        )
     }
 }
 

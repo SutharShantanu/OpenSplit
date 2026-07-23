@@ -49,39 +49,11 @@ fun AccountDropdownMenu(
                 .padding(horizontal = OpenSplitTokens.SpaceLG, vertical = OpenSplitTokens.SpaceMD)
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                val photoUrl = currentUser?.photoUrl
-                if (photoUrl != null) {
-                    AsyncImage(
-                        model = photoUrl,
-                        contentDescription = "Profile",
-                        modifier = Modifier
-                            .size(40.dp)
-                            .clip(CircleShape),
-                        contentScale = ContentScale.Crop
-                    )
-                } else {
-                    val initials = currentUser?.displayName?.firstOrNull()?.toString()?.uppercase()
-                        ?: currentUser?.email?.firstOrNull()?.toString()?.uppercase()
-                        ?: "?"
-                    val hash = currentUser?.uid?.hashCode() ?: 0
-                    val hue = abs(hash % 360).toFloat()
-                    val avatarColor = Color.hsv(hue, 0.5f, 0.8f)
-
-                    Box(
-                        modifier = Modifier
-                            .size(40.dp)
-                            .clip(CircleShape)
-                            .background(avatarColor),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(
-                            text = initials,
-                            style = MaterialTheme.typography.titleMedium,
-                            color = Color.White,
-                            fontWeight = FontWeight.Bold
-                        )
-                    }
-                }
+                UserAvatar(
+                    photoUrl = currentUser?.photoUrl?.toString(),
+                    displayName = currentUser?.displayName,
+                    size = 40.dp
+                )
 
                 Spacer(modifier = Modifier.width(OpenSplitTokens.SpaceMD))
 

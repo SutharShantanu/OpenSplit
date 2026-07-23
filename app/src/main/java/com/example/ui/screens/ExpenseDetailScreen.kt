@@ -12,6 +12,8 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.unit.dp
 import com.example.ui.components.StateLayout
 import com.example.ui.viewmodel.ExpenseDetailViewModel
@@ -143,6 +145,7 @@ fun ExpenseDetailScreen(
                                 onValueChange = { commentText = it },
                                 modifier = Modifier.weight(1f),
                                 placeholder = { Text("Add a comment...") },
+                                keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences),
                                 singleLine = true
                             )
                             Spacer(modifier = Modifier.width(8.dp))

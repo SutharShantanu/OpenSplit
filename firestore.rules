@@ -1,0 +1,59 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Deny all by default
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Users: only the owner can write; any authenticated user can read
+    // (needed so group members can look up each other's display names)
+    match /users/{userId} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null && request.auth.uid == userId;
+    }
+
+    // Groups: readable/writable only by members
+    match /groups/{groupId} {
+      allow read, update, delete: if request.auth != null
+        && request.auth.uid in resource.data.memberIds;
+      allow create: if request.auth != null
+        && request.auth.uid in request.resource.data.memberIds;
+
+      // Expenses: inherit group membership check via get()
+      match /expenses/{expenseId} {
+        allow read, write: if request.auth != null
+          && request.auth.uid in get(/databases/$(database)/documents/groups/$(groupId)).data.memberIds;
+      }
+
+      // Settlements
+      match /settlements/{settlementId} {
+        allow read, write: if request.auth != null
+          && request.auth.uid in get(/databases/$(database)/documents/groups/$(groupId)).data.memberIds;
+      }
+
+      // Activity
+      match /activity/{activityId} {
+        allow read: if request.auth != null
+          && request.auth.uid in get(/databases/$(database)/documents/groups/$(groupId)).data.memberIds;
+        allow create: if request.auth != null
+          && request.auth.uid in get(/databases/$(database)/documents/groups/$(groupId)).data.memberIds
+          && request.resource.data.actorUid == request.auth.uid;
+        allow update, delete: if false; // Activity log is immutable
+      }
+
+      // Expense comments
+      match /expenses/{expenseId}/comments/{commentId} {
+        allow read, write: if request.auth != null
+          && request.auth.uid in get(/databases/$(database)/documents/groups/$(groupId)).data.memberIds;
+      }
+
+      // Pending invites
+      match /pendingInvites/{inviteId} {
+        allow read, write: if request.auth != null
+          && request.auth.uid in get(/databases/$(database)/documents/groups/$(groupId)).data.memberIds;
+      }
+    }
+  }
+}

@@ -18,7 +18,7 @@ class ActivityRepositoryImpl(
             .orderBy("timestamp", com.google.firebase.firestore.Query.Direction.DESCENDING)
             .addSnapshotListener { snapshot, error ->
                 if (error != null) {
-                    close(error)
+                    trySend(emptyList())
                     return@addSnapshotListener
                 }
                 val activities = snapshot?.documents?.mapNotNull { it.toObject(Activity::class.java)?.copy(id = it.id) } ?: emptyList()

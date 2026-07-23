@@ -22,6 +22,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
@@ -100,31 +102,11 @@ fun AccountScreen(
                                 .fillMaxWidth(),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            val photoUrl = accountData.user.photoUrl
-                            if (photoUrl != null) {
-                                AsyncImage(
-                                    model = photoUrl,
-                                    contentDescription = "Profile Picture",
-                                    modifier = Modifier
-                                        .size(64.dp)
-                                        .clip(CircleShape),
-                                    contentScale = ContentScale.Crop
-                                )
-                            } else {
-                                val initials = accountData.user.displayName?.firstOrNull()?.toString()?.uppercase() ?: "?"
-                                val hash = accountData.user.uid.hashCode()
-                                val hue = abs(hash % 360).toFloat()
-                                val color = Color.hsv(hue, 0.5f, 0.8f)
-                                Box(
-                                    modifier = Modifier
-                                        .size(64.dp)
-                                        .clip(CircleShape)
-                                        .background(color),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Text(initials, style = MaterialTheme.typography.headlineMedium, color = Color.White)
-                                }
-                            }
+                            com.example.ui.components.UserAvatar(
+                                photoUrl = accountData.user.photoUrl?.toString(),
+                                displayName = accountData.user.displayName,
+                                size = 64.dp
+                            )
                             Spacer(modifier = Modifier.width(OpenSplitTokens.SpaceMD))
                             Column(modifier = Modifier.weight(1f)) {
                                 Row(verticalAlignment = Alignment.CenterVertically) {
@@ -203,43 +185,56 @@ fun AccountScreen(
                     ) {
                         Column {
                             // Default Currency with anchored DropdownMenu
-                            Box {
+                            Box(modifier = Modifier.fillMaxWidth()) {
+                                val currentFlag = com.example.util.CurrencyFormatter.getCurrencyFlag(accountData.defaultCurrency)
+                                val currentSymbol = com.example.util.CurrencyFormatter.getCurrencySymbol(accountData.defaultCurrency)
+
                                 ListItem(
                                     headlineContent = { Text("Default currency", fontWeight = FontWeight.Medium) },
                                     supportingContent = { Text("Default currency for new expenses") },
                                     trailingContent = {
-                                        Row(verticalAlignment = Alignment.CenterVertically) {
-                                            Text(accountData.defaultCurrency, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
-                                            Spacer(modifier = Modifier.width(OpenSplitTokens.SpaceXS))
-                                            Icon(OpenSplitIcons.Dropdown, contentDescription = null)
-                                        }
-                                    },
-                                    modifier = Modifier.clickable { showCurrencyMenu = true }
-                                )
-
-                                DropdownMenu(
-                                    expanded = showCurrencyMenu,
-                                    onDismissRequest = { showCurrencyMenu = false }
-                                ) {
-                                    val currencies = listOf("USD", "EUR", "GBP", "INR", "JPY", "AUD", "CAD")
-                                    currencies.forEach { curr ->
-                                        DropdownMenuItem(
-                                            text = {
+                                        Box {
+                                            Row(
+                                                verticalAlignment = Alignment.CenterVertically,
+                                                modifier = Modifier.clickable { showCurrencyMenu = true }
+                                            ) {
                                                 Text(
-                                                    text = curr,
-                                                    fontWeight = if (curr == accountData.defaultCurrency) FontWeight.Bold else FontWeight.Normal
+                                                    text = "$currentFlag ${accountData.defaultCurrency} ($currentSymbol)",
+                                                    fontWeight = FontWeight.Bold,
+                                                    color = MaterialTheme.colorScheme.primary
                                                 )
-                                            },
-                                            onClick = {
-                                                viewModel.updateDefaultCurrency(curr)
-                                                showCurrencyMenu = false
-                                            },
-                                            leadingIcon = if (curr == accountData.defaultCurrency) {
-                                                { Icon(OpenSplitIcons.Check, contentDescription = null) }
-                                            } else null
-                                        )
+                                                Spacer(modifier = Modifier.width(OpenSplitTokens.SpaceXS))
+                                                Icon(OpenSplitIcons.Dropdown, contentDescription = "Select Currency")
+                                            }
+
+                                            DropdownMenu(
+                                                expanded = showCurrencyMenu,
+                                                onDismissRequest = { showCurrencyMenu = false }
+                                            ) {
+                                                val currencies = listOf("INR", "USD", "EUR", "GBP", "JPY", "AUD", "CAD")
+                                                currencies.forEach { curr ->
+                                                    val flag = com.example.util.CurrencyFormatter.getCurrencyFlag(curr)
+                                                    val symbol = com.example.util.CurrencyFormatter.getCurrencySymbol(curr)
+                                                    DropdownMenuItem(
+                                                        text = {
+                                                            Text(
+                                                                text = "$flag $curr ($symbol)",
+                                                                fontWeight = if (curr == accountData.defaultCurrency) FontWeight.Bold else FontWeight.Normal
+                                                            )
+                                                        },
+                                                        onClick = {
+                                                            viewModel.updateDefaultCurrency(curr)
+                                                            showCurrencyMenu = false
+                                                        },
+                                                        leadingIcon = if (curr == accountData.defaultCurrency) {
+                                                            { Icon(OpenSplitIcons.Check, contentDescription = null, tint = MaterialTheme.colorScheme.primary) }
+                                                        } else null
+                                                    )
+                                                }
+                                            }
+                                        }
                                     }
-                                }
+                                )
                             }
 
                             HorizontalDivider()
@@ -487,6 +482,7 @@ fun AccountScreen(
                     onValueChange = { editName = it },
                     label = { Text("Display Name") },
                     singleLine = true,
+                    keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Words),
                     modifier = Modifier.fillMaxWidth()
                 )
             },

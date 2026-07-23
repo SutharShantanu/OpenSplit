@@ -73,7 +73,8 @@ class GroupDetailViewModelFactory(
                 groupRepository = container.groupRepository,
                 expenseRepository = container.expenseRepository,
                 userRepository = container.userRepository,
-                activityRepository = container.activityRepository
+                activityRepository = container.activityRepository,
+                authRepository = container.authRepository
             ) as T
         }
         if (modelClass.isAssignableFrom(AccountViewModel::class.java)) {
