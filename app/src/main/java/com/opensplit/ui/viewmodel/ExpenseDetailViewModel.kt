@@ -13,6 +13,7 @@ import kotlinx.coroutines.launch
 data class ExpenseDetailUiState(
     val expense: Expense? = null,
     val comments: List<Comment> = emptyList(),
+    val memberNames: Map<String, String> = emptyMap(),
     val currency: String = "$"
 )
 
@@ -31,6 +32,13 @@ class ExpenseDetailViewModel(
 
     private fun loadData() {
         viewModelScope.launch {
+            // Resolve member uid -> display name once, so the split breakdown shows names.
+            val memberNames = mutableMapOf<String, String>()
+            if (groupId.isNotBlank()) {
+                appContainer.groupRepository.getGroup(groupId)?.memberIds?.forEach { uid ->
+                    appContainer.userRepository.getUser(uid)?.let { memberNames[uid] = it.displayName }
+                }
+            }
             appContainer.expenseRepository.getExpensesForGroup(groupId)
                 .combine(appContainer.expenseRepository.getCommentsForExpense(groupId, expenseId)) { expenses, comments ->
                     val expense = expenses.find { it.id == expenseId }
@@ -38,7 +46,8 @@ class ExpenseDetailViewModel(
                         ScreenState.Success(
                             ExpenseDetailUiState(
                                 expense = expense,
-                                comments = comments
+                                comments = comments,
+                                memberNames = memberNames
                             )
                         )
                     } else {

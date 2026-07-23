@@ -19,7 +19,10 @@ data class ExpenseItem(
 )
 
 enum class RecurrenceFrequency { NONE, DAILY, WEEKLY, MONTHLY }
-data class RecurrenceRule(val frequency: RecurrenceFrequency, val nextOccurrence: Timestamp)
+data class RecurrenceRule(
+    val frequency: RecurrenceFrequency = RecurrenceFrequency.NONE,
+    val nextOccurrence: Timestamp = Timestamp.now()
+)
 
 data class Comment(
     val id: String = "",

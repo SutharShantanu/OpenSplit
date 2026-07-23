@@ -98,6 +98,68 @@ fun ExpenseDetailScreen(
 
                         Spacer(modifier = Modifier.height(20.dp))
 
+                        // Split breakdown: who paid and each person's share.
+                        val nameOf: (String) -> String = { uid ->
+                            detailState.memberNames[uid] ?: uid.take(6)
+                        }
+                        Card(
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = CardDefaults.cardColors(
+                                containerColor = MaterialTheme.colorScheme.surfaceContainer
+                            )
+                        ) {
+                            Column(modifier = Modifier.padding(16.dp)) {
+                                Text(
+                                    text = "Paid by",
+                                    style = MaterialTheme.typography.titleSmall,
+                                    fontWeight = FontWeight.Bold
+                                )
+                                Spacer(modifier = Modifier.height(4.dp))
+                                val payers = exp.multiPayer?.takeIf { it.isNotEmpty() }
+                                    ?: mapOf(exp.paidBy to exp.amount)
+                                payers.forEach { (uid, amt) ->
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.SpaceBetween
+                                    ) {
+                                        Text(nameOf(uid), style = MaterialTheme.typography.bodyMedium)
+                                        Text(
+                                            CurrencyFormatter.format(amt, exp.currency),
+                                            style = MaterialTheme.typography.bodyMedium,
+                                            fontWeight = FontWeight.SemiBold
+                                        )
+                                    }
+                                }
+
+                                if (exp.splits.isNotEmpty()) {
+                                    Spacer(modifier = Modifier.height(12.dp))
+                                    HorizontalDivider()
+                                    Spacer(modifier = Modifier.height(12.dp))
+                                    Text(
+                                        text = "Split (${exp.splitType.name.lowercase()})",
+                                        style = MaterialTheme.typography.titleSmall,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                    Spacer(modifier = Modifier.height(4.dp))
+                                    exp.splits.forEach { split ->
+                                        Row(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            horizontalArrangement = Arrangement.SpaceBetween
+                                        ) {
+                                            Text(nameOf(split.uid), style = MaterialTheme.typography.bodyMedium)
+                                            Text(
+                                                CurrencyFormatter.format(split.amount, exp.currency),
+                                                style = MaterialTheme.typography.bodyMedium,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(20.dp))
+
                         Text(
                             text = "Comments",
                             style = MaterialTheme.typography.titleMedium,
