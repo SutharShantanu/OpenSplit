@@ -13,9 +13,6 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.rounded.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -33,9 +30,11 @@ import com.example.ui.components.ExportBottomSheet
 import com.example.ui.components.StateLayout
 import com.example.ui.components.appHazeHeader
 import com.example.ui.components.appHazeSource
+import com.example.ui.theme.OpenSplitIcons
+import com.example.ui.theme.OpenSplitTokens
 import com.example.ui.viewmodel.AccountViewModel
-import dev.chrisbanes.haze.HazeState
 import com.google.firebase.auth.FirebaseAuth
+import dev.chrisbanes.haze.HazeState
 import kotlin.math.abs
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -65,7 +64,7 @@ fun AccountScreen(
                 title = { Text("Account & Settings", fontWeight = FontWeight.Bold) },
                 navigationIcon = {
                     IconButton(onClick = { rootNavController.popBackStack() }) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                        Icon(OpenSplitIcons.Back, contentDescription = "Back")
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
@@ -81,12 +80,12 @@ fun AccountScreen(
                     .fillMaxSize()
                     .appHazeSource(hazeState),
                 contentPadding = PaddingValues(
-                    top = innerPadding.calculateTopPadding() + 16.dp,
-                    bottom = innerPadding.calculateBottomPadding() + 24.dp,
-                    start = 16.dp,
-                    end = 16.dp
+                    top = innerPadding.calculateTopPadding() + OpenSplitTokens.SpaceMD,
+                    bottom = innerPadding.calculateBottomPadding() + OpenSplitTokens.SpaceXL,
+                    start = OpenSplitTokens.SpaceLG,
+                    end = OpenSplitTokens.SpaceLG
                 ),
-                verticalArrangement = Arrangement.spacedBy(20.dp)
+                verticalArrangement = Arrangement.spacedBy(OpenSplitTokens.SpaceLG)
             ) {
                 // 1. Profile hero card
                 item {
@@ -97,7 +96,7 @@ fun AccountScreen(
                     ) {
                         Row(
                             modifier = Modifier
-                                .padding(20.dp)
+                                .padding(OpenSplitTokens.SpaceLG)
                                 .fillMaxWidth(),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
@@ -126,7 +125,7 @@ fun AccountScreen(
                                     Text(initials, style = MaterialTheme.typography.headlineMedium, color = Color.White)
                                 }
                             }
-                            Spacer(modifier = Modifier.width(16.dp))
+                            Spacer(modifier = Modifier.width(OpenSplitTokens.SpaceMD))
                             Column(modifier = Modifier.weight(1f)) {
                                 Row(verticalAlignment = Alignment.CenterVertically) {
                                     Text(
@@ -135,7 +134,7 @@ fun AccountScreen(
                                         fontWeight = FontWeight.Bold,
                                         color = MaterialTheme.colorScheme.onPrimaryContainer
                                     )
-                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Spacer(modifier = Modifier.width(OpenSplitTokens.SpaceSM))
                                     IconButton(
                                         onClick = {
                                             editName = accountData.user.displayName ?: ""
@@ -144,7 +143,7 @@ fun AccountScreen(
                                         modifier = Modifier.size(28.dp)
                                     ) {
                                         Icon(
-                                            Icons.Rounded.Edit,
+                                            OpenSplitIcons.Edit,
                                             contentDescription = "Edit Name",
                                             modifier = Modifier.size(18.dp),
                                             tint = MaterialTheme.colorScheme.onPrimaryContainer
@@ -165,7 +164,7 @@ fun AccountScreen(
                 item {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                        horizontalArrangement = Arrangement.spacedBy(OpenSplitTokens.SpaceSM)
                     ) {
                         StatChip(
                             modifier = Modifier.weight(1f),
@@ -179,8 +178,8 @@ fun AccountScreen(
                         )
 
                         val balanceColor = when {
-                            accountData.netBalance > 0.01 -> Color(0xFF2E7D32)
-                            accountData.netBalance < -0.01 -> MaterialTheme.colorScheme.error
+                            accountData.netBalance > 0.01 -> OpenSplitTokens.OwedPositive
+                            accountData.netBalance < -0.01 -> OpenSplitTokens.OwedNegative
                             else -> MaterialTheme.colorScheme.onSurfaceVariant
                         }
                         val formattedBalance = "%.2f".format(abs(accountData.netBalance))
@@ -211,8 +210,8 @@ fun AccountScreen(
                                     trailingContent = {
                                         Row(verticalAlignment = Alignment.CenterVertically) {
                                             Text(accountData.defaultCurrency, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
-                                            Spacer(modifier = Modifier.width(4.dp))
-                                            Icon(Icons.Rounded.ArrowDropDown, contentDescription = null)
+                                            Spacer(modifier = Modifier.width(OpenSplitTokens.SpaceXS))
+                                            Icon(OpenSplitIcons.Dropdown, contentDescription = null)
                                         }
                                     },
                                     modifier = Modifier.clickable { showCurrencyMenu = true }
@@ -236,7 +235,7 @@ fun AccountScreen(
                                                 showCurrencyMenu = false
                                             },
                                             leadingIcon = if (curr == accountData.defaultCurrency) {
-                                                { Icon(Icons.Rounded.Check, contentDescription = null) }
+                                                { Icon(OpenSplitIcons.Check, contentDescription = null) }
                                             } else null
                                         )
                                     }
@@ -290,7 +289,61 @@ fun AccountScreen(
                     }
                 }
 
-                // 4. Your Data Section Card
+                // 4. Permissions Section Card
+                item {
+                    SectionHeader("System Permissions")
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = MaterialTheme.shapes.large
+                    ) {
+                        Column {
+                            ListItem(
+                                headlineContent = { Text("Camera Access", fontWeight = FontWeight.Medium) },
+                                supportingContent = { Text("Scan receipts with AI OCR") },
+                                leadingContent = { Icon(OpenSplitIcons.Camera, contentDescription = null) },
+                                trailingContent = {
+                                    AssistChip(
+                                        onClick = { },
+                                        label = { Text("Granted") },
+                                        leadingIcon = { Icon(OpenSplitIcons.Check, contentDescription = null, modifier = Modifier.size(16.dp)) }
+                                    )
+                                }
+                            )
+
+                            HorizontalDivider()
+
+                            ListItem(
+                                headlineContent = { Text("Storage & Export", fontWeight = FontWeight.Medium) },
+                                supportingContent = { Text("Save CSV, PDF reports") },
+                                leadingContent = { Icon(OpenSplitIcons.Download, contentDescription = null) },
+                                trailingContent = {
+                                    AssistChip(
+                                        onClick = { },
+                                        label = { Text("Granted") },
+                                        leadingIcon = { Icon(OpenSplitIcons.Check, contentDescription = null, modifier = Modifier.size(16.dp)) }
+                                    )
+                                }
+                            )
+
+                            HorizontalDivider()
+
+                            ListItem(
+                                headlineContent = { Text("Contacts Sync", fontWeight = FontWeight.Medium) },
+                                supportingContent = { Text("Find friends by phone or email") },
+                                leadingContent = { Icon(OpenSplitIcons.Person, contentDescription = null) },
+                                trailingContent = {
+                                    AssistChip(
+                                        onClick = { },
+                                        label = { Text("Granted") },
+                                        leadingIcon = { Icon(OpenSplitIcons.Check, contentDescription = null, modifier = Modifier.size(16.dp)) }
+                                    )
+                                }
+                            )
+                        }
+                    }
+                }
+
+                // 5. Your Data Section Card
                 item {
                     SectionHeader("Your Data")
                     Card(
@@ -301,8 +354,8 @@ fun AccountScreen(
                             ListItem(
                                 headlineContent = { Text("Export expenses & backup", fontWeight = FontWeight.Medium) },
                                 supportingContent = { Text("Export to CSV, PDF, or JSON backup format") },
-                                leadingContent = { Icon(Icons.Rounded.FileDownload, contentDescription = null) },
-                                trailingContent = { Icon(Icons.Rounded.ChevronRight, contentDescription = null) },
+                                leadingContent = { Icon(OpenSplitIcons.Download, contentDescription = null) },
+                                trailingContent = { Icon(OpenSplitIcons.ChevronRight, contentDescription = null) },
                                 modifier = Modifier.clickable { showExportBottomSheet = true }
                             )
 
@@ -311,8 +364,8 @@ fun AccountScreen(
                             ListItem(
                                 headlineContent = { Text("Manage contacts & invites", fontWeight = FontWeight.Medium) },
                                 supportingContent = { Text("${accountData.pendingInvites.size} pending group invitations") },
-                                leadingContent = { Icon(Icons.Rounded.GroupAdd, contentDescription = null) },
-                                trailingContent = { Icon(Icons.Rounded.ChevronRight, contentDescription = null) },
+                                leadingContent = { Icon(OpenSplitIcons.AddMember, contentDescription = null) },
+                                trailingContent = { Icon(OpenSplitIcons.ChevronRight, contentDescription = null) },
                                 modifier = Modifier.clickable {
                                     Toast.makeText(context, "No pending invitations", Toast.LENGTH_SHORT).show()
                                 }
@@ -321,7 +374,7 @@ fun AccountScreen(
                     }
                 }
 
-                // 5. Security Section Card
+                // 6. Security Section Card
                 item {
                     SectionHeader("Security")
                     Card(
@@ -332,8 +385,8 @@ fun AccountScreen(
                             ListItem(
                                 headlineContent = { Text("Change password", fontWeight = FontWeight.Medium) },
                                 supportingContent = { Text("Send password reset link to your email") },
-                                leadingContent = { Icon(Icons.Rounded.Lock, contentDescription = null) },
-                                trailingContent = { Icon(Icons.Rounded.ChevronRight, contentDescription = null) },
+                                leadingContent = { Icon(OpenSplitIcons.Security, contentDescription = null) },
+                                trailingContent = { Icon(OpenSplitIcons.ChevronRight, contentDescription = null) },
                                 modifier = Modifier.clickable { showPasswordResetDialog = true }
                             )
 
@@ -342,13 +395,13 @@ fun AccountScreen(
                             ListItem(
                                 headlineContent = { Text("Linked accounts", fontWeight = FontWeight.Medium) },
                                 supportingContent = { Text(if (accountData.user.providerData.any { it.providerId == "google.com" }) "Google Sign-In connected" else "Email / Password account") },
-                                leadingContent = { Icon(Icons.Rounded.AccountBox, contentDescription = null) }
+                                leadingContent = { Icon(OpenSplitIcons.Person, contentDescription = null) }
                             )
                         }
                     }
                 }
 
-                // 6. Support & About Section Card
+                // 7. Support & About Section Card
                 item {
                     SectionHeader("Support & About")
                     Card(
@@ -359,8 +412,8 @@ fun AccountScreen(
                             ListItem(
                                 headlineContent = { Text("Help & feedback", fontWeight = FontWeight.Medium) },
                                 supportingContent = { Text("Send feedback or bug report") },
-                                leadingContent = { Icon(Icons.Rounded.HelpOutline, contentDescription = null) },
-                                trailingContent = { Icon(Icons.Rounded.ChevronRight, contentDescription = null) },
+                                leadingContent = { Icon(OpenSplitIcons.Info, contentDescription = null) },
+                                trailingContent = { Icon(OpenSplitIcons.ChevronRight, contentDescription = null) },
                                 modifier = Modifier.clickable {
                                     val intent = Intent(Intent.ACTION_SENDTO).apply {
                                         data = Uri.parse("mailto:support@opensplit.app")
@@ -379,15 +432,15 @@ fun AccountScreen(
                             ListItem(
                                 headlineContent = { Text("About OpenSplit", fontWeight = FontWeight.Medium) },
                                 supportingContent = { Text("Version 1.0.0 • Open Source Expense Splitter") },
-                                leadingContent = { Icon(Icons.Rounded.Info, contentDescription = null) }
+                                leadingContent = { Icon(OpenSplitIcons.Info, contentDescription = null) }
                             )
                         }
                     }
                 }
 
-                // 7. Actions: Sign out & Delete account
+                // 8. Actions: Sign out & Delete account
                 item {
-                    Spacer(modifier = Modifier.height(8.dp))
+                    Spacer(modifier = Modifier.height(OpenSplitTokens.SpaceSM))
                     OutlinedButton(
                         onClick = { showSignOutDialog = true },
                         modifier = Modifier
@@ -395,12 +448,12 @@ fun AccountScreen(
                             .height(50.dp),
                         colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.onSurface)
                     ) {
-                        Icon(Icons.Rounded.Logout, contentDescription = null, modifier = Modifier.size(20.dp))
-                        Spacer(modifier = Modifier.width(8.dp))
+                        Icon(OpenSplitIcons.Logout, contentDescription = null, modifier = Modifier.size(20.dp))
+                        Spacer(modifier = Modifier.width(OpenSplitTokens.SpaceSM))
                         Text("Sign out", fontWeight = FontWeight.SemiBold)
                     }
 
-                    Spacer(modifier = Modifier.height(12.dp))
+                    Spacer(modifier = Modifier.height(OpenSplitTokens.SpaceMD))
 
                     TextButton(
                         onClick = { showDeleteAccountDialog = true },
@@ -594,12 +647,12 @@ private fun StatChip(
     ) {
         Column(
             modifier = Modifier
-                .padding(12.dp)
+                .padding(OpenSplitTokens.SpaceMD)
                 .fillMaxWidth(),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Text(text = label, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            Spacer(modifier = Modifier.height(4.dp))
+            Spacer(modifier = Modifier.height(OpenSplitTokens.SpaceXS))
             AnimatedContent(
                 targetState = value,
                 transitionSpec = { fadeIn(tween(300)) togetherWith fadeOut(tween(300)) },
@@ -615,3 +668,4 @@ private fun StatChip(
         }
     }
 }
+

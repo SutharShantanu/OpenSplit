@@ -4,21 +4,28 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.Person
-import androidx.compose.material.icons.rounded.Search
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import com.example.ui.components.AppSearchBar
 import com.example.ui.components.HandshakeIllustration
 import com.example.ui.components.StateLayout
-import com.example.ui.components.getBalanceColor
+import com.example.ui.theme.OpenSplitIcons
+import com.example.ui.theme.OpenSplitTokens
 import com.example.ui.viewmodel.MainViewModel
 import kotlin.math.abs
+
+enum class FriendFilterOption(val label: String) {
+    ALL("All"),
+    OWED_TO_YOU("Owed to you"),
+    YOU_OWE("You owe")
+}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -28,6 +35,7 @@ fun FriendsScreen(
 ) {
     val friendsState by viewModel.friendsBalances.collectAsState()
     var searchQuery by remember { mutableStateOf("") }
+    var selectedFilter by remember { mutableStateOf(FriendFilterOption.ALL) }
 
     Box(modifier = Modifier.fillMaxSize()) {
         StateLayout(state = friendsState) { balances ->
@@ -35,21 +43,21 @@ fun FriendsScreen(
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
-                        .padding(24.dp),
+                        .padding(OpenSplitTokens.SpaceXL),
                     contentAlignment = Alignment.Center
                 ) {
                     Column(
                         horizontalAlignment = Alignment.CenterHorizontally,
                         verticalArrangement = Arrangement.Center
                     ) {
-                        HandshakeIllustration(size = 130.dp)
-                        Spacer(modifier = Modifier.height(20.dp))
+                        HandshakeIllustration(size = 140.dp)
+                        Spacer(modifier = Modifier.height(OpenSplitTokens.SpaceXL))
                         Text(
                             text = "You're all settled up!",
                             style = MaterialTheme.typography.titleLarge,
                             fontWeight = FontWeight.Bold
                         )
-                        Spacer(modifier = Modifier.height(8.dp))
+                        Spacer(modifier = Modifier.height(OpenSplitTokens.SpaceSM))
                         Text(
                             text = "No pending balances with any friends.",
                             style = MaterialTheme.typography.bodyMedium,
@@ -62,49 +70,85 @@ fun FriendsScreen(
                 Column(
                     modifier = Modifier
                         .fillMaxSize()
-                        .padding(16.dp)
+                        .padding(horizontal = OpenSplitTokens.SpaceLG, vertical = OpenSplitTokens.SpaceMD)
                 ) {
-                    OutlinedTextField(
-                        value = searchQuery,
-                        onValueChange = { searchQuery = it },
-                        modifier = Modifier.fillMaxWidth(),
-                        placeholder = { Text("Search friends...") },
-                        leadingIcon = { Icon(Icons.Rounded.Search, contentDescription = null) },
-                        singleLine = true,
-                        shape = MaterialTheme.shapes.medium
+                    AppSearchBar(
+                        query = searchQuery,
+                        onQueryChange = { searchQuery = it },
+                        placeholderText = "Search friends..."
                     )
 
-                    Spacer(modifier = Modifier.height(16.dp))
+                    Spacer(modifier = Modifier.height(OpenSplitTokens.SpaceMD))
 
-                    // Sort by balance magnitude descending by default
-                    val processedBalances = remember(balances, searchQuery) {
-                        balances.filter {
-                            it.user.displayName.contains(searchQuery, ignoreCase = true) ||
-                                    it.user.email.contains(searchQuery, ignoreCase = true)
+                    // Filter Chips Row
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(OpenSplitTokens.SpaceSM),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        FriendFilterOption.values().forEach { option ->
+                            val isSelected = selectedFilter == option
+                            FilterChip(
+                                selected = isSelected,
+                                onClick = { selectedFilter = option },
+                                label = { Text(option.label) },
+                                shape = MaterialTheme.shapes.extraLarge
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(OpenSplitTokens.SpaceSM))
+
+                    val processedBalances = remember(balances, searchQuery, selectedFilter) {
+                        balances.filter { fb ->
+                            val matchesSearch = fb.user.displayName.contains(searchQuery, ignoreCase = true) ||
+                                    fb.user.email.contains(searchQuery, ignoreCase = true)
+                            val matchesFilter = when (selectedFilter) {
+                                FriendFilterOption.ALL -> true
+                                FriendFilterOption.OWED_TO_YOU -> fb.balance > 0.01
+                                FriendFilterOption.YOU_OWE -> fb.balance < -0.01
+                            }
+                            matchesSearch && matchesFilter
                         }.sortedByDescending { abs(it.balance) }
                     }
 
                     LazyColumn(
-                        verticalArrangement = Arrangement.spacedBy(10.dp),
+                        verticalArrangement = Arrangement.spacedBy(OpenSplitTokens.SpaceXS),
                         modifier = Modifier.fillMaxSize()
                     ) {
                         items(processedBalances) { fb ->
-                            Card(
+                            val bal = fb.balance
+                            val color = if (bal > 0.01) OpenSplitTokens.OwedPositive else if (bal < -0.01) OpenSplitTokens.OwedNegative else OpenSplitTokens.OwedNeutral
+                            val formattedVal = String.format("%.2f", abs(bal))
+                            val text = if (bal > 0.01) {
+                                "Owes you $$formattedVal"
+                            } else if (bal < -0.01) {
+                                "You owe $$formattedVal"
+                            } else {
+                                "Settled up"
+                            }
+
+                            ListItem(
                                 modifier = Modifier
                                     .fillMaxWidth()
+                                    .clip(MaterialTheme.shapes.medium)
                                     .clickable { onFriendClick(fb.user.uid) },
-                                colors = CardDefaults.cardColors(
-                                    containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
-                                )
-                            ) {
-                                Row(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(16.dp),
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
+                                headlineContent = {
+                                    Text(
+                                        text = fb.user.displayName,
+                                        style = MaterialTheme.typography.titleMedium,
+                                        fontWeight = FontWeight.SemiBold
+                                    )
+                                },
+                                supportingContent = {
+                                    Text(
+                                        text = fb.user.email,
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                },
+                                leadingContent = {
                                     Surface(
-                                        shape = MaterialTheme.shapes.small,
+                                        shape = CircleShape,
                                         color = MaterialTheme.colorScheme.secondaryContainer,
                                         modifier = Modifier.size(44.dp)
                                     ) {
@@ -117,43 +161,18 @@ fun FriendsScreen(
                                             )
                                         }
                                     }
-
-                                    Spacer(modifier = Modifier.width(16.dp))
-
-                                    Column(modifier = Modifier.weight(1f)) {
-                                        Text(
-                                            text = fb.user.displayName,
-                                            style = MaterialTheme.typography.titleMedium,
-                                            fontWeight = FontWeight.Bold
-                                        )
-                                        Spacer(modifier = Modifier.height(2.dp))
-                                        Text(
-                                            text = fb.user.email,
-                                            style = MaterialTheme.typography.bodySmall,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                                        )
-                                    }
-
-                                    val bal = fb.balance
-                                    val color = getBalanceColor(bal)
-                                    val formattedVal = String.format("%.2f", abs(bal))
-                                    val text = if (bal > 0.01) {
-                                        "Owes you\n$$formattedVal"
-                                    } else if (bal < -0.01) {
-                                        "You owe\n$$formattedVal"
-                                    } else {
-                                        "Settled up"
-                                    }
-
+                                },
+                                trailingContent = {
                                     Text(
                                         text = text,
                                         color = color,
-                                        style = MaterialTheme.typography.labelLarge,
+                                        style = MaterialTheme.typography.titleSmall,
                                         fontWeight = FontWeight.Bold,
                                         textAlign = TextAlign.End
                                     )
                                 }
-                            }
+                            )
+                            HorizontalDivider(color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
                         }
                     }
                 }
@@ -161,3 +180,4 @@ fun FriendsScreen(
         }
     }
 }
+

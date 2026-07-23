@@ -5,30 +5,29 @@ import android.provider.ContactsContract
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Contacts
-import androidx.compose.material.icons.filled.Person
+import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import com.example.ui.components.StateLayout
+import com.example.ui.components.*
+import com.example.ui.theme.OpenSplitIcons
+import com.example.ui.theme.OpenSplitTokens
 import com.example.ui.viewmodel.GroupDetailViewModel
 import com.example.ui.viewmodel.ScreenState
-import kotlinx.coroutines.launch
-
-import androidx.compose.material.icons.rounded.FileDownload
-import com.example.ui.components.ExportBottomSheet
-import com.example.ui.components.appHazeHeader
-import com.example.ui.components.appHazeSource
 import dev.chrisbanes.haze.HazeState
+import kotlinx.coroutines.launch
+import java.text.SimpleDateFormat
+import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -42,9 +41,18 @@ fun GroupDetailScreen(
     var showAddMember by remember { mutableStateOf(false) }
     var showExportSheet by remember { mutableStateOf(false) }
     var searchQuery by remember { mutableStateOf("") }
+    var selectedCategory by remember { mutableStateOf("All") }
+    var selectedTab by remember { mutableStateOf(0) }
+    val tabTitles = listOf("Expenses", "Balances", "Members")
+
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
     val hazeState = remember { HazeState() }
+    val listState = rememberLazyListState()
+
+    val isExpanded by remember {
+        derivedStateOf { listState.firstVisibleItemIndex == 0 && listState.firstVisibleItemScrollOffset < 10 }
+    }
 
     val contactPickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.PickContact()
@@ -76,18 +84,18 @@ fun GroupDetailScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text(groupName, fontWeight = androidx.compose.ui.text.font.FontWeight.Bold) },
+                title = { Text(groupName, fontWeight = FontWeight.Bold) },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                        Icon(OpenSplitIcons.Back, contentDescription = "Back")
                     }
                 },
                 actions = {
                     IconButton(onClick = { showExportSheet = true }) {
-                        Icon(Icons.Rounded.FileDownload, contentDescription = "Export Group Expenses")
+                        Icon(OpenSplitIcons.Export, contentDescription = "Export Group Expenses")
                     }
                     IconButton(onClick = { showAddMember = true }) {
-                        Icon(Icons.Filled.Person, contentDescription = "Add Member")
+                        Icon(OpenSplitIcons.Invite, contentDescription = "Add Member")
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
@@ -97,9 +105,14 @@ fun GroupDetailScreen(
             )
         },
         floatingActionButton = {
-            FloatingActionButton(onClick = onNavigateToAddExpense) {
-                Icon(Icons.Filled.Add, contentDescription = "Add Expense")
-            }
+            ExtendedFloatingActionButton(
+                expanded = isExpanded,
+                onClick = onNavigateToAddExpense,
+                icon = { Icon(OpenSplitIcons.AddExpense, contentDescription = null) },
+                text = { Text("Add Expense") },
+                containerColor = MaterialTheme.colorScheme.primaryContainer,
+                contentColor = MaterialTheme.colorScheme.onPrimaryContainer
+            )
         }
     ) { padding ->
         Box(
@@ -108,74 +121,250 @@ fun GroupDetailScreen(
                 .padding(top = padding.calculateTopPadding(), bottom = padding.calculateBottomPadding())
         ) {
             StateLayout(state = uiState) { data ->
-                val filteredExpenses = data.expenses.filter { it.description.contains(searchQuery, ignoreCase = true) || it.category.contains(searchQuery, ignoreCase = true) }
+                val filteredExpenses = data.expenses.filter { exp ->
+                    val matchesQuery = exp.description.contains(searchQuery, ignoreCase = true) || exp.category.contains(searchQuery, ignoreCase = true)
+                    val matchesCategory = selectedCategory == "All" || exp.category.equals(selectedCategory, ignoreCase = true)
+                    matchesQuery && matchesCategory
+                }
+
                 Column(
                     modifier = Modifier
                         .fillMaxSize()
                         .appHazeSource(hazeState)
                 ) {
-                    Text(
-                        text = "Members",
-                        style = MaterialTheme.typography.titleMedium,
-                        modifier = Modifier.padding(16.dp)
-                    )
-                    
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 16.dp),
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        data.members.forEach { user ->
-                            val bal = data.balances[user.uid] ?: 0.0
-                            val color = if (bal > 0.01) MaterialTheme.colorScheme.primary else if (bal < -0.01) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface
-                            val currency = data.group.currency
-                            val text = if (bal > 0.01) "gets back $currency ${"%.2f".format(bal)}" else if (bal < -0.01) "owes $currency ${"%.2f".format(-bal)}" else "settled up"
-                            
-                            Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
-                                Icon(Icons.Filled.Person, contentDescription = null)
-                                Spacer(modifier = Modifier.width(8.dp))
-                                Column {
-                                    Text(user.displayName, style = MaterialTheme.typography.bodyLarge)
-                                    Text(text, style = MaterialTheme.typography.bodyMedium, color = color)
+                    // Secondary Tab Row
+                    SecondaryTabRow(selectedTabIndex = selectedTab) {
+                        tabTitles.forEachIndexed { index, title ->
+                            Tab(
+                                selected = selectedTab == index,
+                                onClick = { selectedTab = index },
+                                text = {
+                                    if (index == 0 && data.expenses.isNotEmpty()) {
+                                        BadgedBox(
+                                            badge = { Badge { Text("${data.expenses.size}") } }
+                                        ) {
+                                            Text(title)
+                                        }
+                                    } else {
+                                        Text(title)
+                                    }
+                                }
+                            )
+                        }
+                    }
+
+                    when (selectedTab) {
+                        0 -> { // Expenses Tab
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .padding(horizontal = OpenSplitTokens.SpaceLG, vertical = OpenSplitTokens.SpaceMD)
+                            ) {
+                                AppSearchBar(
+                                    query = searchQuery,
+                                    onQueryChange = { searchQuery = it },
+                                    placeholderText = "Search expenses..."
+                                )
+
+                                Spacer(modifier = Modifier.height(OpenSplitTokens.SpaceMD))
+
+                                CategoryChipRow(
+                                    selectedCategory = selectedCategory,
+                                    onCategorySelected = { selectedCategory = it }
+                                )
+
+                                Spacer(modifier = Modifier.height(OpenSplitTokens.SpaceMD))
+
+                                if (filteredExpenses.isEmpty()) {
+                                    Box(
+                                        modifier = Modifier.fillMaxSize(),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Column(
+                                            horizontalAlignment = Alignment.CenterHorizontally,
+                                            modifier = Modifier.padding(OpenSplitTokens.SpaceXL)
+                                        ) {
+                                            ReceiptIllustration(size = 120.dp)
+                                            Spacer(modifier = Modifier.height(OpenSplitTokens.SpaceLG))
+                                            Text(
+                                                text = "No expenses yet \u2014 add the first one and OpenSplit handles the math",
+                                                style = MaterialTheme.typography.bodyLarge,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                                textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                                            )
+                                            Spacer(modifier = Modifier.height(OpenSplitTokens.SpaceLG))
+                                            Button(onClick = onNavigateToAddExpense) {
+                                                Icon(OpenSplitIcons.AddExpense, contentDescription = null)
+                                                Spacer(modifier = Modifier.width(OpenSplitTokens.SpaceSM))
+                                                Text("Add Expense")
+                                            }
+                                        }
+                                    }
+                                } else {
+                                    LazyColumn(
+                                        state = listState,
+                                        verticalArrangement = Arrangement.spacedBy(OpenSplitTokens.SpaceXS),
+                                        modifier = Modifier.fillMaxSize()
+                                    ) {
+                                        items(filteredExpenses) { exp ->
+                                            val categoryIcon = getCategoryIcon(exp.category)
+                                            val categoryColor = getCategoryColor(exp.category)
+                                            val dateStr = remember(exp.date) {
+                                                try {
+                                                    SimpleDateFormat("MMM d", Locale.getDefault()).format(exp.date.toDate())
+                                                } catch (e: Exception) { "" }
+                                            }
+
+                                            ListItem(
+                                                modifier = Modifier
+                                                    .fillMaxWidth()
+                                                    .clip(MaterialTheme.shapes.medium)
+                                                    .clickable { onNavigateToExpenseDetail(data.group.id, exp.id) },
+                                                headlineContent = {
+                                                    Text(
+                                                        text = exp.description,
+                                                        style = MaterialTheme.typography.titleMedium,
+                                                        fontWeight = FontWeight.SemiBold
+                                                    )
+                                                },
+                                                supportingContent = {
+                                                    val payerName = data.members.find { it.uid == exp.paidBy }?.displayName ?: "Unknown"
+                                                    Text(
+                                                        text = "Paid by $payerName • $dateStr",
+                                                        style = MaterialTheme.typography.bodySmall,
+                                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                                    )
+                                                },
+                                                leadingContent = {
+                                                    Surface(
+                                                        shape = CircleShape,
+                                                        color = categoryColor.copy(alpha = 0.15f),
+                                                        modifier = Modifier.size(40.dp)
+                                                    ) {
+                                                        Box(contentAlignment = Alignment.Center) {
+                                                            Icon(
+                                                                imageVector = categoryIcon,
+                                                                contentDescription = exp.category,
+                                                                tint = categoryColor,
+                                                                modifier = Modifier.size(20.dp)
+                                                            )
+                                                        }
+                                                    }
+                                                },
+                                                trailingContent = {
+                                                    Text(
+                                                        text = "${exp.currency}${String.format("%.2f", exp.amount)}",
+                                                        style = MaterialTheme.typography.titleMedium,
+                                                        fontWeight = FontWeight.Bold
+                                                    )
+                                                }
+                                            )
+                                            HorizontalDivider(color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+                                        }
+                                    }
                                 }
                             }
                         }
-                    }
-                    
-                    Spacer(modifier = Modifier.height(16.dp))
-                    HorizontalDivider()
-                    Spacer(modifier = Modifier.height(16.dp))
-                    OutlinedTextField(
-                        value = searchQuery,
-                        onValueChange = { searchQuery = it },
-                        label = { Text("Search expenses") },
-                        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
-                        singleLine = true
-                    )
-                    Spacer(modifier = Modifier.height(16.dp))
-                    Text(
-                        text = "Expenses",
-                        style = MaterialTheme.typography.titleMedium,
-                        modifier = Modifier.padding(16.dp)
-                    )
-                    
-                    if (filteredExpenses.isEmpty()) {
-                        Box(modifier = Modifier.fillMaxSize(), contentAlignment = androidx.compose.ui.Alignment.Center) {
-                            Text("No expenses yet \u2014 add the first one")
+
+                        1 -> { // Balances Tab
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .padding(OpenSplitTokens.SpaceLG)
+                            ) {
+                                Card(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    shape = MaterialTheme.shapes.large,
+                                    colors = CardDefaults.cardColors(
+                                        containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
+                                    )
+                                ) {
+                                    Column(modifier = Modifier.padding(OpenSplitTokens.SpaceLG)) {
+                                        Text(
+                                            text = "Group Balances Summary",
+                                            style = MaterialTheme.typography.titleMedium,
+                                            fontWeight = FontWeight.Bold
+                                        )
+                                        Spacer(modifier = Modifier.height(OpenSplitTokens.SpaceMD))
+
+                                        data.members.forEach { user ->
+                                            val bal = data.balances[user.uid] ?: 0.0
+                                            val color = if (bal > 0.01) OpenSplitTokens.OwedPositive else if (bal < -0.01) OpenSplitTokens.OwedNegative else OpenSplitTokens.OwedNeutral
+                                            val currency = data.group.currency
+                                            val text = if (bal > 0.01) {
+                                                "Gets back $currency ${String.format("%.2f", bal)}"
+                                            } else if (bal < -0.01) {
+                                                "Owes $currency ${String.format("%.2f", -bal)}"
+                                            } else {
+                                                "Settled up"
+                                            }
+
+                                            ListItem(
+                                                headlineContent = { Text(user.displayName, fontWeight = FontWeight.Medium) },
+                                                supportingContent = { Text(text, color = color, fontWeight = FontWeight.SemiBold) },
+                                                leadingContent = {
+                                                    Surface(
+                                                        shape = CircleShape,
+                                                        color = MaterialTheme.colorScheme.primaryContainer,
+                                                        modifier = Modifier.size(36.dp)
+                                                    ) {
+                                                        Box(contentAlignment = Alignment.Center) {
+                                                            Text(
+                                                                text = user.displayName.take(1).uppercase(),
+                                                                fontWeight = FontWeight.Bold,
+                                                                color = MaterialTheme.colorScheme.onPrimaryContainer
+                                                            )
+                                                        }
+                                                    }
+                                                }
+                                            )
+                                        }
+                                    }
+                                }
+                            }
                         }
-                    } else {
-                        LazyColumn(
-                            contentPadding = PaddingValues(16.dp),
-                            verticalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            items(filteredExpenses) { exp ->
-                                Card(modifier = Modifier.fillMaxWidth().clickable { onNavigateToExpenseDetail(data.group.id, exp.id) }) {
-                                    Column(modifier = Modifier.padding(16.dp)) {
-                                        Text(exp.description, style = MaterialTheme.typography.titleMedium)
-                                        Spacer(modifier = Modifier.height(4.dp))
-                                        Text("${exp.amount} ${exp.currency}", style = MaterialTheme.typography.bodyMedium)
-                                        Text("Paid by ${data.members.find { it.uid == exp.paidBy }?.displayName ?: "Unknown"}", style = MaterialTheme.typography.bodySmall)
+
+                        2 -> { // Members Tab
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .padding(OpenSplitTokens.SpaceLG)
+                            ) {
+                                Button(
+                                    onClick = { showAddMember = true },
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    Icon(OpenSplitIcons.Invite, contentDescription = null)
+                                    Spacer(modifier = Modifier.width(OpenSplitTokens.SpaceSM))
+                                    Text("Add Member to Group")
+                                }
+
+                                Spacer(modifier = Modifier.height(OpenSplitTokens.SpaceMD))
+
+                                LazyColumn(
+                                    verticalArrangement = Arrangement.spacedBy(OpenSplitTokens.SpaceXS)
+                                ) {
+                                    items(data.members) { user ->
+                                        ListItem(
+                                            headlineContent = { Text(user.displayName, fontWeight = FontWeight.SemiBold) },
+                                            supportingContent = { Text(user.email, style = MaterialTheme.typography.bodySmall) },
+                                            leadingContent = {
+                                                Surface(
+                                                    shape = CircleShape,
+                                                    color = MaterialTheme.colorScheme.primaryContainer,
+                                                    modifier = Modifier.size(40.dp)
+                                                ) {
+                                                    Box(contentAlignment = Alignment.Center) {
+                                                        Text(
+                                                            text = user.displayName.take(1).uppercase(),
+                                                            fontWeight = FontWeight.Bold,
+                                                            color = MaterialTheme.colorScheme.onPrimaryContainer
+                                                        )
+                                                    }
+                                                }
+                                            }
+                                        )
+                                        HorizontalDivider(color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
                                     }
                                 }
                             }
@@ -195,33 +384,36 @@ fun GroupDetailScreen(
         }
     }
 
-
     if (showAddMember) {
         var emailQuery by remember { mutableStateOf("") }
         AlertDialog(
             onDismissRequest = { showAddMember = false },
-            title = { Text("Add Member") },
+            title = { Text("Add member") },
             text = {
                 Column {
-                    Text("Enter the email address of the user you want to add.")
-                    Spacer(modifier = Modifier.height(8.dp))
+                    Text("Enter the email address of the person you want to add.")
+                    Spacer(modifier = Modifier.height(OpenSplitTokens.SpaceSM))
                     OutlinedTextField(
                         value = emailQuery,
                         onValueChange = { emailQuery = it },
                         label = { Text("Email") },
                         singleLine = true,
-                        modifier = Modifier.fillMaxWidth()
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = MaterialTheme.shapes.medium
                     )
-                    Spacer(modifier = Modifier.height(16.dp))
-                    Text("Or")
-                    Spacer(modifier = Modifier.height(8.dp))
-                    OutlinedButton(onClick = {
-                        showAddMember = false
-                        permissionLauncher.launch(android.Manifest.permission.READ_CONTACTS)
-                    }, modifier = Modifier.fillMaxWidth()) {
-                        Icon(Icons.Filled.Contacts, contentDescription = null)
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text("Add from Contacts")
+                    Spacer(modifier = Modifier.height(OpenSplitTokens.SpaceLG))
+                    Text("Or", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Spacer(modifier = Modifier.height(OpenSplitTokens.SpaceSM))
+                    OutlinedButton(
+                        onClick = {
+                            showAddMember = false
+                            permissionLauncher.launch(android.Manifest.permission.READ_CONTACTS)
+                        },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Icon(OpenSplitIcons.Contacts, contentDescription = null)
+                        Spacer(modifier = Modifier.width(OpenSplitTokens.SpaceSM))
+                        Text("Add from contacts")
                     }
                 }
             },
@@ -233,7 +425,7 @@ fun GroupDetailScreen(
                     },
                     enabled = emailQuery.isNotBlank()
                 ) {
-                    Text("Add")
+                    Text("Add member")
                 }
             },
             dismissButton = {
@@ -244,6 +436,7 @@ fun GroupDetailScreen(
         )
     }
 }
+
 
 suspend fun extractEmailOrPhoneFromContact(context: Context, contactUri: android.net.Uri): String? {
     return kotlinx.coroutines.Dispatchers.IO.let {

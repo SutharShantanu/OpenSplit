@@ -3,7 +3,6 @@ package com.example.ui.components
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -19,22 +18,19 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.example.ui.theme.OpenSplitTokens
 import kotlin.math.abs
-
-// Standard color semantics across OpenSplit
-val ColorOwedToUser = Color(0xFF2E7D32) // Green for money owed to user (+)
-val ColorUserOwes = Color(0xFFD32F2F)   // Red for money user owes (-)
 
 @Composable
 fun getBalanceColor(amount: Double, isSpendTotal: Boolean = false): Color {
     return if (isSpendTotal) {
-        MaterialTheme.colorScheme.onSurface
+        MaterialTheme.colorScheme.primary
     } else if (amount > 0.01) {
-        ColorOwedToUser
+        OpenSplitTokens.OwedPositive
     } else if (amount < -0.01) {
-        ColorUserOwes
+        OpenSplitTokens.OwedNegative
     } else {
-        MaterialTheme.colorScheme.onSurfaceVariant
+        OpenSplitTokens.OwedNeutral
     }
 }
 
@@ -43,7 +39,7 @@ fun AnimatedAmountText(
     amount: Double,
     currency: String = "$",
     isSpendTotal: Boolean = false,
-    textStyle: androidx.compose.ui.text.TextStyle = MaterialTheme.typography.displaySmall,
+    textStyle: androidx.compose.ui.text.TextStyle = MaterialTheme.typography.displayLarge,
     modifier: Modifier = Modifier
 ) {
     val animatedAmount by animateFloatAsState(
@@ -83,6 +79,7 @@ fun HeroBalanceCard(
 ) {
     Card(
         modifier = modifier.fillMaxWidth(),
+        shape = MaterialTheme.shapes.extraLarge,
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
         )
@@ -101,7 +98,7 @@ fun HeroBalanceCard(
                 amount = amount,
                 currency = currency,
                 isSpendTotal = isSpendTotal,
-                textStyle = MaterialTheme.typography.displayMedium
+                textStyle = MaterialTheme.typography.displayLarge
             )
             if (!subtitle.isNullOrEmpty()) {
                 Spacer(modifier = Modifier.height(4.dp))
@@ -130,3 +127,4 @@ fun HeroBalanceCard(
         }
     }
 }
+

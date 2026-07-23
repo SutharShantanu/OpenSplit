@@ -29,9 +29,11 @@ import com.example.ui.viewmodel.MainViewModel
 import com.example.ui.viewmodel.ScreenState
 import com.example.ui.viewmodel.ViewModelFactory
 import kotlin.math.abs
+import kotlinx.coroutines.launch
 
 import com.example.ui.components.appHazeHeader
 import com.example.ui.components.appHazeSource
+import com.example.ui.theme.OpenSplitIcons
 import dev.chrisbanes.haze.HazeState
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -43,13 +45,14 @@ fun MainDashboard(
     var selectedTab by remember { mutableStateOf(0) }
     val tabTitles = listOf("OpenSplit", "Groups", "Friends", "Analytics")
     val tabIcons = listOf(
-        Icons.Rounded.Home,
-        Icons.Rounded.Group,
-        Icons.Rounded.People,
-        Icons.Rounded.Analytics
+        OpenSplitIcons.Home,
+        OpenSplitIcons.Groups,
+        OpenSplitIcons.Friends,
+        OpenSplitIcons.Analytics
     )
     val tabLabels = listOf("Home", "Groups", "Friends", "Analytics")
     val hazeState = remember { HazeState() }
+    val coroutineScope = rememberCoroutineScope()
 
     val mainViewModel: MainViewModel = viewModel(factory = ViewModelFactory(appContainer))
     val homeViewModel: HomeViewModel = viewModel(factory = ViewModelFactory(appContainer))
@@ -70,6 +73,8 @@ fun MainDashboard(
             activitiesState.count { it.timestamp.seconds > lastSeen.seconds }
         }
     }
+
+    var menuExpanded by remember { mutableStateOf(false) }
 
     Scaffold(
         topBar = {
@@ -98,7 +103,7 @@ fun MainDashboard(
                             }
                         ) {
                             Icon(
-                                imageVector = Icons.Rounded.Notifications,
+                                imageVector = OpenSplitIcons.Activity,
                                 contentDescription = "Activity Feed"
                             )
                         }
@@ -106,43 +111,58 @@ fun MainDashboard(
 
                     Spacer(modifier = Modifier.width(4.dp))
 
-                    // Avatar button
-                    Box(
-                        modifier = Modifier
-                            .padding(end = 12.dp)
-                            .size(36.dp)
-                            .clip(CircleShape)
-                            .clickable { rootNavController.navigate("account") },
-                        contentAlignment = Alignment.Center
-                    ) {
-                        val photoUrl = currentUserState?.photoUrl
-                        if (!photoUrl.isNullOrEmpty()) {
-                            AsyncImage(
-                                model = photoUrl,
-                                contentDescription = "Account Profile",
-                                modifier = Modifier.fillMaxSize(),
-                                contentScale = ContentScale.Crop
-                            )
-                        } else {
-                            val displayName = currentUserState?.displayName ?: "User"
-                            val initial = displayName.take(1).uppercase()
-                            val hue = abs(displayName.hashCode() % 360).toFloat()
-                            val avatarColor = Color.hsv(hue, 0.6f, 0.75f)
-
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxSize()
-                                    .background(avatarColor),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Text(
-                                    text = initial,
-                                    style = MaterialTheme.typography.titleSmall,
-                                    color = Color.White,
-                                    fontWeight = FontWeight.Bold
+                    // Avatar button with dropdown menu
+                    Box(modifier = Modifier.padding(end = 12.dp)) {
+                        Box(
+                            modifier = Modifier
+                                .size(36.dp)
+                                .clip(CircleShape)
+                                .clickable { menuExpanded = true },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            val photoUrl = currentUserState?.photoUrl
+                            if (!photoUrl.isNullOrEmpty()) {
+                                AsyncImage(
+                                    model = photoUrl,
+                                    contentDescription = "Account Profile",
+                                    modifier = Modifier.fillMaxSize(),
+                                    contentScale = ContentScale.Crop
                                 )
+                            } else {
+                                val displayName = currentUserState?.displayName ?: "User"
+                                val initial = displayName.take(1).uppercase()
+                                val hue = abs(displayName.hashCode() % 360).toFloat()
+                                val avatarColor = Color.hsv(hue, 0.6f, 0.75f)
+
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxSize()
+                                        .background(avatarColor),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text(
+                                        text = initial,
+                                        style = MaterialTheme.typography.titleSmall,
+                                        color = Color.White,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                }
                             }
                         }
+
+                        com.example.ui.components.AccountDropdownMenu(
+                            expanded = menuExpanded,
+                            onDismissRequest = { menuExpanded = false },
+                            onNavigateToAccount = { rootNavController.navigate("account") },
+                            onSignOut = {
+                                coroutineScope.launch {
+                                    appContainer.authRepository.signOut()
+                                    rootNavController.navigate("login") {
+                                        popUpTo(0)
+                                    }
+                                }
+                            }
+                        )
                     }
                 }
             )
@@ -150,10 +170,19 @@ fun MainDashboard(
         bottomBar = {
             NavigationBar {
                 tabLabels.forEachIndexed { index, label ->
+                    val showGroupBadge = index == 1 && (userGroupsState as? ScreenState.Success)?.data?.isNotEmpty() == true
                     NavigationBarItem(
                         selected = selectedTab == index,
                         onClick = { selectedTab = index },
-                        icon = { Icon(tabIcons[index], contentDescription = label) },
+                        icon = {
+                            if (showGroupBadge) {
+                                BadgedBox(badge = { Badge() }) {
+                                    Icon(tabIcons[index], contentDescription = label)
+                                }
+                            } else {
+                                Icon(tabIcons[index], contentDescription = label)
+                            }
+                        },
                         label = { Text(label) }
                     )
                 }

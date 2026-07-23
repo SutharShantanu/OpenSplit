@@ -3,16 +3,14 @@ package com.example.ui.screens
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.ArrowDropDown
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
@@ -23,19 +21,13 @@ import androidx.compose.ui.unit.dp
 import com.example.ui.components.ChartBarsIllustration
 import com.example.ui.components.HeroBalanceCard
 import com.example.ui.components.StateLayout
+import com.example.ui.components.getCategoryColor
+import com.example.ui.components.getCategoryIcon
+import com.example.ui.theme.OpenSplitIcons
+import com.example.ui.theme.OpenSplitTokens
 import com.example.ui.viewmodel.AnalyticsViewModel
 import com.example.ui.viewmodel.CategorySpend
 import com.example.ui.viewmodel.MonthlyBucket
-
-val ChartColors = listOf(
-    Color(0xFF6750A4),
-    Color(0xFF386A20),
-    Color(0xFF006874),
-    Color(0xFF984061),
-    Color(0xFF8B5000),
-    Color(0xFF4A6267),
-    Color(0xFF705D00)
-)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -51,7 +43,7 @@ fun AnalyticsScreen(
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(24.dp),
+                    .padding(OpenSplitTokens.SpaceXL),
                 contentAlignment = Alignment.Center
             ) {
                 Column(
@@ -59,13 +51,13 @@ fun AnalyticsScreen(
                     verticalArrangement = Arrangement.Center
                 ) {
                     ChartBarsIllustration(size = 140.dp)
-                    Spacer(modifier = Modifier.height(20.dp))
+                    Spacer(modifier = Modifier.height(OpenSplitTokens.SpaceXL))
                     Text(
                         text = "No Analytics Yet",
                         style = MaterialTheme.typography.titleLarge,
                         fontWeight = FontWeight.Bold
                     )
-                    Spacer(modifier = Modifier.height(8.dp))
+                    Spacer(modifier = Modifier.height(OpenSplitTokens.SpaceSM))
                     Text(
                         text = "Analytics will show up once you've added expenses to your groups.",
                         style = MaterialTheme.typography.bodyMedium,
@@ -81,14 +73,15 @@ fun AnalyticsScreen(
                 modifier = Modifier
                     .fillMaxSize()
                     .verticalScroll(scrollState)
-                    .padding(16.dp),
-                verticalArrangement = Arrangement.spacedBy(20.dp)
+                    .padding(OpenSplitTokens.SpaceLG),
+                verticalArrangement = Arrangement.spacedBy(OpenSplitTokens.SpaceLG)
             ) {
                 // Scope Picker Dropdown
                 Box(modifier = Modifier.fillMaxWidth()) {
                     OutlinedCard(
                         onClick = { scopeMenuExpanded = true },
                         modifier = Modifier.fillMaxWidth(),
+                        shape = MaterialTheme.shapes.large,
                         colors = CardDefaults.outlinedCardColors(
                             containerColor = MaterialTheme.colorScheme.surfaceContainer
                         )
@@ -96,7 +89,7 @@ fun AnalyticsScreen(
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(14.dp),
+                                .padding(OpenSplitTokens.SpaceMD),
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
@@ -110,7 +103,7 @@ fun AnalyticsScreen(
                                 style = MaterialTheme.typography.titleMedium,
                                 fontWeight = FontWeight.SemiBold
                             )
-                            Icon(Icons.Rounded.ArrowDropDown, contentDescription = "Select scope")
+                            Icon(OpenSplitIcons.Dropdown, contentDescription = "Select scope")
                         }
                     }
 
@@ -149,17 +142,18 @@ fun AnalyticsScreen(
                 if (analyticsState.categoryBreakdown.isNotEmpty()) {
                     Card(
                         modifier = Modifier.fillMaxWidth(),
+                        shape = MaterialTheme.shapes.extraLarge,
                         colors = CardDefaults.cardColors(
                             containerColor = MaterialTheme.colorScheme.surfaceContainer
                         )
                     ) {
-                        Column(modifier = Modifier.padding(16.dp)) {
+                        Column(modifier = Modifier.padding(OpenSplitTokens.SpaceLG)) {
                             Text(
                                 text = "Category Breakdown",
                                 style = MaterialTheme.typography.titleMedium,
                                 fontWeight = FontWeight.Bold
                             )
-                            Spacer(modifier = Modifier.height(16.dp))
+                            Spacer(modifier = Modifier.height(OpenSplitTokens.SpaceMD))
 
                             Box(
                                 modifier = Modifier
@@ -170,25 +164,25 @@ fun AnalyticsScreen(
                                 DonutChart(categories = analyticsState.categoryBreakdown)
                             }
 
-                            Spacer(modifier = Modifier.height(16.dp))
+                            Spacer(modifier = Modifier.height(OpenSplitTokens.SpaceMD))
 
                             // Legend list
-                            analyticsState.categoryBreakdown.forEachIndexed { index, cat ->
-                                val color = ChartColors[index % ChartColors.size]
+                            analyticsState.categoryBreakdown.forEach { cat ->
+                                val color = getCategoryColor(cat.category)
                                 Row(
                                     modifier = Modifier
                                         .fillMaxWidth()
-                                        .padding(vertical = 4.dp),
+                                        .padding(vertical = OpenSplitTokens.SpaceXS),
                                     verticalAlignment = Alignment.CenterVertically,
                                     horizontalArrangement = Arrangement.SpaceBetween
                                 ) {
                                     Row(verticalAlignment = Alignment.CenterVertically) {
                                         Surface(
-                                            shape = MaterialTheme.shapes.extraSmall,
+                                            shape = CircleShape,
                                             color = color,
                                             modifier = Modifier.size(12.dp)
                                         ) {}
-                                        Spacer(modifier = Modifier.width(8.dp))
+                                        Spacer(modifier = Modifier.width(OpenSplitTokens.SpaceSM))
                                         Text(
                                             text = cat.category,
                                             style = MaterialTheme.typography.bodyMedium,
@@ -210,17 +204,18 @@ fun AnalyticsScreen(
                 if (analyticsState.monthlyBuckets.isNotEmpty()) {
                     Card(
                         modifier = Modifier.fillMaxWidth(),
+                        shape = MaterialTheme.shapes.extraLarge,
                         colors = CardDefaults.cardColors(
                             containerColor = MaterialTheme.colorScheme.surfaceContainer
                         )
                     ) {
-                        Column(modifier = Modifier.padding(16.dp)) {
+                        Column(modifier = Modifier.padding(OpenSplitTokens.SpaceLG)) {
                             Text(
                                 text = "Spending Over Time (6 Months)",
                                 style = MaterialTheme.typography.titleMedium,
                                 fontWeight = FontWeight.Bold
                             )
-                            Spacer(modifier = Modifier.height(16.dp))
+                            Spacer(modifier = Modifier.height(OpenSplitTokens.SpaceMD))
 
                             BarChart(
                                 buckets = analyticsState.monthlyBuckets,
@@ -238,37 +233,48 @@ fun AnalyticsScreen(
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold
                         )
-                        Spacer(modifier = Modifier.height(8.dp))
+                        Spacer(modifier = Modifier.height(OpenSplitTokens.SpaceSM))
 
                         analyticsState.topExpenses.forEach { exp ->
-                            Card(
+                            val catColor = getCategoryColor(exp.category)
+                            val catIcon = getCategoryIcon(exp.category)
+
+                            ListItem(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .padding(vertical = 4.dp)
+                                    .clip(MaterialTheme.shapes.medium)
                                     .clickable { onNavigateToExpenseDetail(exp.groupId, exp.id) },
-                                colors = CardDefaults.cardColors(
-                                    containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
-                                )
-                            ) {
-                                Row(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(16.dp),
-                                    horizontalArrangement = Arrangement.SpaceBetween,
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Column(modifier = Modifier.weight(1f)) {
-                                        Text(
-                                            text = exp.description,
-                                            style = MaterialTheme.typography.titleSmall,
-                                            fontWeight = FontWeight.Bold
-                                        )
-                                        Text(
-                                            text = exp.category.ifEmpty { "General" },
-                                            style = MaterialTheme.typography.bodySmall,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                                        )
+                                headlineContent = {
+                                    Text(
+                                        text = exp.description,
+                                        style = MaterialTheme.typography.titleSmall,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                },
+                                supportingContent = {
+                                    Text(
+                                        text = exp.category.ifEmpty { "General" },
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                },
+                                leadingContent = {
+                                    Surface(
+                                        shape = CircleShape,
+                                        color = catColor.copy(alpha = 0.15f),
+                                        modifier = Modifier.size(40.dp)
+                                    ) {
+                                        Box(contentAlignment = Alignment.Center) {
+                                            Icon(
+                                                imageVector = catIcon,
+                                                contentDescription = null,
+                                                tint = catColor,
+                                                modifier = Modifier.size(20.dp)
+                                            )
+                                        }
                                     }
+                                },
+                                trailingContent = {
                                     Text(
                                         text = "${analyticsState.currency}${String.format("%.2f", exp.amount)}",
                                         style = MaterialTheme.typography.titleSmall,
@@ -276,7 +282,8 @@ fun AnalyticsScreen(
                                         color = MaterialTheme.colorScheme.primary
                                     )
                                 }
-                            }
+                            )
+                            HorizontalDivider(color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
                         }
                     }
                 }
@@ -292,11 +299,12 @@ fun DonutChart(categories: List<CategorySpend>) {
         val arcSize = size.width - strokeWidth
         var startAngle = -90f
 
-        categories.forEachIndexed { index, cat ->
+        categories.forEach { cat ->
             val sweepAngle = cat.percentage * 360f
+            val color = getCategoryColor(cat.category)
             if (sweepAngle > 0f) {
                 drawArc(
-                    color = ChartColors[index % ChartColors.size],
+                    color = color,
                     startAngle = startAngle,
                     sweepAngle = sweepAngle,
                     useCenter = false,
@@ -341,7 +349,7 @@ fun BarChart(buckets: List<MonthlyBucket>, currency: String) {
             }
         }
 
-        Spacer(modifier = Modifier.height(6.dp))
+        Spacer(modifier = Modifier.height(OpenSplitTokens.SpaceXS))
 
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -357,3 +365,4 @@ fun BarChart(buckets: List<MonthlyBucket>, currency: String) {
         }
     }
 }
+

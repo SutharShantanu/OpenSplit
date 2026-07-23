@@ -26,6 +26,8 @@ import com.example.ui.components.HeroBalanceCard
 import com.example.ui.components.StateLayout
 import com.example.ui.components.WalletIllustration
 import com.example.ui.components.getBalanceColor
+import com.example.ui.theme.OpenSplitIcons
+import com.example.ui.theme.OpenSplitTokens
 import com.example.ui.viewmodel.HomeUiState
 import com.example.ui.viewmodel.HomeViewModel
 import java.text.SimpleDateFormat
@@ -118,13 +120,12 @@ fun HomeScreen(
                     title = "TOTAL NET BALANCE"
                 )
 
-                // 3. Quick Actions Row
+                // 3. Quick Actions Row (use AssistChips)
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    horizontalArrangement = Arrangement.spacedBy(OpenSplitTokens.SpaceSM)
                 ) {
-                    ElevatedFilterChip(
-                        selected = true,
+                    AssistChip(
                         onClick = {
                             if (homeState.allGroups.size == 1) {
                                 onNavigateToAddExpense(homeState.allGroups.first().id)
@@ -132,16 +133,15 @@ fun HomeScreen(
                                 showGroupPickerForAddExpense = true
                             }
                         },
-                        label = { Text("Add Expense") },
-                        leadingIcon = { Icon(Icons.Rounded.ReceiptLong, contentDescription = null, modifier = Modifier.size(18.dp)) },
-                        colors = FilterChipDefaults.elevatedFilterChipColors(
-                            selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
-                            selectedLabelColor = MaterialTheme.colorScheme.onPrimaryContainer
+                        label = { Text("Add expense") },
+                        leadingIcon = { Icon(OpenSplitIcons.AddExpense, contentDescription = null, modifier = Modifier.size(18.dp)) },
+                        colors = AssistChipDefaults.assistChipColors(
+                            containerColor = MaterialTheme.colorScheme.primaryContainer,
+                            labelColor = MaterialTheme.colorScheme.onPrimaryContainer
                         )
                     )
 
-                    ElevatedFilterChip(
-                        selected = true,
+                    AssistChip(
                         onClick = {
                             if (homeState.allGroups.size == 1) {
                                 onNavigateToSettleUp(homeState.allGroups.first().id)
@@ -149,23 +149,22 @@ fun HomeScreen(
                                 showGroupPickerForSettleUp = true
                             }
                         },
-                        label = { Text("Settle Up") },
-                        leadingIcon = { Icon(Icons.Rounded.Handshake, contentDescription = null, modifier = Modifier.size(18.dp)) },
-                        colors = FilterChipDefaults.elevatedFilterChipColors(
-                            selectedContainerColor = MaterialTheme.colorScheme.secondaryContainer,
-                            selectedLabelColor = MaterialTheme.colorScheme.onSecondaryContainer
+                        label = { Text("Settle up") },
+                        leadingIcon = { Icon(OpenSplitIcons.Settle, contentDescription = null, modifier = Modifier.size(18.dp)) },
+                        colors = AssistChipDefaults.assistChipColors(
+                            containerColor = MaterialTheme.colorScheme.secondaryContainer,
+                            labelColor = MaterialTheme.colorScheme.onSecondaryContainer
                         )
                     )
 
-                    ElevatedFilterChip(
-                        selected = false,
+                    AssistChip(
                         onClick = { showCreateGroupDialog = true },
-                        label = { Text("New Group") },
-                        leadingIcon = { Icon(Icons.Rounded.Add, contentDescription = null, modifier = Modifier.size(18.dp)) }
+                        label = { Text("New group") },
+                        leadingIcon = { Icon(OpenSplitIcons.Invite, contentDescription = null, modifier = Modifier.size(18.dp)) }
                     )
                 }
 
-                // 4. Smart Settle-up Nudge (conditional)
+                // 4. Smart Settle-up Nudge
                 if (homeState.smartNudge != null) {
                     val nudge = homeState.smartNudge
                     val otherUser = homeState.nudgeOtherUser
@@ -173,11 +172,12 @@ fun HomeScreen(
 
                     Card(
                         modifier = Modifier.fillMaxWidth(),
+                        shape = MaterialTheme.shapes.large,
                         colors = CardDefaults.cardColors(
                             containerColor = MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.5f)
                         )
                     ) {
-                        Column(modifier = Modifier.padding(16.dp)) {
+                        Column(modifier = Modifier.padding(OpenSplitTokens.SpaceLG)) {
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
                                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -193,27 +193,24 @@ fun HomeScreen(
                                     onClick = { viewModel.dismissNudge(nudge) },
                                     modifier = Modifier.size(24.dp)
                                 ) {
-                                    Icon(Icons.Rounded.Close, contentDescription = "Dismiss", modifier = Modifier.size(16.dp))
+                                    Icon(OpenSplitIcons.Close, contentDescription = "Dismiss", modifier = Modifier.size(16.dp))
                                 }
                             }
-                            Spacer(modifier = Modifier.height(6.dp))
+                            Spacer(modifier = Modifier.height(OpenSplitTokens.SpaceXS))
                             Text(
-                                text = "You could settle up with $otherName for ${homeState.currency}${String.format("%.2f", nudge.amount)}.",
+                                text = "Settle up with $otherName for ${homeState.currency}${String.format("%.2f", nudge.amount)}?",
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = MaterialTheme.colorScheme.onTertiaryContainer
                             )
-                            Spacer(modifier = Modifier.height(12.dp))
-                            Button(
+                            Spacer(modifier = Modifier.height(OpenSplitTokens.SpaceSM))
+                            SuggestionChip(
                                 onClick = {
                                     val firstGroupId = homeState.allGroups.firstOrNull()?.id ?: ""
                                     if (firstGroupId.isNotEmpty()) onNavigateToSettleUp(firstGroupId)
                                 },
-                                colors = ButtonDefaults.buttonColors(
-                                    containerColor = MaterialTheme.colorScheme.tertiary
-                                )
-                            ) {
-                                Text("Settle Up Now")
-                            }
+                                label = { Text("Settle up with $otherName") },
+                                icon = { Icon(OpenSplitIcons.Settle, contentDescription = null, modifier = Modifier.size(18.dp)) }
+                            )
                         }
                     }
                 }
@@ -234,7 +231,7 @@ fun HomeScreen(
                             Text("See all")
                         }
                     }
-                    Spacer(modifier = Modifier.height(8.dp))
+                    Spacer(modifier = Modifier.height(OpenSplitTokens.SpaceSM))
                     if (homeState.recentGroups.isEmpty()) {
                         Text(
                             text = "No active groups yet.",
@@ -243,23 +240,24 @@ fun HomeScreen(
                         )
                     } else {
                         LazyRow(
-                            horizontalArrangement = Arrangement.spacedBy(12.dp),
-                            contentPadding = PaddingValues(vertical = 4.dp)
+                            horizontalArrangement = Arrangement.spacedBy(OpenSplitTokens.SpaceMD),
+                            contentPadding = PaddingValues(vertical = OpenSplitTokens.SpaceXS)
                         ) {
                             items(homeState.recentGroups) { groupWithBal ->
-                                Card(
+                                ElevatedCard(
                                     modifier = Modifier
                                         .width(160.dp)
                                         .clickable { onNavigateToGroupDetail(groupWithBal.group.id) },
-                                    colors = CardDefaults.cardColors(
-                                        containerColor = MaterialTheme.colorScheme.surfaceContainer
+                                    shape = MaterialTheme.shapes.large,
+                                    colors = CardDefaults.elevatedCardColors(
+                                        containerColor = MaterialTheme.colorScheme.surfaceContainerLow
                                     )
                                 ) {
-                                    Column(modifier = Modifier.padding(14.dp)) {
+                                    Column(modifier = Modifier.padding(OpenSplitTokens.SpaceMD)) {
                                         Surface(
-                                            shape = MaterialTheme.shapes.small,
+                                            shape = MaterialTheme.shapes.medium,
                                             color = MaterialTheme.colorScheme.primaryContainer,
-                                            modifier = Modifier.size(36.dp)
+                                            modifier = Modifier.size(40.dp)
                                         ) {
                                             Box(contentAlignment = Alignment.Center) {
                                                 Text(
@@ -270,14 +268,14 @@ fun HomeScreen(
                                                 )
                                             }
                                         }
-                                        Spacer(modifier = Modifier.height(10.dp))
+                                        Spacer(modifier = Modifier.height(OpenSplitTokens.SpaceSM))
                                         Text(
                                             text = groupWithBal.group.name,
                                             style = MaterialTheme.typography.titleSmall,
                                             fontWeight = FontWeight.SemiBold,
                                             maxLines = 1
                                         )
-                                        Spacer(modifier = Modifier.height(4.dp))
+                                        Spacer(modifier = Modifier.height(OpenSplitTokens.SpaceXS))
                                         val bal = groupWithBal.balance
                                         val color = getBalanceColor(bal)
                                         val balText = if (bal > 0.01) {
@@ -300,7 +298,7 @@ fun HomeScreen(
                     }
                 }
 
-                // 6. Recent Activity Preview
+                // 6. Recent Activity Preview (3 items max using ListItem)
                 Column {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
@@ -316,7 +314,7 @@ fun HomeScreen(
                             Text("See all")
                         }
                     }
-                    Spacer(modifier = Modifier.height(8.dp))
+                    Spacer(modifier = Modifier.height(OpenSplitTokens.SpaceXS))
                     if (homeState.recentActivities.isEmpty()) {
                         Text(
                             text = "No recent activity.",
@@ -324,36 +322,24 @@ fun HomeScreen(
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     } else {
-                        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                            homeState.recentActivities.forEach { activity ->
-                                Row(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(vertical = 4.dp),
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Surface(
-                                        shape = MaterialTheme.shapes.extraSmall,
-                                        color = MaterialTheme.colorScheme.surfaceContainerHigh,
-                                        modifier = Modifier.size(8.dp)
-                                    ) {}
-                                    Spacer(modifier = Modifier.width(12.dp))
-                                    Column(modifier = Modifier.weight(1f)) {
-                                        Text(
-                                            text = activity.message,
-                                            style = MaterialTheme.typography.bodyMedium
-                                        )
-                                        val timeStr = remember(activity.timestamp) {
-                                            SimpleDateFormat("MMM d, h:mm a", Locale.getDefault())
-                                                .format(activity.timestamp.toDate())
-                                        }
-                                        Text(
-                                            text = timeStr,
-                                            style = MaterialTheme.typography.labelSmall,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        Column {
+                            homeState.recentActivities.take(3).forEach { activity ->
+                                val timeStr = remember(activity.timestamp) {
+                                    SimpleDateFormat("MMM d, h:mm a", Locale.getDefault())
+                                        .format(activity.timestamp.toDate())
+                                }
+                                ListItem(
+                                    headlineContent = { Text(activity.message, style = MaterialTheme.typography.bodyMedium) },
+                                    supportingContent = { Text(timeStr, style = MaterialTheme.typography.labelSmall) },
+                                    leadingContent = {
+                                        Icon(
+                                            OpenSplitIcons.Activity,
+                                            contentDescription = null,
+                                            tint = MaterialTheme.colorScheme.primary,
+                                            modifier = Modifier.size(20.dp)
                                         )
                                     }
-                                }
+                                )
                             }
                         }
                     }
