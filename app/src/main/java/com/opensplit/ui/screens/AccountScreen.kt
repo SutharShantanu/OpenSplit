@@ -159,13 +159,21 @@ fun AccountScreen(
                             value = accountData.friendCount.toString()
                         )
 
+                        // Net balance in the user's default currency (balances are never
+                        // summed across currencies). Other currencies, if any, show a "+n" hint.
+                        val nonZeroNet = accountData.netByCurrency.filterValues { abs(it) > 0.01 }
+                        val primaryNet = accountData.netByCurrency[accountData.defaultCurrency]
+                            ?: nonZeroNet.entries.maxByOrNull { abs(it.value) }?.value
+                            ?: 0.0
                         val balanceColor = when {
-                            accountData.netBalance > 0.01 -> OpenSplitTokens.OwedPositive
-                            accountData.netBalance < -0.01 -> OpenSplitTokens.OwedNegative
+                            primaryNet > 0.01 -> OpenSplitTokens.OwedPositive
+                            primaryNet < -0.01 -> OpenSplitTokens.OwedNegative
                             else -> MaterialTheme.colorScheme.onSurfaceVariant
                         }
-                        val formattedBalance = "%.2f".format(abs(accountData.netBalance))
-                        val balanceStr = if (accountData.netBalance > 0.01) "+$formattedBalance" else if (accountData.netBalance < -0.01) "-$formattedBalance" else "0.00"
+                        val otherCurrencies = nonZeroNet.keys.count { it != accountData.defaultCurrency }
+                        val balanceStr = com.opensplit.util.CurrencyFormatter.format(
+                            primaryNet, accountData.defaultCurrency, showSign = true
+                        ) + if (otherCurrencies > 0) " +$otherCurrencies" else ""
 
                         StatChip(
                             modifier = Modifier.weight(1f),

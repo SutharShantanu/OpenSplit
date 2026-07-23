@@ -48,9 +48,11 @@ fun PersonBalanceScreen(
         ) {
             StateLayout(state = state) { uiState ->
                 val friend = uiState.friend
-                val balance = uiState.balance
-                val currency = uiState.primaryCurrency
-                val formattedAmt = CurrencyFormatter.format(abs(balance), currency)
+                val nonZeroBalances = uiState.balancesByCurrency.entries
+                    .filter { abs(it.value) > 0.01 }
+                    .sortedByDescending { abs(it.value) }
+                val anyOwed = nonZeroBalances.any { it.value > 0.01 }
+                val anyOwe = nonZeroBalances.any { it.value < -0.01 }
 
                 Column(
                     modifier = Modifier
@@ -94,23 +96,20 @@ fun PersonBalanceScreen(
 
                             Spacer(modifier = Modifier.height(16.dp))
 
-                            val (statusText, statusBg, statusFg) = when {
-                                balance > 0.01 -> Triple(
-                                    "Owes you $formattedAmt",
-                                    OpenSplitTokens.OwedPositive.copy(alpha = 0.15f),
-                                    OpenSplitTokens.OwedPositive
-                                )
-                                balance < -0.01 -> Triple(
-                                    "You owe $formattedAmt",
-                                    OpenSplitTokens.OwedNegative.copy(alpha = 0.15f),
-                                    OpenSplitTokens.OwedNegative
-                                )
-                                else -> Triple(
-                                    "Settled up",
-                                    MaterialTheme.colorScheme.surfaceVariant,
-                                    MaterialTheme.colorScheme.onSurfaceVariant
-                                )
+                            val statusText = if (nonZeroBalances.isEmpty()) {
+                                "Settled up"
+                            } else {
+                                nonZeroBalances.joinToString("\n") { (c, b) ->
+                                    val amt = CurrencyFormatter.format(abs(b), c)
+                                    if (b > 0.01) "Owes you $amt" else "You owe $amt"
+                                }
                             }
+                            val statusFg = when {
+                                anyOwed && !anyOwe -> OpenSplitTokens.OwedPositive
+                                anyOwe && !anyOwed -> OpenSplitTokens.OwedNegative
+                                else -> MaterialTheme.colorScheme.onSurfaceVariant
+                            }
+                            val statusBg = statusFg.copy(alpha = 0.15f)
 
                             Surface(
                                 color = statusBg,

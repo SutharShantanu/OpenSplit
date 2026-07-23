@@ -20,7 +20,18 @@ import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 
-data class FriendBalance(val user: User, val balance: Double)
+data class FriendBalance(val user: User, val balancesByCurrency: Map<String, Double>) {
+    /** Non-zero balances as (currencyCode, amount), largest magnitude first. */
+    val nonZeroBalances: List<Pair<String, Double>>
+        get() = balancesByCurrency.entries
+            .filter { kotlin.math.abs(it.value) > 0.01 }
+            .sortedByDescending { kotlin.math.abs(it.value) }
+            .map { it.key to it.value }
+
+    val owesYou: Boolean get() = balancesByCurrency.values.any { it > 0.01 }
+    val youOwe: Boolean get() = balancesByCurrency.values.any { it < -0.01 }
+    val maxMagnitude: Double get() = balancesByCurrency.values.maxOfOrNull { kotlin.math.abs(it) } ?: 0.0
+}
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class MainViewModel(
@@ -80,10 +91,10 @@ class MainViewModel(
         .flatMapLatest { balancesMap ->
             flow<ScreenState<List<FriendBalance>>> {
                 val friendBalancesList = coroutineScope {
-                    balancesMap.map { (uid, balance) ->
+                    balancesMap.map { (uid, byCurrency) ->
                         async {
                             val user = userRepository.getUser(uid)
-                            if (user != null) FriendBalance(user, balance) else null
+                            if (user != null) FriendBalance(user, byCurrency) else null
                         }
                     }.awaitAll().filterNotNull()
                 }

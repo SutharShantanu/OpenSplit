@@ -116,12 +116,25 @@ fun HomeScreen(
                     )
                 }
 
-                // 2. Hero Net Balance
+                // 2. Hero Net Balance (per currency — never summed across currencies)
+                val nonZeroNet = homeState.netByCurrency.filterValues { kotlin.math.abs(it) > 0.001 }
+                val primaryCurrency = nonZeroNet.maxByOrNull { kotlin.math.abs(it.value) }?.key
+                    ?: homeState.nudgeCurrency
                 HeroBalanceCard(
-                    amount = homeState.netBalance,
-                    currency = homeState.currency,
+                    amount = homeState.netByCurrency[primaryCurrency] ?: 0.0,
+                    currency = primaryCurrency,
                     title = "TOTAL NET BALANCE"
                 )
+                if (nonZeroNet.size > 1) {
+                    Text(
+                        text = nonZeroNet.filterKeys { it != primaryCurrency }
+                            .entries.joinToString("   ·   ") { (c, amt) ->
+                                com.opensplit.util.CurrencyFormatter.format(amt, c, showSign = true)
+                            },
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
 
                 // 3. Quick Actions Row (use AssistChips)
                 Row(
@@ -201,7 +214,7 @@ fun HomeScreen(
                             }
                             Spacer(modifier = Modifier.height(OpenSplitTokens.SpaceXS))
                             Text(
-                                text = "Settle up with $otherName for ${homeState.currency}${String.format("%.2f", nudge.amount)}?",
+                                text = "Settle up with $otherName for ${com.opensplit.util.CurrencyFormatter.format(nudge.amount, homeState.nudgeCurrency)}?",
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = MaterialTheme.colorScheme.onTertiaryContainer
                             )

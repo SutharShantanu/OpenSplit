@@ -104,27 +104,34 @@ fun FriendsScreen(
                                     fb.user.email.contains(searchQuery, ignoreCase = true)
                             val matchesFilter = when (selectedFilter) {
                                 FriendFilterOption.ALL -> true
-                                FriendFilterOption.OWED_TO_YOU -> fb.balance > 0.01
-                                FriendFilterOption.YOU_OWE -> fb.balance < -0.01
+                                FriendFilterOption.OWED_TO_YOU -> fb.owesYou
+                                FriendFilterOption.YOU_OWE -> fb.youOwe
                             }
                             matchesSearch && matchesFilter
-                        }.sortedByDescending { abs(it.balance) }
+                        }.sortedByDescending { it.maxMagnitude }
                     }
 
                     LazyColumn(
                         verticalArrangement = Arrangement.spacedBy(OpenSplitTokens.SpaceXS),
                         modifier = Modifier.fillMaxSize()
                     ) {
-                        items(processedBalances) { fb ->
-                            val bal = fb.balance
-                            val color = if (bal > 0.01) OpenSplitTokens.OwedPositive else if (bal < -0.01) OpenSplitTokens.OwedNegative else OpenSplitTokens.OwedNeutral
-                            val formattedVal = String.format("%.2f", abs(bal))
-                            val text = if (bal > 0.01) {
-                                "Owes you $$formattedVal"
-                            } else if (bal < -0.01) {
-                                "You owe $$formattedVal"
-                            } else {
+                        items(processedBalances, key = { it.user.uid }) { fb ->
+                            // Show one line per currency (never sum across currencies).
+                            val lines = fb.nonZeroBalances
+                            val hasOwed = lines.any { it.second > 0.01 }
+                            val hasOwe = lines.any { it.second < -0.01 }
+                            val color = when {
+                                hasOwed && !hasOwe -> OpenSplitTokens.OwedPositive
+                                hasOwe && !hasOwed -> OpenSplitTokens.OwedNegative
+                                else -> OpenSplitTokens.OwedNeutral
+                            }
+                            val text = if (lines.isEmpty()) {
                                 "Settled up"
+                            } else {
+                                lines.joinToString("\n") { (currency, bal) ->
+                                    val amt = com.opensplit.util.CurrencyFormatter.format(abs(bal), currency)
+                                    if (bal > 0.01) "Owes you $amt" else "You owe $amt"
+                                }
                             }
 
                             ListItem(

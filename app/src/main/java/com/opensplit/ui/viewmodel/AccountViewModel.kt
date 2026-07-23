@@ -11,7 +11,8 @@ data class AccountUiState(
     val user: FirebaseUser,
     val groupCount: Int,
     val friendCount: Int,
-    val netBalance: Double,
+    /** Net balance per currency; never summed across currencies. */
+    val netByCurrency: Map<String, Double>,
     val defaultCurrency: String,
     val allExpenses: List<com.opensplit.domain.model.Expense>,
     val pendingInvites: List<String>
@@ -51,17 +52,26 @@ class AccountViewModel(
                 }
             ) { groups, friendsBalances, expenses, currency ->
                 val groupCount = groups.size
-                val friendCount = friendsBalances.values.count { Math.abs(it) > 0.01 }
-                val netBalance = friendsBalances.values.sum()
+                // A friend counts if they have any non-zero balance in any currency.
+                val friendCount = friendsBalances.count { (_, byCurrency) ->
+                    byCurrency.values.any { Math.abs(it) > 0.01 }
+                }
+                // Aggregate per currency, keeping currencies separate.
+                val netByCurrency = mutableMapOf<String, Double>()
+                for ((_, byCurrency) in friendsBalances) {
+                    for ((c, amt) in byCurrency) {
+                        netByCurrency[c] = (netByCurrency[c] ?: 0.0) + amt
+                    }
+                }
                 val pendingInvites = emptyList<String>()
                 val allExpenses = expenses
-                
+
                 ScreenState.Success(
                     AccountUiState(
                         user = currentUser,
                         groupCount = groupCount,
                         friendCount = friendCount,
-                        netBalance = netBalance,
+                        netByCurrency = netByCurrency,
                         defaultCurrency = currency,
                         allExpenses = allExpenses,
                         pendingInvites = pendingInvites

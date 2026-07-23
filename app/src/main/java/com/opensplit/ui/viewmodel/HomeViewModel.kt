@@ -20,11 +20,12 @@ data class GroupWithBalance(
 
 data class HomeUiState(
     val user: User,
-    val netBalance: Double,
-    val currency: String,
+    /** Net balance per currency (currencyCode -> amount); never summed across currencies. */
+    val netByCurrency: Map<String, Double>,
     val recentGroups: List<GroupWithBalance>,
     val recentActivities: List<Activity>,
     val smartNudge: DebtSimplifier.SettlementSuggestion? = null,
+    val nudgeCurrency: String = "INR",
     val nudgeOtherUser: User? = null,
     val allGroups: List<Group> = emptyList()
 )
@@ -69,21 +70,29 @@ class HomeViewModel(private val appContainer: AppContainer) : ViewModel() {
             val activitiesFlow = appContainer.activityRepository.getActivityForUser(currentUserId, groupIds)
 
             combine(groupBalancesCombined, activitiesFlow) { groupWithBalances, activities ->
-                val netBalance = groupWithBalances.sumOf { it.balance }
-                val currency = currentUser.defaultCurrency.ifEmpty { "INR" }
+                // Net balance per currency — each group carries its own currency; never sum across them.
+                val netByCurrency = groupWithBalances
+                    .groupBy { it.group.currency.ifEmpty { "INR" } }
+                    .mapValues { entry -> entry.value.sumOf { it.balance } }
+                val defaultCurrency = currentUser.defaultCurrency.ifEmpty { "INR" }
 
                 // Recent groups sorted by recent activity or group creation
                 val sortedGroups = groupWithBalances.take(5)
                 val recentActivities = activities.take(3)
 
-                // Smart nudge calculation
-                val suggestions = DebtSimplifier.simplify(friendBalances)
-                val relevantSuggestion = suggestions.firstOrNull { suggestion ->
-                    val isUserInvolved = suggestion.fromUid == currentUserId || suggestion.toUid == currentUserId
-                    val isMeaningful = suggestion.amount >= 1.0
-                    val key = "${suggestion.fromUid}_${suggestion.toUid}_${suggestion.amount}"
-                    isUserInvolved && isMeaningful && !dismissedKeys.contains(key)
-                }
+                // Smart nudge: largest outstanding balance with a single friend, in the
+                // user's default currency. friendBalances is friendUid -> currency -> net
+                // (positive = friend owes the user).
+                val nudgeCandidates = friendBalances.mapNotNull { (friendUid, byCurrency) ->
+                    val amt = byCurrency[defaultCurrency] ?: 0.0
+                    when {
+                        amt >= 1.0 -> DebtSimplifier.SettlementSuggestion(friendUid, currentUserId, amt)
+                        amt <= -1.0 -> DebtSimplifier.SettlementSuggestion(currentUserId, friendUid, -amt)
+                        else -> null
+                    }
+                }.sortedByDescending { it.amount }
+
+                val relevantSuggestion = nudgeCandidates.firstOrNull { !dismissedKeys.contains(nudgeKey(it)) }
 
                 var nudgeOtherUser: User? = null
                 if (relevantSuggestion != null) {
@@ -94,11 +103,11 @@ class HomeViewModel(private val appContainer: AppContainer) : ViewModel() {
                 ScreenState.Success(
                     HomeUiState(
                         user = currentUser,
-                        netBalance = netBalance,
-                        currency = currency,
+                        netByCurrency = netByCurrency,
                         recentGroups = sortedGroups,
                         recentActivities = recentActivities,
                         smartNudge = relevantSuggestion,
+                        nudgeCurrency = defaultCurrency,
                         nudgeOtherUser = nudgeOtherUser,
                         allGroups = groups
                     )
@@ -109,8 +118,14 @@ class HomeViewModel(private val appContainer: AppContainer) : ViewModel() {
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), ScreenState.Loading)
 
     fun dismissNudge(suggestion: DebtSimplifier.SettlementSuggestion) {
-        val key = "${suggestion.fromUid}_${suggestion.toUid}_${suggestion.amount}"
-        _dismissedNudgeKeys.value = _dismissedNudgeKeys.value + key
+        _dismissedNudgeKeys.value = _dismissedNudgeKeys.value + nudgeKey(suggestion)
+    }
+
+    // Stable key based on integer minor units so tiny float differences don't re-show a
+    // dismissed nudge.
+    private fun nudgeKey(s: DebtSimplifier.SettlementSuggestion): String {
+        val minor = kotlin.math.round(s.amount * 100).toLong()
+        return "${s.fromUid}_${s.toUid}_$minor"
     }
 
     fun createGroup(name: String, currency: String) {

@@ -20,29 +20,30 @@ class FriendRepositoryImpl(
 ) : FriendRepository {
 
     @OptIn(ExperimentalCoroutinesApi::class)
-    override fun getFriendsBalances(userId: String): Flow<Map<String, Double>> {
+    override fun getFriendsBalances(userId: String): Flow<Map<String, Map<String, Double>>> {
         return groupRepository.getGroupsForUser(userId).flatMapLatest { groups ->
             if (groups.isEmpty()) return@flatMapLatest flowOf(emptyMap())
 
-            // A list of flows, one for each group, representing the net balances in that group
+            // A list of flows, one for each group, tagged with that group's currency.
             val groupBalancesFlows = groups.map { group ->
                 combine(
                     expenseRepository.getExpensesForGroup(group.id),
                     settlementRepository.getSettlementsForGroup(group.id)
                 ) { expenses, settlements ->
-                    calculateBalancesForGroup(userId, expenses, settlements)
+                    group.currency to calculateBalancesForGroup(userId, expenses, settlements)
                 }
             }
 
-            // Combine all group balances into one global map
+            // Combine all group balances into one global map, keeping currencies separate.
             combine(groupBalancesFlows) { groupBalancesArray ->
-                val globalBalances = mutableMapOf<String, Double>()
-                for (groupBals in groupBalancesArray) {
+                val globalBalances = mutableMapOf<String, MutableMap<String, Double>>()
+                for ((currency, groupBals) in groupBalancesArray) {
                     for ((otherUid, amount) in groupBals) {
-                        globalBalances[otherUid] = (globalBalances[otherUid] ?: 0.0) + amount
+                        val row = globalBalances.getOrPut(otherUid) { mutableMapOf() }
+                        row[currency] = (row[currency] ?: 0.0) + amount
                     }
                 }
-                globalBalances
+                globalBalances.mapValues { it.value.toMap() }
             }
         }
     }

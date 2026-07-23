@@ -37,7 +37,13 @@ interface UserRepository {
 }
 
 interface FriendRepository {
-    fun getFriendsBalances(userId: String): Flow<Map<String, Double>>
+    /**
+     * Net balance with each friend, broken down **per currency**:
+     * `friendUid -> (currencyCode -> netAmount)`. Positive means the friend owes the
+     * user; negative means the user owes the friend. Amounts are never summed across
+     * currencies — callers must display each currency separately.
+     */
+    fun getFriendsBalances(userId: String): Flow<Map<String, Map<String, Double>>>
 }
 
 interface GroupRepository {
