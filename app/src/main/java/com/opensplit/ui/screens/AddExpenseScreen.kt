@@ -32,7 +32,8 @@ import com.google.firebase.Timestamp
 @Composable
 fun AddExpenseScreen(
     viewModel: GroupDetailViewModel,
-    onNavigateBack: () -> Unit
+    onNavigateBack: () -> Unit,
+    editingExpense: Expense? = null
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val context = LocalContext.current
@@ -47,37 +48,75 @@ fun AddExpenseScreen(
             val group = data.group
             val members = data.members
 
-            var description by remember { mutableStateOf("") }
-            var amountText by remember { mutableStateOf("") }
-            var category by remember { mutableStateOf("Food") }
-            var paidBy by remember { mutableStateOf(members.firstOrNull()?.uid ?: "") }
+            val isEditing = editingExpense != null
+
+            var description by remember { mutableStateOf(editingExpense?.description ?: "") }
+            var amountText by remember { mutableStateOf(editingExpense?.amount?.takeIf { it > 0 }?.toString() ?: "") }
+            var category by remember { mutableStateOf(editingExpense?.category ?: "Food") }
+            var paidBy by remember { mutableStateOf(editingExpense?.paidBy ?: members.firstOrNull()?.uid ?: "") }
             var isSaving by remember { mutableStateOf(false) }
 
             // 0: Equal, 1: Exact, 2: Percentage, 3: Shares, 4: Itemized
-            var selectedSplitIndex by remember { mutableStateOf(0) }
+            var selectedSplitIndex by remember {
+                mutableStateOf(
+                    when (editingExpense?.splitType) {
+                        SplitType.EXACT -> 1
+                        SplitType.PERCENTAGE -> 2
+                        SplitType.SHARES -> 3
+                        SplitType.ITEMIZED -> 4
+                        else -> 0
+                    }
+                )
+            }
             val splitTypes = listOf("Equally", "Exact", "Percent", "Shares", "Itemized")
 
-            // Maps for custom split inputs
-            val exactAmounts = remember { mutableStateMapOf<String, String>() }
-            val percentages = remember { mutableStateMapOf<String, String>() }
-            val shares = remember { mutableStateMapOf<String, Int>() }
+            // Maps for custom split inputs (prefilled when editing).
+            val exactAmounts = remember {
+                mutableStateMapOf<String, String>().apply {
+                    if (editingExpense?.splitType == SplitType.EXACT) {
+                        editingExpense.splits.forEach { put(it.uid, it.amount.toString()) }
+                    }
+                }
+            }
+            val percentages = remember {
+                mutableStateMapOf<String, String>().apply {
+                    if (editingExpense?.splitType == SplitType.PERCENTAGE) {
+                        editingExpense.splits.forEach { s -> s.percentage?.let { put(s.uid, it.toString()) } }
+                    }
+                }
+            }
+            val shares = remember {
+                mutableStateMapOf<String, Int>().apply {
+                    if (editingExpense?.splitType == SplitType.SHARES) {
+                        editingExpense.splits.forEach { s -> s.shares?.let { put(s.uid, it) } }
+                    }
+                }
+            }
 
             // Itemized list state
             var itemizedName by remember { mutableStateOf("") }
             var itemizedPrice by remember { mutableStateOf("") }
-            val itemizedList = remember { mutableStateListOf<ExpenseItem>() }
+            val itemizedList = remember { mutableStateListOf<ExpenseItem>().apply { editingExpense?.items?.let { addAll(it) } } }
             val selectedUidsForItem = remember { mutableStateListOf<String>() }
 
-            // Which members this expense is split among (default: everyone).
-            val selectedParticipants = remember { mutableStateListOf<String>().apply { addAll(members.map { it.uid }) } }
+            // Which members this expense is split among (default: everyone; editing: the split's members).
+            val selectedParticipants = remember {
+                mutableStateListOf<String>().apply {
+                    addAll(editingExpense?.splits?.map { it.uid } ?: members.map { it.uid })
+                }
+            }
             val participantMembers = members.filter { selectedParticipants.contains(it.uid) }
 
             // Metadata: notes, date, and optional multiple payers.
-            var notes by remember { mutableStateOf("") }
-            var selectedDateMillis by remember { mutableStateOf(System.currentTimeMillis()) }
+            var notes by remember { mutableStateOf(editingExpense?.notes ?: "") }
+            var selectedDateMillis by remember { mutableStateOf(editingExpense?.date?.toDate()?.time ?: System.currentTimeMillis()) }
             var showDatePicker by remember { mutableStateOf(false) }
-            var multiplePayers by remember { mutableStateOf(false) }
-            val payerAmounts = remember { mutableStateMapOf<String, String>() }
+            var multiplePayers by remember { mutableStateOf(editingExpense?.multiPayer != null) }
+            val payerAmounts = remember {
+                mutableStateMapOf<String, String>().apply {
+                    editingExpense?.multiPayer?.forEach { (uid, amt) -> put(uid, amt.toString()) }
+                }
+            }
 
             val totalAmount = amountText.toDoubleOrNull() ?: 0.0
 
@@ -172,7 +211,7 @@ fun AddExpenseScreen(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        text = "Add Expense",
+                        text = if (isEditing) "Edit Expense" else "Add Expense",
                         style = MaterialTheme.typography.titleLarge,
                         fontWeight = FontWeight.Bold
                     )
@@ -567,7 +606,7 @@ fun AddExpenseScreen(
                             isSaving = true
                             val (sType, splitsList) = evaluated
                             val effectivePaidBy = if (multiplePayers) (payerMap?.keys?.firstOrNull() ?: paidBy) else paidBy
-                            val newExpense = Expense(
+                            val builtExpense = (editingExpense ?: Expense(groupId = group.id, createdBy = paidBy)).copy(
                                 groupId = group.id,
                                 description = description.trim(),
                                 amount = totalAmount,
@@ -579,15 +618,16 @@ fun AddExpenseScreen(
                                 splits = splitsList,
                                 items = if (sType == SplitType.ITEMIZED) itemizedList.toList() else null,
                                 notes = notes.trim().ifBlank { null },
-                                createdBy = paidBy,
                                 date = Timestamp(java.util.Date(selectedDateMillis))
                             )
 
-                            viewModel.addExpense(newExpense) {
+                            val onDone: () -> Unit = {
                                 isSaving = false
-                                Toast.makeText(context, "Expense saved successfully!", Toast.LENGTH_SHORT).show()
+                                Toast.makeText(context, if (isEditing) "Expense updated!" else "Expense saved successfully!", Toast.LENGTH_SHORT).show()
                                 onNavigateBack()
                             }
+                            if (isEditing) viewModel.updateExpense(builtExpense, onDone)
+                            else viewModel.addExpense(builtExpense, onDone)
                         }
                     },
                     modifier = Modifier.fillMaxWidth(),
@@ -598,7 +638,7 @@ fun AddExpenseScreen(
                         Spacer(modifier = Modifier.width(OpenSplitTokens.SpaceSM))
                         Text("Saving...")
                     } else {
-                        Text("Save Expense", fontWeight = FontWeight.Bold)
+                        Text(if (isEditing) "Update Expense" else "Save Expense", fontWeight = FontWeight.Bold)
                     }
                 }
 

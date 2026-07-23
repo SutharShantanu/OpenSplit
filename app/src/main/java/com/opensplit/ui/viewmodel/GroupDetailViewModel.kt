@@ -93,6 +93,15 @@ class GroupDetailViewModel(
         }
     }
 
+    fun updateExpense(expense: Expense, onSuccess: () -> Unit = {}) {
+        viewModelScope.launch {
+            val res = expenseRepository.updateExpense(expense)
+            if (res.isSuccess) {
+                onSuccess()
+            }
+        }
+    }
+
     fun addMemberByEmail(email: String) {
         val trimmedEmail = email.trim()
         if (trimmedEmail.isBlank()) return

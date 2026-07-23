@@ -168,8 +168,26 @@ fun MainNavHost(navController: NavHostController, appContainer: AppContainer, au
             )
             com.opensplit.ui.screens.ExpenseDetailScreen(
                 viewModel = vm,
-                onNavigateBack = { navController.popBackStack() }
+                onNavigateBack = { navController.popBackStack() },
+                onNavigateToEdit = { navController.navigate("edit_expense/$groupId/$expenseId") }
             )
+        }
+
+        composable("edit_expense/{groupId}/{expenseId}") { backStackEntry ->
+            val groupId = backStackEntry.arguments?.getString("groupId") ?: return@composable
+            val expenseId = backStackEntry.arguments?.getString("expenseId") ?: return@composable
+            val groupDetailViewModel: com.opensplit.ui.viewmodel.GroupDetailViewModel = androidx.lifecycle.viewmodel.compose.viewModel(
+                factory = com.opensplit.ui.viewmodel.GroupDetailViewModelFactory(groupId, appContainer)
+            )
+            val state by groupDetailViewModel.uiState.collectAsState()
+            val expense = (state as? com.opensplit.ui.viewmodel.ScreenState.Success)?.data?.expenses?.find { it.id == expenseId }
+            if (expense != null) {
+                com.opensplit.ui.screens.AddExpenseScreen(
+                    viewModel = groupDetailViewModel,
+                    onNavigateBack = { navController.popBackStack() },
+                    editingExpense = expense
+                )
+            }
         }
 
         composable("person_balance/{friendId}") { backStackEntry ->

@@ -7,6 +7,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.rounded.Send
 import androidx.compose.material.icons.rounded.Delete
+import androidx.compose.material.icons.rounded.Edit
 import com.opensplit.util.CurrencyFormatter
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -25,7 +26,8 @@ import java.util.Locale
 @Composable
 fun ExpenseDetailScreen(
     viewModel: ExpenseDetailViewModel,
-    onNavigateBack: () -> Unit
+    onNavigateBack: () -> Unit,
+    onNavigateToEdit: () -> Unit = {}
 ) {
     val state by viewModel.uiState.collectAsState()
     var commentText by remember { mutableStateOf("") }
@@ -41,6 +43,12 @@ fun ExpenseDetailScreen(
                     }
                 },
                 actions = {
+                    IconButton(onClick = onNavigateToEdit) {
+                        Icon(
+                            imageVector = Icons.Rounded.Edit,
+                            contentDescription = "Edit Expense"
+                        )
+                    }
                     IconButton(onClick = { showDeleteConfirmDialog = true }) {
                         Icon(
                             imageVector = Icons.Rounded.Delete,
