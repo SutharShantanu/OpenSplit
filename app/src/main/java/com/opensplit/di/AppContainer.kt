@@ -13,6 +13,8 @@ import com.opensplit.domain.repository.UserPreferencesRepository
 import com.opensplit.data.repository.UserPreferencesRepositoryImpl
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.firestore.firestoreSettings
+import com.google.firebase.firestore.persistentCacheSettings
 
 /**
  * Manual Dependency Injection Container.
@@ -20,7 +22,20 @@ import com.google.firebase.firestore.FirebaseFirestore
  */
 class AppContainer(private val applicationContext: Context) {
     val firebaseAuth: FirebaseAuth by lazy { FirebaseAuth.getInstance() }
-    val firestore: FirebaseFirestore by lazy { FirebaseFirestore.getInstance() }
+
+    /**
+     * Firestore with offline persistence enabled so the app is usable without a
+     * connection and syncs automatically when back online. Settings must be applied
+     * before the instance is used for anything else — this lazy block is the single
+     * creation point, so it is safe here.
+     */
+    val firestore: FirebaseFirestore by lazy {
+        FirebaseFirestore.getInstance().apply {
+            firestoreSettings = firestoreSettings {
+                setLocalCacheSettings(persistentCacheSettings {})
+            }
+        }
+    }
     
     val authRepository: AuthRepository by lazy {
         AuthRepositoryImpl(firebaseAuth)
