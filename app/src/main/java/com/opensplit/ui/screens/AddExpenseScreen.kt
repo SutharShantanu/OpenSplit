@@ -68,11 +68,16 @@ fun AddExpenseScreen(
             val itemizedList = remember { mutableStateListOf<ExpenseItem>() }
             val selectedUidsForItem = remember { mutableStateListOf<String>() }
 
+            // Which members this expense is split among (default: everyone).
+            val selectedParticipants = remember { mutableStateListOf<String>().apply { addAll(members.map { it.uid }) } }
+            val participantMembers = members.filter { selectedParticipants.contains(it.uid) }
+
             val totalAmount = amountText.toDoubleOrNull() ?: 0.0
 
             fun validateAndBuildSplits(): Pair<SplitType, List<ExpenseSplit>>? {
                 if (totalAmount <= 0) return null
-                val participantUids = members.map { it.uid }
+                val participantUids = members.map { it.uid }.filter { selectedParticipants.contains(it) }
+                if (participantUids.isEmpty()) return null
 
                 return try {
                     when (selectedSplitIndex) {
@@ -130,11 +135,11 @@ fun AddExpenseScreen(
                 }
             }
 
-            val splitResult = remember(selectedSplitIndex, totalAmount, exactAmounts.toMap(), percentages.toMap(), shares.toMap(), itemizedList.toList()) {
+            val splitResult = remember(selectedSplitIndex, totalAmount, exactAmounts.toMap(), percentages.toMap(), shares.toMap(), itemizedList.toList(), selectedParticipants.toList()) {
                 validateAndBuildSplits()
             }
 
-            val isFormValid = description.isNotBlank() && totalAmount > 0 && splitResult != null && !isSaving
+            val isFormValid = description.isNotBlank() && totalAmount > 0 && splitResult != null && selectedParticipants.isNotEmpty() && !isSaving
 
             Column(
                 modifier = Modifier
@@ -253,6 +258,45 @@ fun AddExpenseScreen(
                     }
                 }
 
+                // Split Between (participant selection)
+                Column {
+                    Text(
+                        text = "Split between",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Spacer(modifier = Modifier.height(OpenSplitTokens.SpaceXS))
+                    FlowRow(
+                        horizontalArrangement = Arrangement.spacedBy(OpenSplitTokens.SpaceSM),
+                        verticalArrangement = Arrangement.spacedBy(OpenSplitTokens.SpaceXS),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        members.forEach { user ->
+                            val isSelected = selectedParticipants.contains(user.uid)
+                            FilterChip(
+                                selected = isSelected,
+                                onClick = {
+                                    if (isSelected) selectedParticipants.remove(user.uid)
+                                    else selectedParticipants.add(user.uid)
+                                },
+                                label = { Text(user.displayName) },
+                                leadingIcon = {
+                                    if (isSelected) {
+                                        Icon(OpenSplitIcons.Check, contentDescription = null, modifier = Modifier.size(16.dp))
+                                    }
+                                }
+                            )
+                        }
+                    }
+                    if (selectedParticipants.isEmpty()) {
+                        Text(
+                            text = "Select at least one person",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.error
+                        )
+                    }
+                }
+
                 // Split Mode Tabs / Chips
                 Column {
                     Text(
@@ -279,7 +323,7 @@ fun AddExpenseScreen(
                 when (selectedSplitIndex) {
                     0 -> { // Equally
                         if (totalAmount > 0) {
-                            val perPerson = totalAmount / maxOf(1, members.size)
+                            val perPerson = totalAmount / maxOf(1, participantMembers.size)
                             Text(
                                 text = "Split equally: ${com.opensplit.util.CurrencyFormatter.format(perPerson, group.currency)} / person",
                                 style = MaterialTheme.typography.bodyMedium,
@@ -290,7 +334,7 @@ fun AddExpenseScreen(
                     }
                     1 -> { // Exact
                         Column(verticalArrangement = Arrangement.spacedBy(OpenSplitTokens.SpaceXS)) {
-                            members.forEach { m ->
+                            participantMembers.forEach { m ->
                                 Row(
                                     verticalAlignment = Alignment.CenterVertically,
                                     modifier = Modifier.fillMaxWidth()
@@ -310,7 +354,7 @@ fun AddExpenseScreen(
                     }
                     2 -> { // Percentage
                         Column(verticalArrangement = Arrangement.spacedBy(OpenSplitTokens.SpaceXS)) {
-                            members.forEach { m ->
+                            participantMembers.forEach { m ->
                                 Row(
                                     verticalAlignment = Alignment.CenterVertically,
                                     modifier = Modifier.fillMaxWidth()
@@ -331,7 +375,7 @@ fun AddExpenseScreen(
                     }
                     3 -> { // Shares
                         Column(verticalArrangement = Arrangement.spacedBy(OpenSplitTokens.SpaceXS)) {
-                            members.forEach { m ->
+                            participantMembers.forEach { m ->
                                 val currentShares = shares[m.uid] ?: 1
                                 Row(
                                     verticalAlignment = Alignment.CenterVertically,
@@ -385,7 +429,7 @@ fun AddExpenseScreen(
                             }
                             Text("Assign to:", style = MaterialTheme.typography.bodySmall)
                             Row(horizontalArrangement = Arrangement.spacedBy(OpenSplitTokens.SpaceXS)) {
-                                members.forEach { m ->
+                                participantMembers.forEach { m ->
                                     val isSelected = selectedUidsForItem.contains(m.uid)
                                     FilterChip(
                                         selected = isSelected,
