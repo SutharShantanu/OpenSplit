@@ -1,8 +1,15 @@
 package com.opensplit.ui.screens
 
 import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.runtime.rememberCoroutineScope
+import com.opensplit.data.ai.GeminiReceiptParser
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
@@ -120,6 +127,29 @@ fun AddExpenseScreen(
                 }
             }
             var recurrenceFreq by remember { mutableStateOf(editingExpense?.recurrence?.frequency ?: RecurrenceFrequency.NONE) }
+
+            // Receipt scanning (Gemini OCR) — prefills itemized list.
+            val scope = rememberCoroutineScope()
+            var isScanning by remember { mutableStateOf(false) }
+            val receiptPicker = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
+                if (uri != null) {
+                    isScanning = true
+                    scope.launch {
+                        val bytes = withContext(Dispatchers.IO) {
+                            context.contentResolver.openInputStream(uri)?.use { it.readBytes() }
+                        }
+                        val items = if (bytes != null) GeminiReceiptParser.parseReceipt(bytes) else null
+                        isScanning = false
+                        if (!items.isNullOrEmpty()) {
+                            itemizedList.addAll(items)
+                            selectedSplitIndex = 4
+                            Toast.makeText(context, "Added ${items.size} items from receipt", Toast.LENGTH_SHORT).show()
+                        } else {
+                            Toast.makeText(context, "Couldn't read receipt (check Gemini API key)", Toast.LENGTH_SHORT).show()
+                        }
+                    }
+                }
+            }
 
             val totalAmount = amountText.toDoubleOrNull() ?: 0.0
 
@@ -545,6 +575,21 @@ fun AddExpenseScreen(
                     }
                     4 -> { // Itemized
                         Column(verticalArrangement = Arrangement.spacedBy(OpenSplitTokens.SpaceSM)) {
+                            OutlinedButton(
+                                onClick = { receiptPicker.launch("image/*") },
+                                enabled = !isScanning,
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                if (isScanning) {
+                                    CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp)
+                                    Spacer(modifier = Modifier.width(OpenSplitTokens.SpaceSM))
+                                    Text("Scanning receipt...")
+                                } else {
+                                    Icon(OpenSplitIcons.Camera, contentDescription = null, modifier = Modifier.size(18.dp))
+                                    Spacer(modifier = Modifier.width(OpenSplitTokens.SpaceSM))
+                                    Text("Scan receipt (AI)")
+                                }
+                            }
                             Text("Add Items", style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold)
                             Row(
                                 modifier = Modifier.fillMaxWidth(),

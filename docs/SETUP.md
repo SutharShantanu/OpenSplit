@@ -54,8 +54,33 @@ Receipt OCR uses the Gemini API. Copy `.env.example` to `.env` and set your key:
 GEMINI_API_KEY=your_key_here
 ```
 
-The Secrets Gradle plugin injects it at build time. Without a key, the rest of the app
-works normally; only receipt scanning is unavailable.
+The Secrets Gradle plugin injects it as `BuildConfig.GEMINI_API_KEY` at build time.
+Without a key, the rest of the app works normally; only "Scan receipt (AI)" in the
+itemized split is unavailable (it degrades gracefully with a toast).
+
+## 5. Push notifications (optional — Cloud Functions)
+
+The app registers each signed-in user's FCM token on `users/{uid}.fcmToken` and shows
+local notifications via `OpenSplitMessagingService`. To actually deliver a push to
+*other* group members when someone adds an expense or settlement, deploy the Cloud
+Function under [`functions/`](../functions) — client SDKs cannot send to other devices:
+
+```bash
+cd functions
+npm install
+firebase deploy --only functions
+```
+
+The `onActivityCreated` function fans a notification out to a group's members (except
+the actor) whenever a new activity entry is written. Without it, only self/test
+notifications appear.
+
+## 6. Recurring expenses (Firestore index)
+
+Recurring expenses are materialized by a daily WorkManager job that queries each of
+your groups for due templates (`recurrence.nextOccurrence <= now`). Firestore
+auto-creates the required single-field index on first run; if prompted in the console
+or logs, follow the offered link to create it.
 
 ## 5. Build & run
 
