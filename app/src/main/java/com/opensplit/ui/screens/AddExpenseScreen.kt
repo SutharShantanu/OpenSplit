@@ -20,6 +20,8 @@ import com.opensplit.domain.logic.SplitCalculator
 import com.opensplit.domain.model.Expense
 import com.opensplit.domain.model.ExpenseItem
 import com.opensplit.domain.model.ExpenseSplit
+import com.opensplit.domain.model.RecurrenceFrequency
+import com.opensplit.domain.model.RecurrenceRule
 import com.opensplit.domain.model.SplitType
 import com.opensplit.ui.components.CategoryChipRow
 import com.opensplit.ui.components.StateLayout
@@ -117,6 +119,7 @@ fun AddExpenseScreen(
                     editingExpense?.multiPayer?.forEach { (uid, amt) -> put(uid, amt.toString()) }
                 }
             }
+            var recurrenceFreq by remember { mutableStateOf(editingExpense?.recurrence?.frequency ?: RecurrenceFrequency.NONE) }
 
             val totalAmount = amountText.toDoubleOrNull() ?: 0.0
 
@@ -308,6 +311,27 @@ fun AddExpenseScreen(
                     keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences),
                     modifier = Modifier.fillMaxWidth()
                 )
+
+                // Repeat / recurrence
+                Column {
+                    Text("Repeat", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                    Spacer(modifier = Modifier.height(OpenSplitTokens.SpaceXS))
+                    FlowRow(horizontalArrangement = Arrangement.spacedBy(OpenSplitTokens.SpaceSM)) {
+                        RecurrenceFrequency.values().forEach { freq ->
+                            val label = when (freq) {
+                                RecurrenceFrequency.NONE -> "Never"
+                                RecurrenceFrequency.DAILY -> "Daily"
+                                RecurrenceFrequency.WEEKLY -> "Weekly"
+                                RecurrenceFrequency.MONTHLY -> "Monthly"
+                            }
+                            FilterChip(
+                                selected = recurrenceFreq == freq,
+                                onClick = { recurrenceFreq = freq },
+                                label = { Text(label) }
+                            )
+                        }
+                    }
+                }
 
                 // Paid By Selection (single payer, or split across multiple payers)
                 Column {
@@ -618,7 +642,12 @@ fun AddExpenseScreen(
                                 splits = splitsList,
                                 items = if (sType == SplitType.ITEMIZED) itemizedList.toList() else null,
                                 notes = notes.trim().ifBlank { null },
-                                date = Timestamp(java.util.Date(selectedDateMillis))
+                                date = Timestamp(java.util.Date(selectedDateMillis)),
+                                recurrence = if (recurrenceFreq != RecurrenceFrequency.NONE) {
+                                    val existing = editingExpense?.recurrence
+                                    if (existing != null && existing.frequency == recurrenceFreq) existing
+                                    else RecurrenceRule(recurrenceFreq, nextRecurrence(selectedDateMillis, recurrenceFreq))
+                                } else null
                             )
 
                             val onDone: () -> Unit = {
@@ -662,4 +691,16 @@ fun AddExpenseScreen(
             }
         }
     }
+}
+
+/** Next occurrence timestamp for a recurring expense, one period after [fromMillis]. */
+private fun nextRecurrence(fromMillis: Long, frequency: RecurrenceFrequency): com.google.firebase.Timestamp {
+    val cal = java.util.Calendar.getInstance().apply { timeInMillis = fromMillis }
+    when (frequency) {
+        RecurrenceFrequency.DAILY -> cal.add(java.util.Calendar.DAY_OF_YEAR, 1)
+        RecurrenceFrequency.WEEKLY -> cal.add(java.util.Calendar.WEEK_OF_YEAR, 1)
+        RecurrenceFrequency.MONTHLY -> cal.add(java.util.Calendar.MONTH, 1)
+        RecurrenceFrequency.NONE -> Unit
+    }
+    return com.google.firebase.Timestamp(cal.time)
 }

@@ -62,6 +62,8 @@ interface ExpenseRepository {
     suspend fun addExpense(expense: Expense): Result<String>
     suspend fun updateExpense(expense: Expense): Result<Unit>
     suspend fun deleteExpense(groupId: String, expenseId: String): Result<Unit>
+    /** Recurring templates in a group whose next occurrence is due (<= nowSeconds). */
+    suspend fun getDueRecurringExpenses(groupId: String, nowSeconds: Long): List<Expense>
 }
 
 interface SettlementRepository {

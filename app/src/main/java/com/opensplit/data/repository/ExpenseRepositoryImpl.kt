@@ -149,6 +149,27 @@ class ExpenseRepositoryImpl(
         }
     }
 
+    override suspend fun getDueRecurringExpenses(groupId: String, nowSeconds: Long): List<Expense> {
+        if (groupId.isBlank()) return emptyList()
+        return try {
+            val now = com.google.firebase.Timestamp(nowSeconds, 0)
+            // Per-group query (rules-friendly; a collectionGroup query would be denied by
+            // the member-scoped Firestore rules). Auto single-field index covers this.
+            val snapshot = getGroupExpensesRef(groupId)
+                .whereLessThanOrEqualTo("recurrence.nextOccurrence", now)
+                .get().await()
+            snapshot.documents
+                .mapNotNull { it.toObject(Expense::class.java)?.copy(id = it.id) }
+                .filter {
+                    !it.isDeleted &&
+                        it.recurrence != null &&
+                        it.recurrence.frequency != com.opensplit.domain.model.RecurrenceFrequency.NONE
+                }
+        } catch (e: Exception) {
+            emptyList()
+        }
+    }
+
     override suspend fun deleteExpense(groupId: String, expenseId: String): Result<Unit> {
         return try {
             // Group expenses live under groups/{groupId}/expenses; personal ones live at
