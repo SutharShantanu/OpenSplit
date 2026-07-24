@@ -12,7 +12,7 @@ class ViewModelFactory(private val container: AppContainer) : ViewModelProvider.
         }
         if (modelClass.isAssignableFrom(MainViewModel::class.java)) {
             @Suppress("UNCHECKED_CAST")
-            return MainViewModel(container.authRepository, container.groupRepository, container.expenseRepository, container.userRepository, container.friendRepository, container.activityRepository) as T
+            return MainViewModel(container.authRepository, container.groupRepository, container.expenseRepository, container.userRepository, container.friendRepository, container.activityRepository, container.friendInviteRepository) as T
         }
         if (modelClass.isAssignableFrom(HomeViewModel::class.java)) {
             @Suppress("UNCHECKED_CAST")

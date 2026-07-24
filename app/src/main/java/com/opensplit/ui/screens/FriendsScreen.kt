@@ -1,5 +1,6 @@
 package com.opensplit.ui.screens
 
+import android.widget.Toast
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -11,9 +12,14 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.foundation.text.KeyboardOptions
+import com.google.firebase.Timestamp
+import com.opensplit.domain.model.FriendInvite
 import com.opensplit.ui.components.AppSearchBar
 import com.opensplit.ui.components.HandshakeIllustration
 import com.opensplit.ui.components.StateLayout
@@ -35,10 +41,53 @@ fun FriendsScreen(
     onFriendClick: (String) -> Unit
 ) {
     val friendsState by viewModel.friendsBalances.collectAsState()
+    val friendInvites by viewModel.friendInvites.collectAsState()
     var searchQuery by rememberSaveable { mutableStateOf("") }
     var selectedFilter by rememberSaveable { mutableStateOf(FriendFilterOption.ALL) }
+    var showInviteDialog by rememberSaveable { mutableStateOf(false) }
+    val context = LocalContext.current
 
-    Box(modifier = Modifier.fillMaxSize()) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(horizontal = OpenSplitTokens.SpaceLG, vertical = OpenSplitTokens.SpaceMD)
+    ) {
+        // Invite a friend
+        Button(
+            onClick = { showInviteDialog = true },
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Icon(OpenSplitIcons.Invite, contentDescription = null, modifier = Modifier.size(18.dp))
+            Spacer(modifier = Modifier.width(OpenSplitTokens.SpaceSM))
+            Text("Invite a friend")
+        }
+
+        // Pending invites
+        if (friendInvites.isNotEmpty()) {
+            Spacer(modifier = Modifier.height(OpenSplitTokens.SpaceMD))
+            Text(
+                text = "Pending invites (${friendInvites.size})",
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.primary
+            )
+            Spacer(modifier = Modifier.height(OpenSplitTokens.SpaceXS))
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = MaterialTheme.shapes.large,
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer)
+            ) {
+                Column {
+                    friendInvites.forEachIndexed { index, invite ->
+                        InviteRow(invite = invite, onRevoke = { viewModel.revokeFriendInvite(invite.id) })
+                        if (index < friendInvites.lastIndex) HorizontalDivider()
+                    }
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(OpenSplitTokens.SpaceMD))
+
         StateLayout(state = friendsState) { balances ->
             if (balances.isEmpty()) {
                 Box(
@@ -51,8 +100,8 @@ fun FriendsScreen(
                         horizontalAlignment = Alignment.CenterHorizontally,
                         verticalArrangement = Arrangement.Center
                     ) {
-                        HandshakeIllustration(size = 140.dp)
-                        Spacer(modifier = Modifier.height(OpenSplitTokens.SpaceXL))
+                        HandshakeIllustration(size = 120.dp)
+                        Spacer(modifier = Modifier.height(OpenSplitTokens.SpaceLG))
                         Text(
                             text = "You're all settled up!",
                             style = MaterialTheme.typography.titleLarge,
@@ -60,7 +109,7 @@ fun FriendsScreen(
                         )
                         Spacer(modifier = Modifier.height(OpenSplitTokens.SpaceSM))
                         Text(
-                            text = "No pending balances with any friends.",
+                            text = "Invite a friend, or add an expense in a group to start tracking balances.",
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             textAlign = TextAlign.Center
@@ -68,11 +117,7 @@ fun FriendsScreen(
                     }
                 }
             } else {
-                Column(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(horizontal = OpenSplitTokens.SpaceLG, vertical = OpenSplitTokens.SpaceMD)
-                ) {
+                Column(modifier = Modifier.fillMaxSize()) {
                     AppSearchBar(
                         query = searchQuery,
                         onQueryChange = { searchQuery = it },
@@ -81,15 +126,13 @@ fun FriendsScreen(
 
                     Spacer(modifier = Modifier.height(OpenSplitTokens.SpaceMD))
 
-                    // Filter Chips Row
                     Row(
                         horizontalArrangement = Arrangement.spacedBy(OpenSplitTokens.SpaceSM),
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         FriendFilterOption.values().forEach { option ->
-                            val isSelected = selectedFilter == option
                             FilterChip(
-                                selected = isSelected,
+                                selected = selectedFilter == option,
                                 onClick = { selectedFilter = option },
                                 label = { Text(option.label) },
                                 shape = MaterialTheme.shapes.extraLarge
@@ -117,7 +160,6 @@ fun FriendsScreen(
                         modifier = Modifier.fillMaxSize()
                     ) {
                         items(processedBalances, key = { it.user.uid }) { fb ->
-                            // Show one line per currency (never sum across currencies).
                             val lines = fb.nonZeroBalances
                             val hasOwed = lines.any { it.second > 0.01 }
                             val hasOwe = lines.any { it.second < -0.01 }
@@ -187,5 +229,93 @@ fun FriendsScreen(
             }
         }
     }
+
+    if (showInviteDialog) {
+        var email by rememberSaveable { mutableStateOf("") }
+        val emailValid = email.trim().contains("@") && email.trim().contains(".")
+        AlertDialog(
+            onDismissRequest = { showInviteDialog = false },
+            icon = { Icon(OpenSplitIcons.Invite, contentDescription = null) },
+            title = { Text("Invite a friend") },
+            text = {
+                Column {
+                    Text("They'll be able to join once they sign up with this email. The invite expires in 7 days.")
+                    Spacer(modifier = Modifier.height(OpenSplitTokens.SpaceMD))
+                    OutlinedTextField(
+                        value = email,
+                        onValueChange = { email = it },
+                        label = { Text("Email address") },
+                        singleLine = true,
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        viewModel.sendFriendInvite(email) { success ->
+                            Toast.makeText(
+                                context,
+                                if (success) "Invite sent" else "Couldn't send (already invited or invalid email)",
+                                Toast.LENGTH_SHORT
+                            ).show()
+                        }
+                        showInviteDialog = false
+                    },
+                    enabled = emailValid
+                ) { Text("Send invite") }
+            },
+            dismissButton = {
+                TextButton(onClick = { showInviteDialog = false }) { Text("Cancel") }
+            }
+        )
+    }
 }
 
+@Composable
+private fun InviteRow(invite: FriendInvite, onRevoke: () -> Unit) {
+    ListItem(
+        colors = ListItemDefaults.colors(containerColor = androidx.compose.ui.graphics.Color.Transparent),
+        headlineContent = { Text(invite.email, fontWeight = FontWeight.Medium) },
+        supportingContent = {
+            Text(
+                text = expiryLabel(invite.expiresAt),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        },
+        leadingContent = {
+            Surface(
+                shape = CircleShape,
+                color = MaterialTheme.colorScheme.tertiaryContainer,
+                modifier = Modifier.size(40.dp)
+            ) {
+                Box(contentAlignment = Alignment.Center) {
+                    Icon(
+                        OpenSplitIcons.Invite,
+                        contentDescription = null,
+                        modifier = Modifier.size(20.dp),
+                        tint = MaterialTheme.colorScheme.onTertiaryContainer
+                    )
+                }
+            }
+        },
+        trailingContent = {
+            TextButton(onClick = onRevoke) {
+                Text("Revoke", color = MaterialTheme.colorScheme.error)
+            }
+        }
+    )
+}
+
+private fun expiryLabel(expiresAt: Timestamp): String {
+    val nowSeconds = System.currentTimeMillis() / 1000
+    val diff = expiresAt.seconds - nowSeconds
+    return when {
+        diff <= 0 -> "Expired"
+        diff < 3600 -> "Expires in under an hour"
+        diff < 86400 -> "Expires in ${diff / 3600}h"
+        else -> "Expires in ${diff / 86400}d"
+    }
+}

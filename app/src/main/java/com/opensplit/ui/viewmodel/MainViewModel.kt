@@ -9,7 +9,9 @@ import com.opensplit.domain.model.User
 import com.opensplit.domain.repository.ActivityRepository
 import com.opensplit.domain.repository.AuthRepository
 import com.opensplit.domain.repository.AuthState
+import com.opensplit.domain.model.FriendInvite
 import com.opensplit.domain.repository.ExpenseRepository
+import com.opensplit.domain.repository.FriendInviteRepository
 import com.opensplit.domain.repository.FriendRepository
 import com.opensplit.domain.repository.GroupRepository
 import com.opensplit.domain.repository.UserRepository
@@ -40,11 +42,38 @@ class MainViewModel(
     private val expenseRepository: ExpenseRepository,
     private val userRepository: UserRepository,
     private val friendRepository: FriendRepository,
-    private val activityRepository: ActivityRepository
+    private val activityRepository: ActivityRepository,
+    private val friendInviteRepository: FriendInviteRepository
 ) : ViewModel() {
 
     private val retryTrigger = MutableStateFlow(0)
     fun retry() { retryTrigger.value++ }
+
+    val friendInvites: StateFlow<List<FriendInvite>> =
+        combine(authRepository.getAuthState(), retryTrigger) { state, _ -> state }
+            .flatMapLatest { authState ->
+                if (authState is AuthState.LoggedIn) friendInviteRepository.getInvites(authState.uid)
+                else flowOf(emptyList())
+            }
+            .catch { emit(emptyList()) }
+            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    fun sendFriendInvite(email: String, onResult: (Boolean) -> Unit = {}) {
+        val trimmed = email.trim()
+        if (trimmed.isBlank()) { onResult(false); return }
+        viewModelScope.launch {
+            val uid = authRepository.getCurrentUserId()
+            if (uid == null) { onResult(false); return@launch }
+            if (friendInvites.value.any { it.email.equals(trimmed, ignoreCase = true) }) {
+                onResult(false); return@launch
+            }
+            onResult(friendInviteRepository.sendInvite(uid, trimmed).isSuccess)
+        }
+    }
+
+    fun revokeFriendInvite(inviteId: String) {
+        viewModelScope.launch { friendInviteRepository.revokeInvite(inviteId) }
+    }
 
     val userGroups: StateFlow<ScreenState<List<Group>>> = combine(authRepository.getAuthState(), retryTrigger) { state, _ -> state }
         .flatMapLatest { authState ->

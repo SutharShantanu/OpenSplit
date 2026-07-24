@@ -77,6 +77,12 @@ interface PendingInviteRepository {
     suspend fun revokeInvite(groupId: String, inviteId: String): Result<Unit>
 }
 
+interface FriendInviteRepository {
+    fun getInvites(inviterUid: String): Flow<List<com.opensplit.domain.model.FriendInvite>>
+    suspend fun sendInvite(inviterUid: String, email: String): Result<String>
+    suspend fun revokeInvite(inviteId: String): Result<Unit>
+}
+
 interface ActivityRepository {
     fun getActivityForGroup(groupId: String): Flow<List<com.opensplit.domain.model.Activity>>
     fun getActivityForUser(userId: String, groupIds: List<String>): Flow<List<com.opensplit.domain.model.Activity>>
