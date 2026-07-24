@@ -17,12 +17,19 @@ fun getCategoryColor(category: String): Color {
         "food", "food & drink", "dining" -> OpenSplitTokens.CategoryFood
         "transport", "transportation" -> OpenSplitTokens.CategoryTransport
         "bills", "utilities", "services" -> OpenSplitTokens.CategoryBills
-        "shopping", "groceries" -> OpenSplitTokens.CategoryShopping
+        "shopping" -> OpenSplitTokens.CategoryShopping
+        "groceries" -> OpenSplitTokens.CategoryGroceries
         "rent", "housing" -> OpenSplitTokens.CategoryRent
         "health", "medical" -> OpenSplitTokens.CategoryHealth
         "travel", "flights", "vacation" -> OpenSplitTokens.CategoryTravel
         "entertainment", "movies", "fun" -> OpenSplitTokens.CategoryEntertainment
         "education", "books" -> OpenSplitTokens.CategoryEducation
+        "coffee" -> OpenSplitTokens.CategoryCoffee
+        "drinks" -> OpenSplitTokens.CategoryDrinks
+        "gifts" -> OpenSplitTokens.CategoryGifts
+        "fitness" -> OpenSplitTokens.CategoryFitness
+        "subscriptions" -> OpenSplitTokens.CategorySubscriptions
+        "pets" -> OpenSplitTokens.CategoryPets
         else -> OpenSplitTokens.CategoryOther
     }
 }
@@ -32,18 +39,27 @@ fun getCategoryIcon(category: String): ImageVector {
         "food", "food & drink", "dining" -> OpenSplitIcons.CategoryFood
         "transport", "transportation" -> OpenSplitIcons.CategoryTransport
         "bills", "utilities" -> OpenSplitIcons.CategoryBills
-        "shopping", "groceries" -> OpenSplitIcons.CategoryShopping
+        "shopping" -> OpenSplitIcons.CategoryShopping
+        "groceries" -> OpenSplitIcons.CategoryGroceries
         "rent", "housing" -> OpenSplitIcons.CategoryRent
         "health", "medical" -> OpenSplitIcons.CategoryHealth
         "travel", "flights" -> OpenSplitIcons.CategoryTravel
         "entertainment", "movies" -> OpenSplitIcons.CategoryEntertainment
         "education", "books" -> OpenSplitIcons.CategoryEducation
+        "coffee" -> OpenSplitIcons.CategoryCoffee
+        "drinks" -> OpenSplitIcons.CategoryDrinks
+        "gifts" -> OpenSplitIcons.CategoryGifts
+        "fitness" -> OpenSplitIcons.CategoryFitness
+        "subscriptions" -> OpenSplitIcons.CategorySubscriptions
+        "pets" -> OpenSplitIcons.CategoryPets
         else -> OpenSplitIcons.CategoryOther
     }
 }
 
 val ALL_CATEGORIES = listOf(
-    "All", "Food", "Transport", "Bills", "Shopping", "Rent", "Health", "Travel", "Entertainment", "Education", "Other"
+    "All", "Food", "Groceries", "Coffee", "Drinks", "Transport", "Bills", "Shopping",
+    "Rent", "Health", "Fitness", "Travel", "Entertainment", "Subscriptions",
+    "Education", "Gifts", "Pets", "Other"
 )
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -74,10 +90,23 @@ fun CategoryChipRow(
                         imageVector = icon,
                         contentDescription = null,
                         modifier = Modifier.size(18.dp),
-                        tint = if (isSelected) MaterialTheme.colorScheme.onPrimaryContainer else color
+                        // Tint follows the category color; on the selected tonal container it stays legible.
+                        tint = color
                     )
                 },
-                shape = MaterialTheme.shapes.extraLarge
+                shape = MaterialTheme.shapes.extraLarge,
+                colors = FilterChipDefaults.filterChipColors(
+                    selectedContainerColor = color.copy(alpha = 0.16f),
+                    selectedLabelColor = MaterialTheme.colorScheme.onSurface,
+                    selectedLeadingIconColor = color
+                ),
+                border = FilterChipDefaults.filterChipBorder(
+                    enabled = true,
+                    selected = isSelected,
+                    borderColor = MaterialTheme.colorScheme.outlineVariant,
+                    selectedBorderColor = color.copy(alpha = 0.5f),
+                    selectedBorderWidth = 1.dp
+                )
             )
         }
     }

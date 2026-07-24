@@ -23,6 +23,13 @@ object OpenSplitTokens {
     val CategoryEntertainment = Color(0xFFFF9800)
     val CategoryEducation   = Color(0xFF795548)
     val CategoryOther       = Color(0xFF9E9E9E)
+    val CategoryGroceries   = Color(0xFF2E7D32)
+    val CategoryCoffee      = Color(0xFF8D6E63)
+    val CategoryDrinks      = Color(0xFF7E57C2)
+    val CategoryGifts       = Color(0xFFEC407A)
+    val CategoryFitness     = Color(0xFFEF5350)
+    val CategorySubscriptions = Color(0xFF26A69A)
+    val CategoryPets        = Color(0xFFFFB300)
 
     // Shape tokens — M3 Expressive shape system
     // Use these named tokens everywhere; never hardcode dp corner values inline

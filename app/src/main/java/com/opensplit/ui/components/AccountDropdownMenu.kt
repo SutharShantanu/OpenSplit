@@ -40,7 +40,11 @@ fun AccountDropdownMenu(
     DropdownMenu(
         expanded = expanded,
         onDismissRequest = onDismissRequest,
-        modifier = Modifier.width(260.dp)
+        modifier = Modifier.width(280.dp),
+        shape = MaterialTheme.shapes.large,
+        containerColor = MaterialTheme.colorScheme.surfaceContainer,
+        tonalElevation = 2.dp,
+        shadowElevation = 3.dp
     ) {
         // 1. Identity header row (non-clickable)
         Column(
@@ -91,7 +95,7 @@ fun AccountDropdownMenu(
         // 3. Theme
         DropdownMenuItem(
             text = { Text("Theme") },
-            leadingIcon = { Icon(OpenSplitIcons.More, contentDescription = null) },
+            leadingIcon = { Icon(OpenSplitIcons.Theme, contentDescription = null) },
             onClick = {
                 onDismissRequest()
                 showThemeDialog = true
@@ -103,7 +107,7 @@ fun AccountDropdownMenu(
         // 4. Help & feedback
         DropdownMenuItem(
             text = { Text("Help & feedback") },
-            leadingIcon = { Icon(OpenSplitIcons.CategoryOther, contentDescription = null) },
+            leadingIcon = { Icon(OpenSplitIcons.Help, contentDescription = null) },
             onClick = {
                 onDismissRequest()
                 val intent = Intent(Intent.ACTION_SENDTO).apply {
@@ -121,7 +125,7 @@ fun AccountDropdownMenu(
         // 5. About
         DropdownMenuItem(
             text = { Text("About OpenSplit") },
-            leadingIcon = { Icon(OpenSplitIcons.ReceiptScan, contentDescription = null) },
+            leadingIcon = { Icon(OpenSplitIcons.Info, contentDescription = null) },
             onClick = {
                 onDismissRequest()
                 showAboutDialog = true

@@ -29,6 +29,13 @@ object OpenSplitIcons {
     val CategoryEntertainment = Icons.Rounded.Movie
     val CategoryEducation     = Icons.Rounded.School
     val CategoryOther         = Icons.Rounded.MoreHoriz
+    val CategoryGroceries     = Icons.Rounded.LocalGroceryStore
+    val CategoryCoffee        = Icons.Rounded.LocalCafe
+    val CategoryDrinks        = Icons.Rounded.LocalBar
+    val CategoryGifts         = Icons.Rounded.CardGiftcard
+    val CategoryFitness       = Icons.Rounded.FitnessCenter
+    val CategorySubscriptions = Icons.Rounded.Subscriptions
+    val CategoryPets          = Icons.Rounded.Pets
 
     // Split types
     val SplitEqual      = Icons.Rounded.Balance
@@ -60,6 +67,8 @@ object OpenSplitIcons {
     val Dropdown       = Icons.Rounded.ArrowDropDown
     val Security       = Icons.Rounded.Lock
     val Info           = Icons.Rounded.Info
+    val Theme          = Icons.Rounded.Palette
+    val Help           = Icons.Rounded.HelpOutline
     val Logout         = Icons.Rounded.Logout
     val Person         = Icons.Rounded.Person
     val Edit           = Icons.Rounded.Edit
