@@ -8,7 +8,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write   # needed to publish the APK to a GitHub Release
 
 jobs:
   build:
@@ -51,9 +51,32 @@ jobs:
       - name: Build debug APK
         run: ./gradlew :app:assembleDebug --stacktrace
 
+      - name: Rename APK
+        run: cp app/build/outputs/apk/debug/app-debug.apk OpenSplit-debug.apk
+
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
           name: opensplit-debug-apk
-          path: app/build/outputs/apk/debug/app-debug.apk
+          path: OpenSplit-debug.apk
           if-no-files-found: error
+
+      # Publish to a rolling "nightly" Release so there's a permanent download URL:
+      # https://github.com/SutharShantanu/OpenSplit/releases/download/nightly/OpenSplit-debug.apk
+      - name: Publish APK to Releases
+        if: github.ref == 'refs/heads/main'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: nightly
+          name: OpenSplit — latest debug build
+          body: |
+            Automated **debug** APK from the latest commit on `main`.
+
+            Install:
+            ```
+            adb install -r OpenSplit-debug.apk
+            ```
+            Note: built with a placeholder Firebase config unless the
+            `GOOGLE_SERVICES_JSON` secret is set, so sign-in/sync may not work.
+          prerelease: true
+          files: OpenSplit-debug.apk

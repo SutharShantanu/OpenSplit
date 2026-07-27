@@ -7,6 +7,27 @@ Built with **Kotlin**, **Jetpack Compose** (100% **Material 3**), and **Firebase
 (Auth + Firestore), OpenSplit lets groups of people track shared expenses, split them
 fairly, and settle up.
 
+[![Build Debug APK](https://github.com/SutharShantanu/OpenSplit/actions/workflows/android.yml/badge.svg?branch=main)](https://github.com/SutharShantanu/OpenSplit/actions/workflows/android.yml)
+
+## 📥 Download
+
+Grab the latest debug build — no toolchain required:
+
+**[⬇️ Download OpenSplit-debug.apk](https://github.com/SutharShantanu/OpenSplit/releases/download/nightly/OpenSplit-debug.apk)**
+&nbsp;·&nbsp; [All releases](https://github.com/SutharShantanu/OpenSplit/releases) &nbsp;·&nbsp; [Build artifacts](https://github.com/SutharShantanu/OpenSplit/actions/workflows/android.yml)
+
+The `nightly` release is refreshed automatically on every push to `main`. Install it on a
+connected device with:
+
+```bash
+adb install -r OpenSplit-debug.apk
+```
+
+> The published APK is built with a **placeholder Firebase config**, so it installs and
+> the UI works but sign-in/sync won't function. For a fully working build, compile
+> locally with your own `app/google-services.json` (see [docs/SETUP.md](docs/SETUP.md))
+> or set the `GOOGLE_SERVICES_JSON` repo secret so CI uses your real config.
+
 ## Features
 
 - **Groups & friends** — create groups, add members by email or from contacts, see
