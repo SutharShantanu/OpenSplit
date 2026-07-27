@@ -39,6 +39,15 @@ jobs:
             echo "No GOOGLE_SERVICES_JSON secret set — using placeholder (UI-testable, Firebase disabled)."
           fi
 
+      - name: Generate debug keystore
+        run: |
+          # The debug signing config points at ${rootDir}/debug.keystore (git-ignored).
+          # Recreate it with the standard Android debug credentials so signing succeeds.
+          keytool -genkeypair -v -keystore debug.keystore \
+            -storepass android -keypass android -alias androiddebugkey \
+            -keyalg RSA -keysize 2048 -validity 10000 \
+            -dname "CN=Android Debug,O=Android,C=US"
+
       - name: Build debug APK
         run: ./gradlew :app:assembleDebug --stacktrace
 
