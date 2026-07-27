@@ -96,15 +96,42 @@ your groups for due templates (`recurrence.nextOccurrence <= now`). Firestore
 auto-creates the required single-field index on first run; if prompted in the console
 or logs, follow the offered link to create it.
 
-## 5. Build & run
+## 8. Run on an emulator or device
+
+The Gradle **wrapper is committed**, so you don't need Gradle installed — use `./gradlew`
+on macOS/Linux or `.\gradlew.bat` on Windows.
+
+**Prerequisites:** `app/google-services.json` must be present (step 2.3) or the build stops
+at the `google-services` plugin. For the friend-invite feature, deploy the Firestore rules
+(step 3).
+
+```bash
+# 1. Get the latest code
+git pull origin main
+
+# 2. Start an emulator (or plug in a device with USB debugging enabled)
+emulator -list-avds                 # list your AVDs
+emulator -avd <your_avd_name>       # e.g. Pixel_7_API_34  (run in a separate terminal)
+adb devices                         # must show it as "device" (not unauthorized/offline)
+
+# 3. Build + install to the connected device/emulator, then launch
+./gradlew :app:installDebug         # Windows: .\gradlew.bat :app:installDebug
+adb shell monkey -p com.opensplit -c android.intent.category.LAUNCHER 1
+```
+
+**Android Studio (simplest):** open the project, pick your emulator/device in the toolbar
+dropdown, and hit **Run ▶** — it builds, installs, and launches in one click.
+
+### Build / test / lint
 
 ```bash
 ./gradlew :app:assembleDebug        # build the debug APK
-./gradlew :app:testDebugUnitTest    # run unit tests (split math, balances, currency)
+./gradlew :app:testDebugUnitTest    # unit tests (split math, balances, currency)
 ./gradlew :app:lintDebug            # lint
 ```
 
-Then install on a device/emulator, or open the project in Android Studio and Run.
+Prefer not to build locally? Grab the prebuilt APK from
+[Releases](https://github.com/SutharShantanu/OpenSplit/releases) (see the README).
 
 ## Troubleshooting
 
