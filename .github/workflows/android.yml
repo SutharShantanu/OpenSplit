@@ -1,0 +1,50 @@
+name: Build Debug APK
+
+# Builds an installable debug APK on every push to main (and on demand) and
+# uploads it as a downloadable artifact — no local Gradle/SDK required.
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: gradle
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Provide google-services.json
+        run: |
+          if [ -n "${{ secrets.GOOGLE_SERVICES_JSON }}" ]; then
+            # Real Firebase config from a repo secret (base64-encoded).
+            echo "${{ secrets.GOOGLE_SERVICES_JSON }}" | base64 -d > app/google-services.json
+            echo "Using GOOGLE_SERVICES_JSON secret."
+          else
+            # CI placeholder so the build succeeds; Firebase calls won't work at runtime.
+            cp .github/google-services.debug.json app/google-services.json
+            echo "No GOOGLE_SERVICES_JSON secret set — using placeholder (UI-testable, Firebase disabled)."
+          fi
+
+      - name: Build debug APK
+        run: ./gradlew :app:assembleDebug --stacktrace
+
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: opensplit-debug-apk
+          path: app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error

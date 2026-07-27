@@ -75,7 +75,21 @@ The `onActivityCreated` function fans a notification out to a group's members (e
 the actor) whenever a new activity entry is written. Without it, only self/test
 notifications appear.
 
-## 6. Recurring expenses (Firestore index)
+## 6. Get an APK without a local toolchain (GitHub Actions)
+
+Every push to `main` (or a manual run via the Actions tab → **Build Debug APK** →
+*Run workflow*) builds `app-debug.apk` and uploads it as an artifact. Download it from
+the run's **Artifacts** section, then `adb install -r app-debug.apk`.
+
+- By default CI uses a placeholder `google-services.json` (`.github/google-services.debug.json`)
+  so the build succeeds — the app installs and the UI works, but Firebase (sign-in, sync)
+  won't function.
+- For a fully working APK, add a repo secret **`GOOGLE_SERVICES_JSON`** =
+  `base64 -w0 app/google-services.json` and the workflow will use it instead.
+
+The wrapper is committed, so `./gradlew` works after `git pull` (Gradle 8.14.3).
+
+## 7. Recurring expenses (Firestore index)
 
 Recurring expenses are materialized by a daily WorkManager job that queries each of
 your groups for due templates (`recurrence.nextOccurrence <= now`). Firestore
