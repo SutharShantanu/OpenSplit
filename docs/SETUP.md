@@ -87,7 +87,7 @@ the run's **Artifacts** section, then `adb install -r app-debug.apk`.
 - For a fully working APK, add a repo secret **`GOOGLE_SERVICES_JSON`** =
   `base64 -w0 app/google-services.json` and the workflow will use it instead.
 
-The wrapper is committed, so `./gradlew` works after `git pull` (Gradle 8.14.3).
+The wrapper is committed, so `./gradlew` works after `git pull` (Gradle 9.3.1).
 
 ## 7. Recurring expenses (Firestore index)
 
