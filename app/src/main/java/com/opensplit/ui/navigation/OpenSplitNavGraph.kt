@@ -28,9 +28,6 @@ import androidx.navigation.compose.rememberNavController
 import com.opensplit.di.AppContainer
 import com.opensplit.domain.repository.AuthState
 import com.opensplit.ui.screens.SplashScreen
-import com.opensplit.ui.screens.auth.ForgotPasswordScreen
-import com.opensplit.ui.screens.auth.LoginScreen
-import com.opensplit.ui.screens.auth.SignupScreen
 import com.opensplit.ui.screens.auth.WelcomeScreen
 import com.opensplit.ui.viewmodel.AuthViewModel
 import com.opensplit.ui.viewmodel.ViewModelFactory
@@ -71,37 +68,8 @@ fun OpenSplitNavGraph(
 fun AuthNavHost(navController: NavHostController, authViewModel: AuthViewModel) {
     NavHost(navController = navController, startDestination = "welcome") {
         composable("welcome") {
-            WelcomeScreen(
-                onNavigateToLogin = { navController.navigate("login") },
-                onNavigateToSignup = { navController.navigate("signup") }
-            )
-        }
-        composable("login") {
-            LoginScreen(
-                viewModel = authViewModel,
-                onNavigateToSignup = {
-                    navController.navigate("signup") {
-                        popUpTo("welcome")
-                    }
-                },
-                onNavigateToForgotPassword = { navController.navigate("forgot_password") }
-            )
-        }
-        composable("signup") {
-            SignupScreen(
-                viewModel = authViewModel,
-                onNavigateToLogin = {
-                    navController.navigate("login") {
-                        popUpTo("welcome")
-                    }
-                }
-            )
-        }
-        composable("forgot_password") {
-            ForgotPasswordScreen(
-                viewModel = authViewModel,
-                onNavigateBack = { navController.popBackStack() }
-            )
+            // Google is the only supported sign-in method.
+            WelcomeScreen(viewModel = authViewModel)
         }
     }
 }
