@@ -37,7 +37,7 @@ import com.opensplit.ui.theme.OpenSplitTokens
 import com.opensplit.ui.viewmodel.GroupDetailViewModel
 import com.google.firebase.Timestamp
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
 @Composable
 fun AddExpenseScreen(
     viewModel: GroupDetailViewModel,
