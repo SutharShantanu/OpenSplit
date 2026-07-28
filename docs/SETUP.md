@@ -105,6 +105,27 @@ on macOS/Linux or `.\gradlew.bat` on Windows.
 at the `google-services` plugin. For the friend-invite feature, deploy the Firestore rules
 (step 3).
 
+### One-command run (Linux/macOS)
+
+With an emulator running (or a device connected via USB debugging):
+
+```bash
+./scripts/run-emulator.sh
+```
+
+It pulls the latest `main`, checks your emulator is connected, builds + installs the debug
+APK (`:app:installDebug`), and launches OpenSplit — all in one step. Pass `--no-pull` to
+build the current working tree without pulling.
+
+> **Google sign-in not completing?** If the Google account chooser appears but sign-in
+> doesn't finish, this build's signing **SHA-1** is almost certainly not registered in your
+> Firebase project. Print it with:
+> ```bash
+> ./scripts/print-debug-sha1.sh
+> ```
+> then add the `SHA1` value in **Firebase console → Project settings → your Android app →
+> Add fingerprint**, re-download `google-services.json` into `app/`, and re-run.
+
 ```bash
 # 1. Get the latest code
 git pull origin main
