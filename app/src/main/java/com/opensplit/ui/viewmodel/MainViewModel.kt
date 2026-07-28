@@ -14,6 +14,7 @@ import com.opensplit.domain.repository.ExpenseRepository
 import com.opensplit.domain.repository.FriendInviteRepository
 import com.opensplit.domain.repository.FriendRepository
 import com.opensplit.domain.repository.GroupRepository
+import com.opensplit.domain.repository.UserPreferencesRepository
 import com.opensplit.domain.repository.UserRepository
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.async
@@ -43,7 +44,8 @@ class MainViewModel(
     private val userRepository: UserRepository,
     private val friendRepository: FriendRepository,
     private val activityRepository: ActivityRepository,
-    private val friendInviteRepository: FriendInviteRepository
+    private val friendInviteRepository: FriendInviteRepository,
+    private val userPreferencesRepository: UserPreferencesRepository
 ) : ViewModel() {
 
     private val retryTrigger = MutableStateFlow(0)
@@ -90,6 +92,29 @@ class MainViewModel(
             started = SharingStarted.WhileSubscribed(5000),
             initialValue = ScreenState.Loading
         )
+
+    val pinnedGroupIds: StateFlow<Set<String>> = userPreferencesRepository.pinnedGroupIdsFlow
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptySet())
+
+    fun togglePinnedGroup(groupId: String) {
+        viewModelScope.launch { userPreferencesRepository.togglePinnedGroup(groupId) }
+    }
+
+    // Activity has no groupId of its own, so per-group recency is derived by combining each
+    // group's own activity subcollection (already ordered newest-first) rather than reusing
+    // the flattened getActivityForUser feed.
+    val groupLastActivity: StateFlow<Map<String, com.google.firebase.Timestamp>> = userGroups
+        .flatMapLatest { state ->
+            val ids = (state as? ScreenState.Success)?.data?.map { it.id } ?: emptyList()
+            if (ids.isEmpty()) {
+                flowOf(emptyMap())
+            } else {
+                combine(ids.map { id -> activityRepository.getActivityForGroup(id).map { id to it.firstOrNull()?.timestamp } }) { pairs ->
+                    pairs.mapNotNull { (id, ts) -> ts?.let { id to it } }.toMap()
+                }
+            }
+        }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyMap())
 
     val recentActivity: StateFlow<ScreenState<List<Activity>>> = combine(authRepository.getAuthState(), retryTrigger) { state, _ -> state }
         .flatMapLatest { authState ->

@@ -1,5 +1,6 @@
 package com.opensplit.ui.screens
 
+import android.widget.Toast
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -19,6 +20,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.opensplit.ui.components.CreateGroupDialog
@@ -34,6 +36,13 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
+private data class BadgeSpec(
+    val background: androidx.compose.ui.graphics.Color,
+    val foreground: androidx.compose.ui.graphics.Color,
+    val icon: androidx.compose.ui.graphics.vector.ImageVector,
+    val label: String
+)
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeScreen(
@@ -45,6 +54,7 @@ fun HomeScreen(
     onNavigateToSettleUp: (String) -> Unit
 ) {
     val state by viewModel.uiState.collectAsState()
+    val context = LocalContext.current
     var showCreateGroupDialog by remember { mutableStateOf(false) }
     var showGroupPickerForAddExpense by remember { mutableStateOf(false) }
     var showGroupPickerForSettleUp by remember { mutableStateOf(false) }
@@ -157,14 +167,20 @@ fun HomeScreen(
                         )
                     )
 
+                    val settleableGroups = homeState.allGroups.filter { it.memberIds.size > 1 }
                     AssistChip(
                         onClick = {
-                            if (homeState.allGroups.size == 1) {
-                                onNavigateToSettleUp(homeState.allGroups.first().id)
-                            } else {
-                                showGroupPickerForSettleUp = true
+                            when {
+                                settleableGroups.isEmpty() -> Toast.makeText(
+                                    context,
+                                    "Add another member to a group before settling up",
+                                    Toast.LENGTH_SHORT
+                                ).show()
+                                settleableGroups.size == 1 -> onNavigateToSettleUp(settleableGroups.first().id)
+                                else -> showGroupPickerForSettleUp = true
                             }
                         },
+                        enabled = settleableGroups.isNotEmpty(),
                         label = { Text("Settle up") },
                         leadingIcon = { Icon(OpenSplitIcons.Settle, contentDescription = null, modifier = Modifier.size(18.dp)) },
                         colors = AssistChipDefaults.assistChipColors(
@@ -351,46 +367,71 @@ fun HomeScreen(
                                             maxLines = 1
                                         )
 
-                                        Text(
-                                            text = "${groupWithBal.group.memberIds.size} members",
-                                            style = MaterialTheme.typography.labelSmall,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                                        )
+                                        Spacer(modifier = Modifier.height(2.dp))
+
+                                        Row(verticalAlignment = Alignment.CenterVertically) {
+                                            Icon(
+                                                imageVector = OpenSplitIcons.Friends,
+                                                contentDescription = null,
+                                                modifier = Modifier.size(12.dp),
+                                                tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                            )
+                                            Spacer(modifier = Modifier.width(4.dp))
+                                            val memberCount = groupWithBal.group.memberIds.size
+                                            Text(
+                                                text = if (memberCount == 1) "1 member" else "$memberCount members",
+                                                style = MaterialTheme.typography.labelSmall,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                            )
+                                        }
 
                                         Spacer(modifier = Modifier.height(OpenSplitTokens.SpaceSM))
 
                                         // Status badge
-                                        val (badgeBg, badgeFg, statusLabel) = when {
-                                            bal > 0.01 -> Triple(
+                                        val (badgeBg, badgeFg, badgeIcon, statusLabel) = when {
+                                            bal > 0.01 -> BadgeSpec(
                                                 OpenSplitTokens.OwedPositive.copy(alpha = 0.15f),
                                                 OpenSplitTokens.OwedPositive,
+                                                OpenSplitIcons.OwedToYou,
                                                 "Owed $formattedAmount"
                                             )
-                                            bal < -0.01 -> Triple(
+                                            bal < -0.01 -> BadgeSpec(
                                                 OpenSplitTokens.OwedNegative.copy(alpha = 0.15f),
                                                 OpenSplitTokens.OwedNegative,
+                                                OpenSplitIcons.YouOwe,
                                                 "You owe ${com.opensplit.util.CurrencyFormatter.format(-bal, groupWithBal.group.currency)}"
                                             )
-                                            else -> Triple(
+                                            else -> BadgeSpec(
                                                 MaterialTheme.colorScheme.surfaceContainerHigh,
                                                 MaterialTheme.colorScheme.onSurfaceVariant,
+                                                OpenSplitIcons.Check,
                                                 "Settled up"
                                             )
                                         }
 
                                         Surface(
-                                            shape = MaterialTheme.shapes.small,
-                                            color = badgeBg,
-                                            modifier = Modifier.fillMaxWidth()
+                                            shape = MaterialTheme.shapes.extraLarge,
+                                            color = badgeBg
                                         ) {
-                                            Text(
-                                                text = statusLabel,
-                                                style = MaterialTheme.typography.labelMedium,
-                                                color = badgeFg,
-                                                fontWeight = FontWeight.Bold,
-                                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
-                                                maxLines = 1
-                                            )
+                                            Row(
+                                                verticalAlignment = Alignment.CenterVertically,
+                                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                                            ) {
+                                                Icon(
+                                                    imageVector = badgeIcon,
+                                                    contentDescription = null,
+                                                    modifier = Modifier.size(12.dp),
+                                                    tint = badgeFg
+                                                )
+                                                Spacer(modifier = Modifier.width(4.dp))
+                                                Text(
+                                                    text = statusLabel,
+                                                    style = MaterialTheme.typography.labelMedium,
+                                                    color = badgeFg,
+                                                    fontWeight = FontWeight.Bold,
+                                                    maxLines = 1
+                                                )
+                                            }
                                         }
                                     }
                                 }
@@ -474,7 +515,8 @@ fun HomeScreen(
     }
 
     if (showGroupPickerForSettleUp) {
-        val groups = (state as? com.opensplit.ui.viewmodel.ScreenState.Success)?.data?.allGroups ?: emptyList()
+        val groups = (state as? com.opensplit.ui.viewmodel.ScreenState.Success)?.data?.allGroups
+            ?.filter { it.memberIds.size > 1 } ?: emptyList()
         GroupSelectionDialog(
             title = "Select Group to Settle Up",
             groups = groups,

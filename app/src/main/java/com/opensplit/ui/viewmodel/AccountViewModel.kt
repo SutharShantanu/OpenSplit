@@ -127,4 +127,17 @@ class AccountViewModel(
             onResult(result.isSuccess)
         }
     }
+
+    fun reauthenticateWithGoogle(idToken: String, onResult: (Boolean) -> Unit) {
+        viewModelScope.launch {
+            val result = authRepository.reauthenticateWithGoogle(idToken)
+            onResult(result.isSuccess)
+        }
+    }
+
+    fun sendPasswordResetEmail(email: String, onResult: (Result<Unit>) -> Unit) {
+        viewModelScope.launch {
+            onResult(authRepository.sendPasswordResetEmail(email))
+        }
+    }
 }

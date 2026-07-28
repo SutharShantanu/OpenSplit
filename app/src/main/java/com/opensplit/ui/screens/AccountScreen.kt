@@ -31,6 +31,15 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
+import androidx.credentials.CredentialManager
+import androidx.credentials.CredentialOption
+import androidx.credentials.CustomCredential
+import androidx.credentials.GetCredentialRequest
+import androidx.credentials.exceptions.GetCredentialException
+import androidx.credentials.exceptions.NoCredentialException
+import com.google.android.libraries.identity.googleid.GetGoogleIdOption
+import com.google.android.libraries.identity.googleid.GetSignInWithGoogleOption
+import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential
 import coil.compose.AsyncImage
 import com.opensplit.di.AppContainer
 import com.opensplit.ui.components.ExportBottomSheet
@@ -43,6 +52,7 @@ import com.opensplit.ui.viewmodel.AccountViewModel
 import com.google.firebase.auth.FirebaseAuth
 import dev.chrisbanes.haze.HazeState
 import kotlin.math.abs
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -345,18 +355,6 @@ fun AccountScreen(
                                 trailingContent = { Icon(OpenSplitIcons.ChevronRight, contentDescription = null) },
                                 modifier = Modifier.clickable { showExportBottomSheet = true }
                             )
-
-                            HorizontalDivider()
-
-                            ListItem(
-                                headlineContent = { Text("Manage contacts & invites", fontWeight = FontWeight.Medium) },
-                                supportingContent = { Text("${accountData.pendingInvites.size} pending group invitations") },
-                                leadingContent = { Icon(OpenSplitIcons.AddMember, contentDescription = null) },
-                                trailingContent = { Icon(OpenSplitIcons.ChevronRight, contentDescription = null) },
-                                modifier = Modifier.clickable {
-                                    Toast.makeText(context, "No pending invitations", Toast.LENGTH_SHORT).show()
-                                }
-                            )
                         }
                     }
                 }
@@ -371,7 +369,7 @@ fun AccountScreen(
                         Column {
                             ListItem(
                                 headlineContent = { Text("Change password", fontWeight = FontWeight.Medium) },
-                                supportingContent = { Text("Send password reset link to your email") },
+                                supportingContent = { Text("Verify by email, then set a new password in-app") },
                                 leadingContent = { Icon(OpenSplitIcons.Security, contentDescription = null) },
                                 trailingContent = { Icon(OpenSplitIcons.ChevronRight, contentDescription = null) },
                                 modifier = Modifier.clickable { showPasswordResetDialog = true }
@@ -499,27 +497,34 @@ fun AccountScreen(
     }
 
     if (showPasswordResetDialog) {
+        var isSending by remember { mutableStateOf(false) }
         AlertDialog(
             onDismissRequest = { showPasswordResetDialog = false },
-            title = { Text("Reset Password") },
+            title = { Text("Change Password") },
             text = {
-                Text("We will send a password reset link to your email address:\n\n${appContainer.authRepository.currentUser?.email}")
+                Text(
+                    "We'll email a secure link to ${appContainer.authRepository.currentUser?.email}. " +
+                        "Opening it brings you back into the app to set a new password (with a strength check) — the link expires after a while, so use it soon."
+                )
             },
             confirmButton = {
                 Button(
                     onClick = {
                         val email = appContainer.authRepository.currentUser?.email
                         if (!email.isNullOrEmpty()) {
-                            FirebaseAuth.getInstance().sendPasswordResetEmail(email)
-                                .addOnSuccessListener {
-                                    Toast.makeText(context, "Password reset email sent!", Toast.LENGTH_LONG).show()
-                                }
-                                .addOnFailureListener { e ->
-                                    Toast.makeText(context, "Failed: ${e.message}", Toast.LENGTH_LONG).show()
-                                }
+                            isSending = true
+                            viewModel.sendPasswordResetEmail(email) { result ->
+                                isSending = false
+                                Toast.makeText(
+                                    context,
+                                    if (result.isSuccess) "Email sent — check your inbox" else "Failed: ${result.exceptionOrNull()?.message}",
+                                    Toast.LENGTH_LONG
+                                ).show()
+                            }
                         }
                         showPasswordResetDialog = false
-                    }
+                    },
+                    enabled = !isSending
                 ) {
                     Text("Send Email")
                 }
@@ -559,42 +564,160 @@ fun AccountScreen(
     if (showDeleteAccountDialog) {
         var password by remember { mutableStateOf("") }
         var isReauthenticating by remember { mutableStateOf(false) }
+        var isGoogleVerified by remember { mutableStateOf(false) }
+        val deleteScope = rememberCoroutineScope()
+        val isGoogleUser = appContainer.authRepository.currentUser?.providerData?.any { it.providerId == "google.com" } == true
+
+        fun verifyWithGoogle() {
+            deleteScope.launch {
+                isReauthenticating = true
+                val serverClientId = runCatching {
+                    val resId = context.resources.getIdentifier("default_web_client_id", "string", context.packageName)
+                    if (resId == 0) null else context.getString(resId)
+                }.getOrNull()
+                if (serverClientId.isNullOrBlank()) {
+                    isReauthenticating = false
+                    Toast.makeText(context, "Google sign-in isn't configured for this build.", Toast.LENGTH_LONG).show()
+                    return@launch
+                }
+                val credentialManager = CredentialManager.create(context)
+                suspend fun request(option: CredentialOption): GoogleIdTokenCredential? {
+                    val req = GetCredentialRequest.Builder().addCredentialOption(option).build()
+                    val credential = credentialManager.getCredential(context, req).credential
+                    return when {
+                        credential is GoogleIdTokenCredential -> credential
+                        credential is CustomCredential && credential.type == GoogleIdTokenCredential.TYPE_GOOGLE_ID_TOKEN_CREDENTIAL ->
+                            GoogleIdTokenCredential.createFrom(credential.data)
+                        else -> null
+                    }
+                }
+                try {
+                    val option = GetGoogleIdOption.Builder()
+                        .setFilterByAuthorizedAccounts(true)
+                        .setAutoSelectEnabled(false)
+                        .setServerClientId(serverClientId)
+                        .build()
+                    val credential = try {
+                        request(option)
+                    } catch (e: NoCredentialException) {
+                        request(GetSignInWithGoogleOption.Builder(serverClientId).build())
+                    }
+                    if (credential != null) {
+                        viewModel.reauthenticateWithGoogle(credential.idToken) { success ->
+                            isReauthenticating = false
+                            if (success) {
+                                isGoogleVerified = true
+                            } else {
+                                Toast.makeText(context, "Verification failed. Try again.", Toast.LENGTH_SHORT).show()
+                            }
+                        }
+                    } else {
+                        isReauthenticating = false
+                        Toast.makeText(context, "Unexpected credential type from Google.", Toast.LENGTH_SHORT).show()
+                    }
+                } catch (e: Exception) {
+                    isReauthenticating = false
+                    Toast.makeText(context, "Google verification failed: ${e.message}", Toast.LENGTH_LONG).show()
+                }
+            }
+        }
 
         AlertDialog(
             onDismissRequest = { showDeleteAccountDialog = false },
             title = { Text("Delete Account") },
             text = {
                 Column {
-                    Text("Warning: Your account and personal data will be removed. Group data is not deleted as it is owned by the group.")
-                    Spacer(modifier = Modifier.height(16.dp))
-                    OutlinedTextField(
-                        value = password,
-                        onValueChange = { password = it },
-                        label = { Text("Current Password") },
-                        singleLine = true,
-                        modifier = Modifier.fillMaxWidth()
+                    Text(
+                        "This permanently deletes your account and personal data — this can't be undone. " +
+                            "Group data stays intact since it's owned by the group, but you'll lose access to it.",
+                        color = MaterialTheme.colorScheme.error,
+                        style = MaterialTheme.typography.bodyMedium
                     )
+                    Spacer(modifier = Modifier.height(OpenSplitTokens.SpaceMD))
+                    OutlinedButton(
+                        onClick = {
+                            showDeleteAccountDialog = false
+                            showExportBottomSheet = true
+                        },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Icon(OpenSplitIcons.Download, contentDescription = null, modifier = Modifier.size(18.dp))
+                        Spacer(modifier = Modifier.width(OpenSplitTokens.SpaceSM))
+                        Text("Export your data first")
+                    }
+                    Spacer(modifier = Modifier.height(OpenSplitTokens.SpaceLG))
+
+                    if (isGoogleUser) {
+                        if (isGoogleVerified) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(
+                                    OpenSplitIcons.Success,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                                Spacer(modifier = Modifier.width(OpenSplitTokens.SpaceXS))
+                                Text("Identity verified", color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.bodyMedium)
+                            }
+                        } else {
+                            Text(
+                                "You signed in with Google, so confirm it's you that way:",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            Spacer(modifier = Modifier.height(OpenSplitTokens.SpaceXS))
+                            OutlinedButton(
+                                onClick = { verifyWithGoogle() },
+                                enabled = !isReauthenticating,
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                if (isReauthenticating) {
+                                    CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp)
+                                    Spacer(modifier = Modifier.width(OpenSplitTokens.SpaceSM))
+                                    Text("Verifying...")
+                                } else {
+                                    Text("Verify with Google")
+                                }
+                            }
+                        }
+                    } else {
+                        OutlinedTextField(
+                            value = password,
+                            onValueChange = { password = it },
+                            label = { Text("Current Password") },
+                            singleLine = true,
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    }
                 }
             },
             confirmButton = {
                 Button(
                     onClick = {
-                        isReauthenticating = true
-                        viewModel.reauthenticate(password) { success ->
-                            if (success) {
-                                viewModel.deleteAccount()
-                                showDeleteAccountDialog = false
-                                rootNavController.navigate("login") {
-                                    popUpTo(0)
+                        if (isGoogleUser) {
+                            viewModel.deleteAccount()
+                            showDeleteAccountDialog = false
+                            rootNavController.navigate("login") {
+                                popUpTo(0)
+                            }
+                        } else {
+                            isReauthenticating = true
+                            viewModel.reauthenticate(password) { success ->
+                                if (success) {
+                                    viewModel.deleteAccount()
+                                    showDeleteAccountDialog = false
+                                    rootNavController.navigate("login") {
+                                        popUpTo(0)
+                                    }
+                                } else {
+                                    isReauthenticating = false
+                                    Toast.makeText(context, "Re-authentication failed. Please check password.", Toast.LENGTH_SHORT).show()
                                 }
-                            } else {
-                                isReauthenticating = false
-                                Toast.makeText(context, "Re-authentication failed. Please check password.", Toast.LENGTH_SHORT).show()
                             }
                         }
                     },
                     colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error),
-                    enabled = password.isNotBlank() && !isReauthenticating
+                    enabled = if (isGoogleUser) isGoogleVerified else password.isNotBlank() && !isReauthenticating
                 ) {
                     Text("Delete Account")
                 }
@@ -673,6 +796,20 @@ private fun PermissionListItem(
     val launcher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission()
     ) { isGranted -> granted = isGranted }
+    var showRevokeDialog by remember { mutableStateOf(false) }
+
+    // Android has no API for an app to revoke its own permission, and the user may flip it
+    // in system Settings and come straight back here — re-check on every resume.
+    val lifecycleOwner = androidx.compose.ui.platform.LocalLifecycleOwner.current
+    DisposableEffect(lifecycleOwner, permission) {
+        val observer = androidx.lifecycle.LifecycleEventObserver { _, event ->
+            if (event == androidx.lifecycle.Lifecycle.Event.ON_RESUME) {
+                granted = ContextCompat.checkSelfPermission(context, permission) == PackageManager.PERMISSION_GRANTED
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
 
     ListItem(
         headlineContent = { Text(title, fontWeight = FontWeight.Medium) },
@@ -681,7 +818,7 @@ private fun PermissionListItem(
         trailingContent = {
             if (granted) {
                 AssistChip(
-                    onClick = { },
+                    onClick = { showRevokeDialog = true },
                     label = { Text("Granted") },
                     leadingIcon = { Icon(OpenSplitIcons.Check, contentDescription = null, modifier = Modifier.size(16.dp)) }
                 )
@@ -693,5 +830,33 @@ private fun PermissionListItem(
             }
         }
     )
+
+    if (showRevokeDialog) {
+        AlertDialog(
+            onDismissRequest = { showRevokeDialog = false },
+            title = { Text("Revoke $title?") },
+            text = {
+                Text("If you revoke this permission, you won't be able to: $subtitle.\n\nAndroid doesn't let apps turn off their own permissions — you'll be taken to system Settings to do it there.")
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        showRevokeDialog = false
+                        val intent = Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
+                            data = Uri.fromParts("package", context.packageName, null)
+                        }
+                        context.startActivity(intent)
+                    }
+                ) {
+                    Text("Open Settings")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showRevokeDialog = false }) {
+                    Text("Cancel")
+                }
+            }
+        )
+    }
 }
 

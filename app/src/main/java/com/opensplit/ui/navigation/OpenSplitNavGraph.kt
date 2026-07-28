@@ -36,7 +36,9 @@ import kotlinx.coroutines.launch
 @Composable
 fun OpenSplitNavGraph(
     appContainer: AppContainer,
-    navController: NavHostController = rememberNavController()
+    navController: NavHostController = rememberNavController(),
+    pendingResetOobCode: String? = null,
+    onResetOobCodeConsumed: () -> Unit = {}
 ) {
     val authViewModel: AuthViewModel = viewModel(
         factory = ViewModelFactory(appContainer)
@@ -45,7 +47,15 @@ fun OpenSplitNavGraph(
     val authState by appContainer.authRepository.getAuthState().collectAsState(initial = AuthState.Loading)
     var splashFinished by remember { mutableStateOf(false) }
 
-    if (!splashFinished) {
+    if (pendingResetOobCode != null) {
+        // Interrupts the normal splash/auth flow: a password-reset link can arrive whether the
+        // user is logged in or out, and confirmPasswordReset doesn't need an active session.
+        com.opensplit.ui.screens.SetNewPasswordScreen(
+            oobCode = pendingResetOobCode,
+            appContainer = appContainer,
+            onDone = onResetOobCodeConsumed
+        )
+    } else if (!splashFinished) {
         SplashScreen(onTimeout = { splashFinished = true })
     } else {
         when (authState) {

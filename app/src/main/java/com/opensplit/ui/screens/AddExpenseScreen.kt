@@ -3,6 +3,11 @@ package com.opensplit.ui.screens
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.runtime.rememberCoroutineScope
@@ -11,16 +16,24 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.OffsetMapping
+import androidx.compose.ui.text.input.TransformedText
+import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.opensplit.domain.logic.SplitCalculator
@@ -37,7 +50,7 @@ import com.opensplit.ui.theme.OpenSplitTokens
 import com.opensplit.ui.viewmodel.GroupDetailViewModel
 import com.google.firebase.Timestamp
 
-@OptIn(ExperimentalMaterial3Api::class, androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
 fun AddExpenseScreen(
     viewModel: GroupDetailViewModel,
@@ -46,7 +59,7 @@ fun AddExpenseScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val context = LocalContext.current
-    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    val sheetState = rememberModalBottomSheetState()
 
     ModalBottomSheet(
         onDismissRequest = onNavigateBack,
@@ -60,6 +73,8 @@ fun AddExpenseScreen(
             val isEditing = editingExpense != null
 
             var description by remember { mutableStateOf(editingExpense?.description ?: "") }
+            var isDescriptionEditing by remember { mutableStateOf(false) }
+            val descriptionFocusRequester = remember { FocusRequester() }
             var amountText by remember { mutableStateOf(editingExpense?.amount?.takeIf { it > 0 }?.toString() ?: "") }
             var category by remember { mutableStateOf(editingExpense?.category ?: "Food") }
             var paidBy by remember { mutableStateOf(editingExpense?.paidBy ?: members.firstOrNull()?.uid ?: "") }
@@ -118,8 +133,11 @@ fun AddExpenseScreen(
 
             // Metadata: notes, date, and optional multiple payers.
             var notes by remember { mutableStateOf(editingExpense?.notes ?: "") }
+            var isNotesEditing by remember { mutableStateOf(false) }
+            val notesFocusRequester = remember { FocusRequester() }
             var selectedDateMillis by remember { mutableStateOf(editingExpense?.date?.toDate()?.time ?: System.currentTimeMillis()) }
             var showDatePicker by remember { mutableStateOf(false) }
+            var showInvitePersonDialog by remember { mutableStateOf(false) }
             var multiplePayers by remember { mutableStateOf(editingExpense?.multiPayer != null) }
             val payerAmounts = remember {
                 mutableStateMapOf<String, String>().apply {
@@ -127,6 +145,25 @@ fun AddExpenseScreen(
                 }
             }
             var recurrenceFreq by remember { mutableStateOf(editingExpense?.recurrence?.frequency ?: RecurrenceFrequency.NONE) }
+
+            // Receipt attachment: a picked local file pending upload, and/or an already-uploaded URL
+            // (kept separate so "remove" can clear an existing receipt without re-uploading anything).
+            var pickedReceiptUri by remember { mutableStateOf<android.net.Uri?>(null) }
+            var pickedReceiptName by remember { mutableStateOf<String?>(null) }
+            var existingReceiptUrl by remember { mutableStateOf(editingExpense?.receiptImageUrl) }
+            val receiptAttachmentPicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+                if (uri != null) {
+                    try {
+                        context.contentResolver.takePersistableUriPermission(uri, android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                    } catch (e: Exception) { /* some providers don't support persistable grants; upload still works this session */ }
+                    pickedReceiptUri = uri
+                    pickedReceiptName = context.contentResolver.query(uri, null, null, null, null)?.use { c ->
+                        val nameIndex = c.getColumnIndex(android.provider.OpenableColumns.DISPLAY_NAME)
+                        if (c.moveToFirst() && nameIndex >= 0) c.getString(nameIndex) else null
+                    }
+                    existingReceiptUrl = null
+                }
+            }
 
             // Receipt scanning (Gemini OCR) — prefills itemized list.
             val scope = rememberCoroutineScope()
@@ -230,6 +267,11 @@ fun AddExpenseScreen(
 
             val isFormValid = description.isNotBlank() && totalAmount > 0 && splitResult != null && selectedParticipants.isNotEmpty() && payersValid && !isSaving
 
+            // Stepwise reveal: each stage only appears once the previous stage has something usable.
+            val showAfterAmount = totalAmount > 0
+            val showAfterDescription = description.isNotBlank()
+            val showAfterSplitBetween = selectedParticipants.isNotEmpty()
+
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -275,7 +317,7 @@ fun AddExpenseScreen(
                         Spacer(modifier = Modifier.height(OpenSplitTokens.SpaceXS))
                         OutlinedTextField(
                             value = amountText,
-                            onValueChange = { amountText = it },
+                            onValueChange = { new -> amountText = new.filter { it.isDigit() || it == '.' } },
                             placeholder = { Text("0.00", style = MaterialTheme.typography.displayMedium, textAlign = TextAlign.Center) },
                             textStyle = MaterialTheme.typography.displayMedium.copy(
                                 textAlign = TextAlign.Center,
@@ -284,6 +326,16 @@ fun AddExpenseScreen(
                             ),
                             singleLine = true,
                             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                            visualTransformation = remember(group.currency) { CurrencyAmountVisualTransformation(group.currency) },
+                            suffix = if (amountText.isNotBlank()) {
+                                {
+                                    Text(
+                                        text = "/- ${com.opensplit.util.CurrencyFormatter.getCurrencySymbol(group.currency)}",
+                                        style = MaterialTheme.typography.titleMedium,
+                                        color = MaterialTheme.colorScheme.primary
+                                    )
+                                }
+                            } else null,
                             modifier = Modifier.fillMaxWidth(),
                             colors = OutlinedTextFieldDefaults.colors(
                                 focusedBorderColor = androidx.compose.ui.graphics.Color.Transparent,
@@ -293,18 +345,56 @@ fun AddExpenseScreen(
                     }
                 }
 
-                // Description Field with Capitalization
-                OutlinedTextField(
-                    value = description,
-                    onValueChange = { description = it },
-                    label = { Text("Description") },
-                    placeholder = { Text("e.g. Dinner, Groceries, Flight") },
-                    singleLine = true,
-                    keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Words),
-                    shape = MaterialTheme.shapes.medium,
-                    modifier = Modifier.fillMaxWidth()
-                )
+                // Description: collapsed as a button, expands to an input box on click.
+                AnimatedVisibility(
+                    visible = showAfterAmount,
+                    enter = fadeIn() + expandVertically(),
+                    exit = fadeOut() + shrinkVertically()
+                ) {
+                    if (isDescriptionEditing) {
+                        OutlinedTextField(
+                            value = description,
+                            onValueChange = { description = it },
+                            label = { Text("Description") },
+                            placeholder = { Text("e.g. Dinner, Groceries, Flight") },
+                            singleLine = true,
+                            keyboardOptions = KeyboardOptions(
+                                capitalization = KeyboardCapitalization.Words,
+                                imeAction = ImeAction.Done
+                            ),
+                            keyboardActions = KeyboardActions(onDone = { isDescriptionEditing = false }),
+                            shape = MaterialTheme.shapes.medium,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .focusRequester(descriptionFocusRequester)
+                        )
+                    } else {
+                        OutlinedButton(
+                            onClick = { isDescriptionEditing = true },
+                            modifier = Modifier.fillMaxWidth(),
+                            contentPadding = PaddingValues(horizontal = OpenSplitTokens.SpaceMD, vertical = OpenSplitTokens.SpaceMD)
+                        ) {
+                            Icon(OpenSplitIcons.EditExpense, contentDescription = null, modifier = Modifier.size(18.dp))
+                            Spacer(modifier = Modifier.width(OpenSplitTokens.SpaceSM))
+                            Text(
+                                text = description.ifBlank { "Add description" },
+                                modifier = Modifier.weight(1f),
+                                textAlign = TextAlign.Start,
+                                color = if (description.isBlank()) MaterialTheme.colorScheme.onSurfaceVariant else LocalContentColor.current
+                            )
+                        }
+                    }
+                }
+                LaunchedEffect(isDescriptionEditing) {
+                    if (isDescriptionEditing) descriptionFocusRequester.requestFocus()
+                }
 
+                AnimatedVisibility(
+                    visible = showAfterDescription,
+                    enter = fadeIn() + expandVertically(),
+                    exit = fadeOut() + shrinkVertically()
+                ) {
+                Column(verticalArrangement = Arrangement.spacedBy(OpenSplitTokens.SpaceMD)) {
                 // Category Selection
                 Column {
                     Text(
@@ -334,13 +424,79 @@ fun AddExpenseScreen(
                         )
                     }
                 }
-                OutlinedTextField(
-                    value = notes,
-                    onValueChange = { notes = it },
-                    label = { Text("Notes (optional)") },
-                    keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences),
-                    modifier = Modifier.fillMaxWidth()
-                )
+                if (isNotesEditing) {
+                    OutlinedTextField(
+                        value = notes,
+                        onValueChange = { notes = it },
+                        label = { Text("Notes") },
+                        keyboardOptions = KeyboardOptions(
+                            capitalization = KeyboardCapitalization.Sentences,
+                            imeAction = ImeAction.Done
+                        ),
+                        keyboardActions = KeyboardActions(onDone = { isNotesEditing = false }),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .focusRequester(notesFocusRequester)
+                    )
+                    LaunchedEffect(Unit) { notesFocusRequester.requestFocus() }
+                } else {
+                    OutlinedButton(
+                        onClick = { isNotesEditing = true },
+                        modifier = Modifier.fillMaxWidth(),
+                        contentPadding = PaddingValues(horizontal = OpenSplitTokens.SpaceMD, vertical = OpenSplitTokens.SpaceMD)
+                    ) {
+                        Icon(OpenSplitIcons.Notes, contentDescription = null, modifier = Modifier.size(18.dp))
+                        Spacer(modifier = Modifier.width(OpenSplitTokens.SpaceSM))
+                        Text(
+                            text = notes.ifBlank { "Add notes (optional)" },
+                            modifier = Modifier.weight(1f),
+                            textAlign = TextAlign.Start,
+                            color = if (notes.isBlank()) MaterialTheme.colorScheme.onSurfaceVariant else LocalContentColor.current
+                        )
+                    }
+                }
+
+                // Receipt attachment (image or PDF only)
+                Column {
+                    Text("Receipt", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                    Spacer(modifier = Modifier.height(OpenSplitTokens.SpaceXS))
+                    val attachedName = pickedReceiptName ?: existingReceiptUrl?.substringAfterLast('/')
+                    if (attachedName != null) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                if (attachedName.endsWith(".pdf", ignoreCase = true)) OpenSplitIcons.Pdf else OpenSplitIcons.AttachFile,
+                                contentDescription = null,
+                                modifier = Modifier.size(18.dp)
+                            )
+                            Spacer(modifier = Modifier.width(OpenSplitTokens.SpaceSM))
+                            Text(
+                                text = attachedName,
+                                modifier = Modifier.weight(1f),
+                                style = MaterialTheme.typography.bodyMedium,
+                                maxLines = 1
+                            )
+                            IconButton(onClick = {
+                                pickedReceiptUri = null
+                                pickedReceiptName = null
+                                existingReceiptUrl = null
+                            }) {
+                                Icon(OpenSplitIcons.Close, contentDescription = "Remove receipt")
+                            }
+                        }
+                    } else {
+                        OutlinedButton(
+                            onClick = { receiptAttachmentPicker.launch(arrayOf("image/*", "application/pdf")) },
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Icon(OpenSplitIcons.AttachFile, contentDescription = null, modifier = Modifier.size(18.dp))
+                            Spacer(modifier = Modifier.width(OpenSplitTokens.SpaceSM))
+                            Text("Attach receipt (image or PDF)")
+                        }
+                    }
+                }
 
                 // Repeat / recurrence
                 Column {
@@ -457,6 +613,33 @@ fun AddExpenseScreen(
                                 }
                             )
                         }
+                        // Invited but not yet in the group — shown so it's clear who's been invited,
+                        // but not selectable since they have no uid to attach a split to until they accept.
+                        data.pendingInvites.forEach { invite ->
+                            FilterChip(
+                                selected = false,
+                                onClick = { },
+                                enabled = false,
+                                label = { Text(invite.email.substringBefore('@')) },
+                                leadingIcon = {
+                                    Icon(OpenSplitIcons.Pending, contentDescription = null, modifier = Modifier.size(16.dp))
+                                }
+                            )
+                        }
+                        AssistChip(
+                            onClick = { showInvitePersonDialog = true },
+                            label = { Text("Invite") },
+                            leadingIcon = {
+                                Icon(OpenSplitIcons.AddMember, contentDescription = null, modifier = Modifier.size(16.dp))
+                            }
+                        )
+                    }
+                    if (data.pendingInvites.isNotEmpty()) {
+                        Text(
+                            text = "Pending: joins the split automatically once they accept the invite.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
                     }
                     if (selectedParticipants.isEmpty()) {
                         Text(
@@ -466,7 +649,15 @@ fun AddExpenseScreen(
                         )
                     }
                 }
+                } // end Category..Split-between stage Column
+                } // end AnimatedVisibility(showAfterDescription)
 
+                AnimatedVisibility(
+                    visible = showAfterDescription && showAfterSplitBetween,
+                    enter = fadeIn() + expandVertically(),
+                    exit = fadeOut() + shrinkVertically()
+                ) {
+                Column(verticalArrangement = Arrangement.spacedBy(OpenSplitTokens.SpaceMD)) {
                 // Split Mode Tabs / Chips
                 Column {
                     Text(
@@ -687,6 +878,7 @@ fun AddExpenseScreen(
                                 splits = splitsList,
                                 items = if (sType == SplitType.ITEMIZED) itemizedList.toList() else null,
                                 notes = notes.trim().ifBlank { null },
+                                receiptImageUrl = existingReceiptUrl,
                                 date = Timestamp(java.util.Date(selectedDateMillis)),
                                 recurrence = if (recurrenceFreq != RecurrenceFrequency.NONE) {
                                     val existing = editingExpense?.recurrence
@@ -700,8 +892,8 @@ fun AddExpenseScreen(
                                 Toast.makeText(context, if (isEditing) "Expense updated!" else "Expense saved successfully!", Toast.LENGTH_SHORT).show()
                                 onNavigateBack()
                             }
-                            if (isEditing) viewModel.updateExpense(builtExpense, onDone)
-                            else viewModel.addExpense(builtExpense, onDone)
+                            if (isEditing) viewModel.updateExpense(builtExpense, pickedReceiptUri, onDone)
+                            else viewModel.addExpense(builtExpense, pickedReceiptUri, onDone)
                         }
                     },
                     modifier = Modifier.fillMaxWidth(),
@@ -715,6 +907,8 @@ fun AddExpenseScreen(
                         Text(if (isEditing) "Update Expense" else "Save Expense", fontWeight = FontWeight.Bold)
                     }
                 }
+                } // end Split-mode/Save stage Column
+                } // end AnimatedVisibility(showAfterSplitBetween)
 
                 if (showDatePicker) {
                     val dateState = rememberDatePickerState(initialSelectedDateMillis = selectedDateMillis)
@@ -733,6 +927,19 @@ fun AddExpenseScreen(
                         DatePicker(state = dateState)
                     }
                 }
+
+                if (showInvitePersonDialog) {
+                    com.opensplit.ui.components.InviteMemberDialog(
+                        title = "Invite to this group",
+                        description = "They'll be added to the split once they accept. Until then they show as pending.",
+                        confirmLabel = "Send invite",
+                        onDismiss = { showInvitePersonDialog = false },
+                        onSubmitEmail = { email ->
+                            viewModel.addMemberByEmail(email)
+                            Toast.makeText(context, "Invite sent — they'll appear as pending", Toast.LENGTH_SHORT).show()
+                        }
+                    )
+                }
             }
         }
     }
@@ -748,4 +955,63 @@ private fun nextRecurrence(fromMillis: Long, frequency: RecurrenceFrequency): co
         RecurrenceFrequency.NONE -> Unit
     }
     return com.google.firebase.Timestamp(cal.time)
+}
+
+/** Groups the integer digits of a raw amount string using the currency's thousands grouping (e.g. lakh/crore for INR). */
+private fun groupIntegerDigits(digits: String, currencyCode: String): String {
+    if (digits.isEmpty()) return ""
+    val value = digits.toLongOrNull() ?: return digits
+    val grouping = if (currencyCode.equals("INR", ignoreCase = true)) "#,##,##0" else "#,##0"
+    val formatter = java.text.DecimalFormat(grouping, java.text.DecimalFormatSymbols(java.util.Locale.US))
+    return formatter.format(value)
+}
+
+/**
+ * Live-formats a raw amount string (digits + optional single dot) with thousands separators
+ * on the integer part while leaving the decimal part untouched, mapping cursor offsets correctly.
+ */
+private class CurrencyAmountVisualTransformation(private val currencyCode: String) : VisualTransformation {
+    override fun filter(text: AnnotatedString): TransformedText {
+        val raw = text.text
+        if (raw.isEmpty()) return TransformedText(text, OffsetMapping.Identity)
+
+        val dotIndex = raw.indexOf('.')
+        val intPart = if (dotIndex >= 0) raw.substring(0, dotIndex) else raw
+        val fracPart = if (dotIndex >= 0) raw.substring(dotIndex) else ""
+
+        val grouped = groupIntegerDigits(intPart, currencyCode)
+        val transformed = grouped + fracPart
+
+        // digitEndPositions[k] = index in `grouped` right after the k-th digit of intPart.
+        val digitEndPositions = IntArray(intPart.length + 1)
+        var digitsSeen = 0
+        for (i in grouped.indices) {
+            if (grouped[i].isDigit()) {
+                digitsSeen++
+                digitEndPositions[digitsSeen] = i + 1
+            }
+        }
+
+        val offsetMapping = object : OffsetMapping {
+            override fun originalToTransformed(offset: Int): Int {
+                return if (offset <= intPart.length) {
+                    digitEndPositions[offset]
+                } else {
+                    grouped.length + (offset - intPart.length)
+                }
+            }
+
+            override fun transformedToOriginal(offset: Int): Int {
+                return if (offset <= grouped.length) {
+                    var count = 0
+                    for (i in 0 until offset) if (i < grouped.length && grouped[i].isDigit()) count++
+                    count
+                } else {
+                    intPart.length + (offset - grouped.length)
+                }
+            }
+        }
+
+        return TransformedText(AnnotatedString(transformed), offsetMapping)
+    }
 }

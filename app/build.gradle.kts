@@ -12,11 +12,17 @@ android {
   compileSdk { version = release(36) { minorApiLevel = 1 } }
 
   defaultConfig {
-    applicationId = "com.opensplit"
+    applicationId = "open.split_07"
     minSdk = 24
     targetSdk = 36
     versionCode = 1
     versionName = "1.0"
+
+    // Host Firebase Auth action links (password reset, etc.) are sent on — see the
+    // App Link intent-filter in AndroidManifest.xml.
+    val firebaseAuthActionHost = "opensplit-fe83f.firebaseapp.com"
+    manifestPlaceholders["firebaseAuthActionHost"] = firebaseAuthActionHost
+    buildConfigField("String", "FIREBASE_AUTH_ACTION_HOST", "\"$firebaseAuthActionHost\"")
 
     testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
   }
@@ -93,6 +99,7 @@ dependencies {
   implementation(libs.androidx.room.runtime)
   implementation(libs.firebase.auth)
   implementation(libs.firebase.firestore)
+  implementation(libs.firebase.storage)
   implementation(libs.firebase.messaging)
   implementation(libs.googleid)
   implementation(libs.androidx.credentials)

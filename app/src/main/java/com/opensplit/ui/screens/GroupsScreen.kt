@@ -14,6 +14,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.opensplit.domain.model.Group
 import com.opensplit.ui.components.AppSearchBar
 import com.opensplit.ui.components.CreateGroupDialog
 import com.opensplit.ui.components.StateLayout
@@ -23,9 +24,9 @@ import com.opensplit.ui.theme.OpenSplitTokens
 import com.opensplit.ui.viewmodel.MainViewModel
 
 enum class GroupSortOption(val label: String) {
-    RECENT("Recent"),
+    RECENT("Recent activity"),
     ALPHABETICAL("Alphabetical"),
-    MEMBERS("Members")
+    MEMBERS("Most members")
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -35,7 +36,10 @@ fun GroupsScreen(
     onGroupClick: (String) -> Unit
 ) {
     val groupsState by viewModel.userGroups.collectAsState()
+    val pinnedGroupIds by viewModel.pinnedGroupIds.collectAsState()
+    val groupLastActivity by viewModel.groupLastActivity.collectAsState()
     var showCreateGroupDialog by remember { mutableStateOf(false) }
+    var showSortSheet by remember { mutableStateOf(false) }
     var searchQuery by rememberSaveable { mutableStateOf("") }
     var selectedSort by rememberSaveable { mutableStateOf(GroupSortOption.RECENT) }
     val listState = rememberLazyListState()
@@ -45,6 +49,7 @@ fun GroupsScreen(
     }
 
     Scaffold(
+        contentWindowInsets = WindowInsets(0, 0, 0, 0),
         floatingActionButton = {
             ExtendedFloatingActionButton(
                 expanded = isExpanded,
@@ -110,43 +115,29 @@ fun GroupsScreen(
 
                         Spacer(modifier = Modifier.height(OpenSplitTokens.SpaceMD))
 
-                        // Sort Control AssistChips
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(OpenSplitTokens.SpaceSM),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Text(
-                                text = "Sort:",
-                                style = MaterialTheme.typography.labelMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                            GroupSortOption.values().forEach { option ->
-                                AssistChip(
-                                    onClick = { selectedSort = option },
-                                    label = { Text(option.label) },
-                                    colors = if (selectedSort == option) {
-                                        AssistChipDefaults.assistChipColors(
-                                            containerColor = MaterialTheme.colorScheme.secondaryContainer,
-                                            labelColor = MaterialTheme.colorScheme.onSecondaryContainer
-                                        )
-                                    } else {
-                                        AssistChipDefaults.assistChipColors()
-                                    }
-                                )
-                            }
+                        // Dedicated sort & filter entry point (opens a bottom sheet instead of inline chips)
+                        OutlinedButton(onClick = { showSortSheet = true }) {
+                            Icon(OpenSplitIcons.SortFilter, contentDescription = null, modifier = Modifier.size(18.dp))
+                            Spacer(modifier = Modifier.width(OpenSplitTokens.SpaceSM))
+                            Text("Sort & filter: ${selectedSort.label}")
                         }
 
                         Spacer(modifier = Modifier.height(OpenSplitTokens.SpaceSM))
 
-                        // Filtered and sorted groups
-                        val filteredGroups = remember(groups, searchQuery, selectedSort) {
-                            var list = groups.filter { it.name.contains(searchQuery, ignoreCase = true) }
-                            when (selectedSort) {
-                                GroupSortOption.RECENT -> list
-                                GroupSortOption.ALPHABETICAL -> list.sortedBy { it.name.lowercase() }
-                                GroupSortOption.MEMBERS -> list.sortedByDescending { it.memberIds.size }
+                        fun sortWithin(list: List<Group>): List<Group> = when (selectedSort) {
+                            GroupSortOption.RECENT -> list.sortedByDescending {
+                                groupLastActivity[it.id]?.seconds ?: it.createdAt.seconds
                             }
+                            GroupSortOption.ALPHABETICAL -> list.sortedBy { it.name.lowercase() }
+                            GroupSortOption.MEMBERS -> list.sortedByDescending { it.memberIds.size }
+                        }
+
+                        // Pinned groups always float to the top, regardless of the chosen sort.
+                        val (pinned, unpinned) = remember(groups, searchQuery, selectedSort, pinnedGroupIds, groupLastActivity) {
+                            val filtered = groups.filter { it.name.contains(searchQuery, ignoreCase = true) }
+                            val pinnedList = sortWithin(filtered.filter { pinnedGroupIds.contains(it.id) })
+                            val unpinnedList = sortWithin(filtered.filterNot { pinnedGroupIds.contains(it.id) })
+                            pinnedList to unpinnedList
                         }
 
                         LazyColumn(
@@ -154,49 +145,43 @@ fun GroupsScreen(
                             verticalArrangement = Arrangement.spacedBy(OpenSplitTokens.SpaceXS),
                             modifier = Modifier.fillMaxSize()
                         ) {
-                            items(filteredGroups, key = { it.id }) { group ->
-                                ListItem(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .clip(MaterialTheme.shapes.medium)
-                                        .clickable { onGroupClick(group.id) },
-                                    headlineContent = {
+                            if (pinned.isNotEmpty()) {
+                                item {
+                                    Text(
+                                        text = "Pinned",
+                                        style = MaterialTheme.typography.labelMedium,
+                                        fontWeight = FontWeight.Bold,
+                                        color = MaterialTheme.colorScheme.primary,
+                                        modifier = Modifier.padding(vertical = OpenSplitTokens.SpaceXS)
+                                    )
+                                }
+                                items(pinned, key = { "pinned_${it.id}" }) { group ->
+                                    GroupRow(
+                                        group = group,
+                                        isPinned = true,
+                                        onClick = { onGroupClick(group.id) },
+                                        onTogglePin = { viewModel.togglePinnedGroup(group.id) }
+                                    )
+                                    HorizontalDivider(color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+                                }
+                                if (unpinned.isNotEmpty()) {
+                                    item {
                                         Text(
-                                            text = group.name,
-                                            style = MaterialTheme.typography.titleMedium,
-                                            fontWeight = FontWeight.SemiBold
-                                        )
-                                    },
-                                    supportingContent = {
-                                        Text(
-                                            text = "${group.memberIds.size} members • ${group.currency}",
-                                            style = MaterialTheme.typography.bodySmall,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                                        )
-                                    },
-                                    leadingContent = {
-                                        Surface(
-                                            shape = CircleShape,
-                                            color = MaterialTheme.colorScheme.primaryContainer,
-                                            modifier = Modifier.size(44.dp)
-                                        ) {
-                                            Box(contentAlignment = Alignment.Center) {
-                                                Text(
-                                                    text = group.name.take(1).uppercase(),
-                                                    style = MaterialTheme.typography.titleMedium,
-                                                    fontWeight = FontWeight.Bold,
-                                                    color = MaterialTheme.colorScheme.onPrimaryContainer
-                                                )
-                                            }
-                                        }
-                                    },
-                                    trailingContent = {
-                                        Icon(
-                                            imageVector = OpenSplitIcons.ChevronRight,
-                                            contentDescription = "View group",
-                                            tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                            text = "All groups",
+                                            style = MaterialTheme.typography.labelMedium,
+                                            fontWeight = FontWeight.Bold,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                            modifier = Modifier.padding(vertical = OpenSplitTokens.SpaceXS)
                                         )
                                     }
+                                }
+                            }
+                            items(unpinned, key = { it.id }) { group ->
+                                GroupRow(
+                                    group = group,
+                                    isPinned = false,
+                                    onClick = { onGroupClick(group.id) },
+                                    onTogglePin = { viewModel.togglePinnedGroup(group.id) }
                                 )
                                 HorizontalDivider(color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
                             }
@@ -216,5 +201,103 @@ fun GroupsScreen(
             }
         )
     }
+
+    if (showSortSheet) {
+        ModalBottomSheet(onDismissRequest = { showSortSheet = false }) {
+            Column(modifier = Modifier.padding(horizontal = OpenSplitTokens.SpaceLG, vertical = OpenSplitTokens.SpaceMD)) {
+                Text(
+                    text = "Sort groups by",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold
+                )
+                Spacer(modifier = Modifier.height(OpenSplitTokens.SpaceSM))
+                GroupSortOption.values().forEach { option ->
+                    ListItem(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(MaterialTheme.shapes.medium)
+                            .clickable {
+                                selectedSort = option
+                                showSortSheet = false
+                            },
+                        headlineContent = { Text(option.label) },
+                        leadingContent = {
+                            RadioButton(selected = selectedSort == option, onClick = {
+                                selectedSort = option
+                                showSortSheet = false
+                            })
+                        }
+                    )
+                }
+                Spacer(modifier = Modifier.height(OpenSplitTokens.SpaceSM))
+                Text(
+                    text = "Pinned groups always stay at the top.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Spacer(modifier = Modifier.height(OpenSplitTokens.SpaceMD))
+            }
+        }
+    }
 }
 
+@Composable
+private fun GroupRow(
+    group: Group,
+    isPinned: Boolean,
+    onClick: () -> Unit,
+    onTogglePin: () -> Unit
+) {
+    ListItem(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(MaterialTheme.shapes.medium)
+            .clickable(onClick = onClick),
+        headlineContent = {
+            Text(
+                text = group.name,
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.SemiBold
+            )
+        },
+        supportingContent = {
+            Text(
+                text = "${group.memberIds.size} members • ${group.currency}",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        },
+        leadingContent = {
+            Surface(
+                shape = CircleShape,
+                color = MaterialTheme.colorScheme.primaryContainer,
+                modifier = Modifier.size(44.dp)
+            ) {
+                Box(contentAlignment = Alignment.Center) {
+                    Text(
+                        text = group.name.take(1).uppercase(),
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onPrimaryContainer
+                    )
+                }
+            }
+        },
+        trailingContent = {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                IconButton(onClick = onTogglePin) {
+                    Icon(
+                        imageVector = if (isPinned) OpenSplitIcons.PinFilled else OpenSplitIcons.PinOutline,
+                        contentDescription = if (isPinned) "Unpin group" else "Pin group",
+                        tint = if (isPinned) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+                Icon(
+                    imageVector = OpenSplitIcons.ChevronRight,
+                    contentDescription = "View group",
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        }
+    )
+}

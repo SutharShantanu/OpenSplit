@@ -14,14 +14,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import androidx.compose.foundation.text.KeyboardOptions
 import com.google.firebase.Timestamp
 import com.opensplit.domain.model.FriendInvite
 import com.opensplit.ui.components.AppSearchBar
 import com.opensplit.ui.components.HandshakeIllustration
+import com.opensplit.ui.components.InviteMemberDialog
 import com.opensplit.ui.components.StateLayout
 import com.opensplit.ui.theme.OpenSplitIcons
 import com.opensplit.ui.theme.OpenSplitTokens
@@ -231,43 +230,20 @@ fun FriendsScreen(
     }
 
     if (showInviteDialog) {
-        var email by rememberSaveable { mutableStateOf("") }
-        val emailValid = email.trim().contains("@") && email.trim().contains(".")
-        AlertDialog(
-            onDismissRequest = { showInviteDialog = false },
-            icon = { Icon(OpenSplitIcons.Invite, contentDescription = null) },
-            title = { Text("Invite a friend") },
-            text = {
-                Column {
-                    Text("They'll be able to join once they sign up with this email. The invite expires in 7 days.")
-                    Spacer(modifier = Modifier.height(OpenSplitTokens.SpaceMD))
-                    OutlinedTextField(
-                        value = email,
-                        onValueChange = { email = it },
-                        label = { Text("Email address") },
-                        singleLine = true,
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
-                        modifier = Modifier.fillMaxWidth()
-                    )
+        InviteMemberDialog(
+            title = "Invite a friend",
+            description = "Enter their email address, or pick them from your contacts, WhatsApp, or SMS.",
+            confirmLabel = "Send invite",
+            showShareChannels = true,
+            onDismiss = { showInviteDialog = false },
+            onSubmitEmail = { email ->
+                viewModel.sendFriendInvite(email) { success ->
+                    Toast.makeText(
+                        context,
+                        if (success) "Invite sent" else "Couldn't send (already invited or invalid email)",
+                        Toast.LENGTH_SHORT
+                    ).show()
                 }
-            },
-            confirmButton = {
-                Button(
-                    onClick = {
-                        viewModel.sendFriendInvite(email) { success ->
-                            Toast.makeText(
-                                context,
-                                if (success) "Invite sent" else "Couldn't send (already invited or invalid email)",
-                                Toast.LENGTH_SHORT
-                            ).show()
-                        }
-                        showInviteDialog = false
-                    },
-                    enabled = emailValid
-                ) { Text("Send invite") }
-            },
-            dismissButton = {
-                TextButton(onClick = { showInviteDialog = false }) { Text("Cancel") }
             }
         )
     }

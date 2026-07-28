@@ -11,5 +11,8 @@ interface UserPreferencesRepository {
 
     val notificationsEnabledFlow: Flow<Boolean>
     suspend fun setNotificationsEnabled(enabled: Boolean)
+
+    val pinnedGroupIdsFlow: Flow<Set<String>>
+    suspend fun togglePinnedGroup(groupId: String)
 }
 

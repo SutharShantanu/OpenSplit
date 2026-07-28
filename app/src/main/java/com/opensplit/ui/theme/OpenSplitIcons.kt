@@ -2,6 +2,7 @@ package com.opensplit.ui.theme
 
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.*
+import androidx.compose.material.icons.outlined.PushPin
 
 object OpenSplitIcons {
     // Navigation
@@ -74,5 +75,18 @@ object OpenSplitIcons {
     val Edit           = Icons.Rounded.Edit
     val Download       = Icons.Rounded.FileDownload
     val AddMember      = Icons.Rounded.PersonAdd
+    val Whatsapp       = Icons.Rounded.Chat
+    val Sms            = Icons.Rounded.Sms
+    val PinFilled      = Icons.Rounded.PushPin
+    val PinOutline     = Icons.Outlined.PushPin
+    val SortFilter     = Icons.Rounded.Tune
+    val Notes          = Icons.Rounded.Notes
+    val AttachFile     = Icons.Rounded.AttachFile
+    val Pdf            = Icons.Rounded.PictureAsPdf
+    val Pending        = Icons.Rounded.HourglassEmpty
+    val VisibilityOn   = Icons.Rounded.Visibility
+    val VisibilityOff  = Icons.Rounded.VisibilityOff
+    val Success        = Icons.Rounded.CheckCircle
+    val ErrorIcon      = Icons.Rounded.ErrorOutline
 }
 

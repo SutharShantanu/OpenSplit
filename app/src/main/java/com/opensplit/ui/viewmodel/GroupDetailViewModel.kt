@@ -13,6 +13,7 @@ import com.opensplit.domain.repository.ExpenseRepository
 import com.opensplit.domain.repository.GroupRepository
 import com.opensplit.domain.repository.PendingInviteRepository
 import com.opensplit.domain.repository.SettlementRepository
+import com.opensplit.domain.repository.StorageRepository
 import com.opensplit.domain.repository.UserRepository
 import com.opensplit.domain.logic.BalanceCalculator
 import com.opensplit.domain.logic.DebtSimplifier
@@ -42,7 +43,8 @@ class GroupDetailViewModel(
     private val activityRepository: ActivityRepository,
     private val settlementRepository: SettlementRepository,
     private val pendingInviteRepository: PendingInviteRepository,
-    private val authRepository: AuthRepository? = null
+    private val authRepository: AuthRepository? = null,
+    private val storageRepository: StorageRepository? = null
 ) : ViewModel() {
 
     private val retryTrigger = MutableStateFlow(0)
@@ -84,18 +86,27 @@ class GroupDetailViewModel(
         }
     }
 
-    fun addExpense(expense: Expense, onSuccess: () -> Unit = {}) {
+    /** Uploads [receiptUri] (if any) to storage first, then persists the expense with its resulting URL. */
+    private suspend fun withUploadedReceipt(expense: Expense, receiptUri: android.net.Uri?): Expense {
+        if (receiptUri == null || storageRepository == null) return expense
+        val uploaded = storageRepository.uploadReceipt(groupId, receiptUri).getOrNull()
+        return if (uploaded != null) expense.copy(receiptImageUrl = uploaded) else expense
+    }
+
+    fun addExpense(expense: Expense, receiptUri: android.net.Uri? = null, onSuccess: () -> Unit = {}) {
         viewModelScope.launch {
-            val res = expenseRepository.addExpense(expense)
+            val finalExpense = withUploadedReceipt(expense, receiptUri)
+            val res = expenseRepository.addExpense(finalExpense)
             if (res.isSuccess) {
                 onSuccess()
             }
         }
     }
 
-    fun updateExpense(expense: Expense, onSuccess: () -> Unit = {}) {
+    fun updateExpense(expense: Expense, receiptUri: android.net.Uri? = null, onSuccess: () -> Unit = {}) {
         viewModelScope.launch {
-            val res = expenseRepository.updateExpense(expense)
+            val finalExpense = withUploadedReceipt(expense, receiptUri)
+            val res = expenseRepository.updateExpense(finalExpense)
             if (res.isSuccess) {
                 onSuccess()
             }
@@ -221,7 +232,4 @@ class GroupDetailViewModel(
         }
     }
 
-    fun addMemberFromContact(emailOrPhone: String, context: android.content.Context) {
-        addMemberByEmail(emailOrPhone)
-    }
 }

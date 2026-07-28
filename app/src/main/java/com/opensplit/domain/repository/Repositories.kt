@@ -13,8 +13,10 @@ interface AuthRepository {
     suspend fun signUpWithEmail(email: String, password: String): Result<String>
     suspend fun signInWithGoogle(idToken: String): Result<String>
     suspend fun sendPasswordResetEmail(email: String): Result<Unit>
+    suspend fun confirmPasswordReset(oobCode: String, newPassword: String): Result<Unit>
     suspend fun updateProfile(displayName: String): Result<Unit>
     suspend fun reauthenticateWithEmail(password: String): Result<Unit>
+    suspend fun reauthenticateWithGoogle(idToken: String): Result<Unit>
     suspend fun deleteAccount(): Result<Unit>
     suspend fun signOut()
 }
@@ -87,4 +89,9 @@ interface ActivityRepository {
     fun getActivityForGroup(groupId: String): Flow<List<com.opensplit.domain.model.Activity>>
     fun getActivityForUser(userId: String, groupIds: List<String>): Flow<List<com.opensplit.domain.model.Activity>>
     suspend fun logActivity(groupId: String, activity: com.opensplit.domain.model.Activity): Result<String>
+}
+
+interface StorageRepository {
+    /** Uploads a locally-picked receipt (image or PDF) and returns its public download URL. */
+    suspend fun uploadReceipt(groupId: String, localUri: android.net.Uri): Result<String>
 }

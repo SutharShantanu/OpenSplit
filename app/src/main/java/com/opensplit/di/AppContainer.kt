@@ -71,5 +71,8 @@ class AppContainer(private val applicationContext: Context) {
     val friendRepository: com.opensplit.domain.repository.FriendRepository by lazy {
         com.opensplit.data.repository.FriendRepositoryImpl(groupRepository, expenseRepository, settlementRepository)
     }
+    val storageRepository: com.opensplit.domain.repository.StorageRepository by lazy {
+        com.opensplit.data.repository.StorageRepositoryImpl(com.google.firebase.storage.FirebaseStorage.getInstance())
+    }
 }
 

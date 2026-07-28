@@ -61,7 +61,24 @@ class AuthRepositoryImpl(
 
     override suspend fun sendPasswordResetEmail(email: String): Result<Unit> {
         return try {
-            auth.sendPasswordResetEmail(email).await()
+            // Deep-links the reset link back into the app (see the App Link intent-filter in
+            // AndroidManifest.xml) so "set new password" happens in our own UI via
+            // confirmPasswordReset rather than on Firebase's hosted page.
+            val actionCodeSettings = com.google.firebase.auth.ActionCodeSettings.newBuilder()
+                .setUrl("https://${com.opensplit.BuildConfig.FIREBASE_AUTH_ACTION_HOST}/reset")
+                .setHandleCodeInApp(true)
+                .setAndroidPackageName(com.opensplit.BuildConfig.APPLICATION_ID, false, null)
+                .build()
+            auth.sendPasswordResetEmail(email, actionCodeSettings).await()
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    override suspend fun confirmPasswordReset(oobCode: String, newPassword: String): Result<Unit> {
+        return try {
+            auth.confirmPasswordReset(oobCode, newPassword).await()
             Result.success(Unit)
         } catch (e: Exception) {
             Result.failure(e)
@@ -94,6 +111,21 @@ class AuthRepositoryImpl(
             Result.failure(e)
         }
     }
+    override suspend fun reauthenticateWithGoogle(idToken: String): Result<Unit> {
+        return try {
+            val user = auth.currentUser
+            if (user != null) {
+                val credential = GoogleAuthProvider.getCredential(idToken, null)
+                user.reauthenticate(credential).await()
+                Result.success(Unit)
+            } else {
+                Result.failure(Exception("No user"))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
     override suspend fun deleteAccount(): Result<Unit> {
         return try {
             auth.currentUser?.delete()?.await()

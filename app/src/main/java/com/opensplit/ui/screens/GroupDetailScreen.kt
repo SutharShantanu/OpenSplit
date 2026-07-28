@@ -1,10 +1,6 @@
 package com.opensplit.ui.screens
 
-import android.content.Context
-import android.provider.ContactsContract
 import android.widget.Toast
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -30,10 +26,7 @@ import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Locale
 
-import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.ui.text.input.KeyboardCapitalization
-
-@OptIn(ExperimentalMaterial3Api::class, androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
 fun GroupDetailScreen(
     viewModel: GroupDetailViewModel,
@@ -52,37 +45,11 @@ fun GroupDetailScreen(
     val tabTitles = listOf("Expenses", "Balances", "Members")
 
     val context = LocalContext.current
-    val coroutineScope = rememberCoroutineScope()
     val hazeState = remember { HazeState() }
     val listState = rememberLazyListState()
 
     val isExpanded by remember {
         derivedStateOf { listState.firstVisibleItemIndex == 0 && listState.firstVisibleItemScrollOffset < 10 }
-    }
-
-    val contactPickerLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.PickContact()
-    ) { uri ->
-        if (uri != null) {
-            coroutineScope.launch {
-                val emailOrPhone = extractEmailOrPhoneFromContact(context, uri)
-                if (emailOrPhone != null) {
-                    viewModel.addMemberFromContact(emailOrPhone, context)
-                } else {
-                    Toast.makeText(context, "No email or phone found for contact.", Toast.LENGTH_SHORT).show()
-                }
-            }
-        }
-    }
-
-    val permissionLauncher = rememberLauncherForActivityResult(
-        ActivityResultContracts.RequestPermission()
-    ) { isGranted ->
-        if (isGranted) {
-            contactPickerLauncher.launch(null)
-        } else {
-            Toast.makeText(context, "Permission required to read contacts", Toast.LENGTH_SHORT).show()
-        }
     }
 
     val groupName = if (uiState is ScreenState.Success) (uiState as ScreenState.Success).data.group.name else "Group Details"
@@ -285,7 +252,14 @@ fun GroupDetailScreen(
                                     data.members.find { it.uid == uid }?.displayName ?: uid.take(6)
                                 }
                                 Button(
-                                    onClick = onNavigateToSettleUp,
+                                    onClick = {
+                                        if (data.members.size > 1) {
+                                            onNavigateToSettleUp()
+                                        } else {
+                                            Toast.makeText(context, "Add another member to this group before settling up", Toast.LENGTH_SHORT).show()
+                                        }
+                                    },
+                                    enabled = data.members.size > 1,
                                     modifier = Modifier.fillMaxWidth()
                                 ) {
                                     Icon(OpenSplitIcons.Settle, contentDescription = null)
@@ -499,55 +473,14 @@ fun GroupDetailScreen(
     }
 
     if (showAddMember) {
-        var emailQuery by remember { mutableStateOf("") }
-        AlertDialog(
-            onDismissRequest = { showAddMember = false },
-            title = { Text("Add member") },
-            text = {
-                Column {
-                    Text("Enter the email address of the person you want to add.")
-                    Spacer(modifier = Modifier.height(OpenSplitTokens.SpaceSM))
-                    OutlinedTextField(
-                        value = emailQuery,
-                        onValueChange = { emailQuery = it },
-                        label = { Text("Email") },
-                        singleLine = true,
-                        keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.None),
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = MaterialTheme.shapes.medium
-                    )
-                    Spacer(modifier = Modifier.height(OpenSplitTokens.SpaceLG))
-                    Text("Or", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    Spacer(modifier = Modifier.height(OpenSplitTokens.SpaceSM))
-                    OutlinedButton(
-                        onClick = {
-                            showAddMember = false
-                            permissionLauncher.launch(android.Manifest.permission.READ_CONTACTS)
-                        },
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Icon(OpenSplitIcons.Contacts, contentDescription = null)
-                        Spacer(modifier = Modifier.width(OpenSplitTokens.SpaceSM))
-                        Text("Add from contacts")
-                    }
-                }
-            },
-            confirmButton = {
-                Button(
-                    onClick = {
-                        viewModel.addMemberByEmail(emailQuery)
-                        Toast.makeText(context, "Member / Invite added", Toast.LENGTH_SHORT).show()
-                        showAddMember = false
-                    },
-                    enabled = emailQuery.isNotBlank()
-                ) {
-                    Text("Add member")
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { showAddMember = false }) {
-                    Text("Cancel")
-                }
+        InviteMemberDialog(
+            title = "Add member",
+            description = "Enter the email address of the person you want to add, or pick them from your contacts.",
+            confirmLabel = "Add member",
+            onDismiss = { showAddMember = false },
+            onSubmitEmail = { email ->
+                viewModel.addMemberByEmail(email)
+                Toast.makeText(context, "Member / Invite added", Toast.LENGTH_SHORT).show()
             }
         )
     }
@@ -661,56 +594,6 @@ fun GroupDetailScreen(
                         TextButton(onClick = { confirmDelete = false }) { Text("Cancel") }
                     }
                 )
-            }
-        }
-    }
-}
-
-
-suspend fun extractEmailOrPhoneFromContact(context: Context, contactUri: android.net.Uri): String? {
-    return kotlinx.coroutines.Dispatchers.IO.let {
-        kotlinx.coroutines.withContext(it) {
-            try {
-                var result: String? = null
-                var contactId: String? = null
-                context.contentResolver.query(contactUri, null, null, null, null)?.use { cursor ->
-                    if (cursor.moveToFirst()) {
-                        contactId = cursor.getString(cursor.getColumnIndexOrThrow(ContactsContract.Contacts._ID))
-                    }
-                }
-
-                if (contactId != null) {
-                    // Try to get email first
-                    context.contentResolver.query(
-                        ContactsContract.CommonDataKinds.Email.CONTENT_URI,
-                        null,
-                        "${ContactsContract.CommonDataKinds.Email.CONTACT_ID} = ?",
-                        arrayOf(contactId),
-                        null
-                    )?.use { cursor ->
-                        if (cursor.moveToFirst()) {
-                            result = cursor.getString(cursor.getColumnIndexOrThrow(ContactsContract.CommonDataKinds.Email.DATA))
-                        }
-                    }
-
-                    // If no email, try phone
-                    if (result == null) {
-                        context.contentResolver.query(
-                            ContactsContract.CommonDataKinds.Phone.CONTENT_URI,
-                            null,
-                            "${ContactsContract.CommonDataKinds.Phone.CONTACT_ID} = ?",
-                            arrayOf(contactId),
-                            null
-                        )?.use { cursor ->
-                            if (cursor.moveToFirst()) {
-                                result = cursor.getString(cursor.getColumnIndexOrThrow(ContactsContract.CommonDataKinds.Phone.NUMBER))
-                            }
-                        }
-                    }
-                }
-                result
-            } catch (e: Exception) {
-                null
             }
         }
     }
