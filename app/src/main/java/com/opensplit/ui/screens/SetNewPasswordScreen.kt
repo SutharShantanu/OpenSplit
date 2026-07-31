@@ -1,5 +1,7 @@
 package com.opensplit.ui.screens
 
+import com.opensplit.ui.components.AppLoadingIndicator
+
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.*
@@ -209,7 +211,7 @@ fun SetNewPasswordScreen(
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         if (isSubmitting) {
-                            CircularProgressIndicator(modifier = Modifier.size(20.dp), color = MaterialTheme.colorScheme.onPrimary, strokeWidth = 2.dp)
+                            AppLoadingIndicator(size = 20.dp, color = MaterialTheme.colorScheme.onPrimary)
                             Spacer(modifier = Modifier.width(OpenSplitTokens.SpaceSM))
                             Text("Updating...")
                         } else {

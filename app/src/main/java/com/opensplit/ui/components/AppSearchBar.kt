@@ -27,10 +27,7 @@ fun AppSearchBar(
         },
         trailingIcon = {
             if (isLoading) {
-                CircularProgressIndicator(
-                    modifier = Modifier.size(20.dp),
-                    strokeWidth = 2.dp
-                )
+                AppLoadingIndicator(size = 20.dp)
             } else if (query.isNotEmpty()) {
                 IconButton(onClick = { onQueryChange("") }) {
                     Icon(OpenSplitIcons.Close, contentDescription = "Clear")

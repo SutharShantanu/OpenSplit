@@ -2,7 +2,9 @@ package com.opensplit.ui.theme
 
 import android.os.Build
 import androidx.compose.foundation.isSystemInDarkTheme
-import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
+import androidx.compose.material3.MaterialExpressiveTheme
+import androidx.compose.material3.MotionScheme
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.dynamicDarkColorScheme
 import androidx.compose.material3.dynamicLightColorScheme
@@ -46,6 +48,7 @@ private val LightColorScheme =
   )
 
 @Composable
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 fun OpenSplitTheme(
   darkTheme: Boolean = isSystemInDarkTheme(),
   // Enable dynamic color for Material You system color syncing (disabled by default for brand consistency)
@@ -63,5 +66,13 @@ fun OpenSplitTheme(
       else -> LightColorScheme
     }
 
-  MaterialTheme(colorScheme = colorScheme, typography = Typography, content = content)
+  // MaterialExpressiveTheme (M3 Expressive) rather than MaterialTheme: it supplies the
+  // expressive MotionScheme and shape defaults that the newer components — LoadingIndicator,
+  // FloatingActionButtonMenu — are designed against, so they animate as specified.
+  MaterialExpressiveTheme(
+    colorScheme = colorScheme,
+    motionScheme = MotionScheme.expressive(),
+    typography = Typography,
+    content = content
+  )
 }

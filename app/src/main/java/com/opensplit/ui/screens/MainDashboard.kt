@@ -1,5 +1,13 @@
 package com.opensplit.ui.screens
 
+import com.opensplit.ui.components.LocalSnackbarController
+
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -35,9 +43,10 @@ import kotlinx.coroutines.launch
 import com.opensplit.ui.components.appHazeHeader
 import com.opensplit.ui.components.appHazeSource
 import com.opensplit.ui.theme.OpenSplitIcons
+import com.opensplit.ui.theme.OpenSplitMotion
 import dev.chrisbanes.haze.HazeState
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun MainDashboard(
     appContainer: AppContainer,
@@ -82,6 +91,47 @@ fun MainDashboard(
 
     var menuExpanded by remember { mutableStateOf(false) }
     var showGlobalSearchSheet by remember { mutableStateOf(false) }
+
+    // Global quick-action FAB: which actions it offers depends on the active tab.
+    var fabExpanded by remember { mutableStateOf(false) }
+    var showFabAddExpensePicker by remember { mutableStateOf(false) }
+    var showFabSettleUpPicker by remember { mutableStateOf(false) }
+    var showFabCreateGroup by remember { mutableStateOf(false) }
+    var showFabInviteFriend by remember { mutableStateOf(false) }
+
+    val allGroups = (userGroupsState as? ScreenState.Success)?.data ?: emptyList()
+    val settleableGroups = allGroups.filter { it.memberIds.size > 1 }
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val snackbar = LocalSnackbarController.current
+
+    data class QuickAction(val label: String, val icon: androidx.compose.ui.graphics.vector.ImageVector, val onClick: () -> Unit)
+
+    val quickActions: List<QuickAction> = when (selectedTab) {
+        0, 1 -> listOfNotNull(
+            QuickAction("Add Expense", OpenSplitIcons.AddExpense) {
+                if (allGroups.isEmpty()) {
+                    snackbar.showMessage("Create a group first")
+                } else if (allGroups.size == 1) {
+                    rootNavController.navigate("add_expense/${allGroups.first().id}")
+                } else {
+                    showFabAddExpensePicker = true
+                }
+            },
+            QuickAction("Settle Up", OpenSplitIcons.Settle) {
+                when {
+                    settleableGroups.isEmpty() -> snackbar.showMessage("Add another member to a group before settling up")
+                    settleableGroups.size == 1 -> rootNavController.navigate("settle_up/${settleableGroups.first().id}")
+                    else -> showFabSettleUpPicker = true
+                }
+            },
+            QuickAction("New Group", OpenSplitIcons.Groups) { showFabCreateGroup = true }
+        )
+        2 -> listOf(
+            QuickAction("Invite a friend", OpenSplitIcons.Invite) { showFabInviteFriend = true }
+        )
+        else -> emptyList()
+    }
+    LaunchedEffect(selectedTab) { fabExpanded = false }
 
     Scaffold(
         topBar = {
@@ -158,6 +208,41 @@ fun MainDashboard(
                 }
             )
         },
+        floatingActionButton = {
+            if (quickActions.isNotEmpty()) {
+                // M3 Expressive FloatingActionButtonMenu: the spec'd component for a FAB that
+                // expands into a list of actions, replacing the previous hand-rolled version.
+                FloatingActionButtonMenu(
+                    expanded = fabExpanded,
+                    button = {
+                        ToggleFloatingActionButton(
+                            checked = fabExpanded,
+                            onCheckedChange = {
+                                // A single action needs no menu — just run it.
+                                if (quickActions.size == 1) quickActions.first().onClick()
+                                else fabExpanded = it
+                            }
+                        ) {
+                            Icon(
+                                imageVector = if (fabExpanded) OpenSplitIcons.Close else OpenSplitIcons.AddExpense,
+                                contentDescription = if (fabExpanded) "Close quick actions" else "Quick actions"
+                            )
+                        }
+                    }
+                ) {
+                    quickActions.forEach { action ->
+                        FloatingActionButtonMenuItem(
+                            onClick = {
+                                fabExpanded = false
+                                action.onClick()
+                            },
+                            icon = { Icon(action.icon, contentDescription = null) },
+                            text = { Text(action.label) }
+                        )
+                    }
+                }
+            }
+        },
         bottomBar = {
             NavigationBar {
                 tabLabels.forEachIndexed { index, label ->
@@ -186,7 +271,14 @@ fun MainDashboard(
                 .padding(padding)
                 .appHazeSource(hazeState)
         ) {
-            when (selectedTab) {
+            // M3 fade-through: bottom-nav destinations are peers with no spatial
+            // relationship, so they cross-fade rather than slide.
+            AnimatedContent(
+                targetState = selectedTab,
+                transitionSpec = { OpenSplitMotion.fadeThrough() },
+                label = "dashboardTab"
+            ) { tab ->
+            when (tab) {
                 0 -> HomeScreen(
                     viewModel = homeViewModel,
                     onNavigateToGroupsTab = { selectedTab = 1 },
@@ -197,7 +289,9 @@ fun MainDashboard(
                 )
                 1 -> GroupsScreen(
                     viewModel = mainViewModel,
-                    onGroupClick = { groupId -> rootNavController.navigate("group_detail/$groupId") }
+                    onGroupClick = { groupId -> rootNavController.navigate("group_detail/$groupId") },
+                    onAddExpense = { groupId -> rootNavController.navigate("add_expense/$groupId") },
+                    onSettleUp = { groupId -> rootNavController.navigate("settle_up/$groupId") }
                 )
                 2 -> FriendsScreen(
                     viewModel = mainViewModel,
@@ -209,6 +303,7 @@ fun MainDashboard(
                         rootNavController.navigate("expense_detail/$groupId/$expenseId")
                     }
                 )
+            }
             }
         }
     }
@@ -225,6 +320,54 @@ fun MainDashboard(
             },
             onNavigateToFriend = { friendId ->
                 rootNavController.navigate("person_balance/$friendId")
+            }
+        )
+    }
+
+    if (showFabAddExpensePicker) {
+        GroupSelectionDialog(
+            title = "Select Group for New Expense",
+            groups = allGroups,
+            onDismiss = { showFabAddExpensePicker = false },
+            onSelectGroup = { groupId ->
+                showFabAddExpensePicker = false
+                rootNavController.navigate("add_expense/$groupId")
+            }
+        )
+    }
+
+    if (showFabSettleUpPicker) {
+        GroupSelectionDialog(
+            title = "Select Group to Settle Up",
+            groups = settleableGroups,
+            onDismiss = { showFabSettleUpPicker = false },
+            onSelectGroup = { groupId ->
+                showFabSettleUpPicker = false
+                rootNavController.navigate("settle_up/$groupId")
+            }
+        )
+    }
+
+    if (showFabCreateGroup) {
+        com.opensplit.ui.components.CreateGroupDialog(
+            onDismiss = { showFabCreateGroup = false },
+            onCreate = { name, currency, avatarKey ->
+                mainViewModel.createGroup(name, currency, avatarKey)
+                snackbar.showMessage("Created $name")
+                showFabCreateGroup = false
+            }
+        )
+    }
+
+    if (showFabInviteFriend) {
+        com.opensplit.ui.components.InviteMemberDialog(
+            title = "Invite a friend",
+            description = "Pick them from your contacts, or invite over WhatsApp or SMS.",
+            onDismiss = { showFabInviteFriend = false },
+            onSubmitEmail = { email ->
+                mainViewModel.sendFriendInvite(email) { success ->
+                    snackbar.showMessage(if (success) "Invite sent" else "Couldn't send (already invited or invalid email)")
+                }
             }
         )
     }

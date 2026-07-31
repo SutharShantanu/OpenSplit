@@ -16,7 +16,7 @@ fun <T> StateLayout(
 ) {
     Box(modifier = modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
         when (state) {
-            is ScreenState.Loading -> CircularProgressIndicator()
+            is ScreenState.Loading -> AppLoadingIndicator()
             is ScreenState.Empty -> {
                 Box(
                     modifier = Modifier

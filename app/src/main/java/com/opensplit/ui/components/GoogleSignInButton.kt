@@ -1,12 +1,10 @@
 package com.opensplit.ui.components
 
-import android.widget.Toast
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -51,6 +49,7 @@ fun GoogleSignInButton(
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val context = LocalContext.current
+    val snackbar = LocalSnackbarController.current
     val scope = rememberCoroutineScope()
     val loading = uiState is AuthUiState.Loading
 
@@ -67,12 +66,8 @@ fun GoogleSignInButton(
                 }.getOrNull()
 
                 if (serverClientId.isNullOrBlank()) {
-                    Toast.makeText(
-                        context,
-                        "Google sign-in isn't configured for this build (missing web client). " +
-                            "Rebuild with a real google-services.json.",
-                        Toast.LENGTH_LONG
-                    ).show()
+                    snackbar.showMessage("Google sign-in isn't configured for this build (missing web client). " +
+                            "Rebuild with a real google-services.json.")
                     return@launch
                 }
 
@@ -119,34 +114,18 @@ fun GoogleSignInButton(
                             photoUrl = credential.profilePictureUri?.toString()
                         )
                     } else {
-                        Toast.makeText(
-                            context,
-                            "Unexpected credential type from Google.",
-                            Toast.LENGTH_SHORT
-                        ).show()
+                        snackbar.showMessage("Unexpected credential type from Google.")
                     }
                 } catch (e: NoCredentialException) {
                     // Both flows found nothing. This is a genuine "no usable Google credential"
                     // state — either no Google account is signed in on the device, or the app's
                     // signing SHA-1 isn't registered for this Firebase OAuth client.
-                    Toast.makeText(
-                        context,
-                        "Couldn't get a Google account. Add a Google account in device Settings, " +
-                            "and make sure this build's SHA-1 is registered in Firebase.",
-                        Toast.LENGTH_LONG
-                    ).show()
+                    snackbar.showMessage("Couldn't get a Google account. Add a Google account in device Settings, " +
+                            "and make sure this build's SHA-1 is registered in Firebase.")
                 } catch (e: GetCredentialException) {
-                    Toast.makeText(
-                        context,
-                        "Google Sign-In failed: ${e.message}",
-                        Toast.LENGTH_LONG
-                    ).show()
+                    snackbar.showMessage("Google Sign-In failed: ${e.message}")
                 } catch (e: Exception) {
-                    Toast.makeText(
-                        context,
-                        "Google Sign-In error: ${e.message}",
-                        Toast.LENGTH_SHORT
-                    ).show()
+                    snackbar.showMessage("Google Sign-In error: ${e.message}")
                 }
             }
         },
@@ -159,7 +138,7 @@ fun GoogleSignInButton(
         )
     ) {
         if (loading) {
-            CircularProgressIndicator(modifier = Modifier.size(22.dp), strokeWidth = 2.dp)
+            AppLoadingIndicator(size = 22.dp)
         } else {
             Icon(
                 painter = painterResource(id = R.drawable.ic_google_logo),

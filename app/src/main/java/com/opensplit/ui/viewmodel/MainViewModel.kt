@@ -177,14 +177,58 @@ class MainViewModel(
             initialValue = ScreenState.Loading
         )
 
-    fun createGroup(name: String, currency: String = "INR") {
+    /** UID of the signed-in user, for owner-only affordances like deleting a group. */
+    val currentUid: StateFlow<String?> = authRepository.getAuthState()
+        .map { (it as? AuthState.LoggedIn)?.uid }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
+
+    /** Removes the signed-in user from [group]; the group itself lives on for other members. */
+    fun leaveGroup(group: Group, onDone: () -> Unit = {}) {
+        viewModelScope.launch {
+            val uid = authRepository.getCurrentUserId() ?: return@launch
+            groupRepository.updateGroup(group.copy(memberIds = group.memberIds - uid))
+            onDone()
+        }
+    }
+
+    /** Puts the user back into a group they just left (the Undo half of [leaveGroup]). */
+    fun rejoinGroup(group: Group) {
+        viewModelScope.launch {
+            val uid = authRepository.getCurrentUserId() ?: return@launch
+            if (group.memberIds.contains(uid)) return@launch
+            groupRepository.updateGroup(group.copy(memberIds = group.memberIds + uid))
+        }
+    }
+
+    fun deleteGroup(groupId: String, onDone: () -> Unit = {}) {
+        viewModelScope.launch {
+            groupRepository.deleteGroup(groupId)
+            onDone()
+        }
+    }
+
+    /**
+     * Re-creates a just-deleted group (the Undo half of [deleteGroup]).
+     *
+     * Deleting a group only removes its document — the expenses/settlements/activity
+     * subcollections underneath are left intact by Firestore — so writing the document back
+     * under the same id restores the group and its history together.
+     */
+    fun restoreGroup(group: Group) {
+        viewModelScope.launch {
+            groupRepository.updateGroup(group)
+        }
+    }
+
+    fun createGroup(name: String, currency: String = "INR", avatarKey: String? = null) {
         viewModelScope.launch {
             val uid = authRepository.getCurrentUserId() ?: return@launch
             val newGroup = Group(
                 name = name,
                 createdBy = uid,
                 memberIds = listOf(uid),
-                currency = currency
+                currency = currency,
+                avatarKey = avatarKey
             )
             groupRepository.createGroup(newGroup)
         }

@@ -129,14 +129,15 @@ class HomeViewModel(private val appContainer: AppContainer) : ViewModel() {
         return "${s.fromUid}_${s.toUid}_$minor"
     }
 
-    fun createGroup(name: String, currency: String) {
+    fun createGroup(name: String, currency: String, avatarKey: String? = null) {
         viewModelScope.launch {
             val uid = appContainer.authRepository.getCurrentUserId() ?: return@launch
             val newGroup = Group(
                 name = name,
                 currency = currency,
                 createdBy = uid,
-                memberIds = listOf(uid)
+                memberIds = listOf(uid),
+                avatarKey = avatarKey
             )
             val result = appContainer.groupRepository.createGroup(newGroup)
             if (result.isSuccess) {

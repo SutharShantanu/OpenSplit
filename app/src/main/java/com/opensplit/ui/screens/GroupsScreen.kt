@@ -1,5 +1,7 @@
 package com.opensplit.ui.screens
 
+import com.opensplit.ui.components.LocalSnackbarController
+
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -12,6 +14,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.opensplit.domain.model.Group
@@ -33,33 +36,26 @@ enum class GroupSortOption(val label: String) {
 @Composable
 fun GroupsScreen(
     viewModel: MainViewModel,
-    onGroupClick: (String) -> Unit
+    onGroupClick: (String) -> Unit,
+    onAddExpense: (String) -> Unit,
+    onSettleUp: (String) -> Unit
 ) {
     val groupsState by viewModel.userGroups.collectAsState()
     val pinnedGroupIds by viewModel.pinnedGroupIds.collectAsState()
     val groupLastActivity by viewModel.groupLastActivity.collectAsState()
     var showCreateGroupDialog by remember { mutableStateOf(false) }
     var showSortSheet by remember { mutableStateOf(false) }
+    var showFilterSheet by remember { mutableStateOf(false) }
+    var selectedCurrencyFilter by rememberSaveable { mutableStateOf<String?>(null) }
     var searchQuery by rememberSaveable { mutableStateOf("") }
     var selectedSort by rememberSaveable { mutableStateOf(GroupSortOption.RECENT) }
     val listState = rememberLazyListState()
-
-    val isExpanded by remember {
-        derivedStateOf { listState.firstVisibleItemIndex == 0 && listState.firstVisibleItemScrollOffset < 10 }
-    }
+    val snackbar = LocalSnackbarController.current
+    val currentUid by viewModel.currentUid.collectAsState()
+    var groupPendingDelete by remember { mutableStateOf<Group?>(null) }
 
     Scaffold(
-        contentWindowInsets = WindowInsets(0, 0, 0, 0),
-        floatingActionButton = {
-            ExtendedFloatingActionButton(
-                expanded = isExpanded,
-                onClick = { showCreateGroupDialog = true },
-                icon = { Icon(OpenSplitIcons.AddExpense, contentDescription = null) },
-                text = { Text("New Group") },
-                containerColor = MaterialTheme.colorScheme.primaryContainer,
-                contentColor = MaterialTheme.colorScheme.onPrimaryContainer
-            )
-        }
+        contentWindowInsets = WindowInsets(0, 0, 0, 0)
     ) { padding ->
         Box(
             modifier = Modifier
@@ -115,11 +111,22 @@ fun GroupsScreen(
 
                         Spacer(modifier = Modifier.height(OpenSplitTokens.SpaceMD))
 
-                        // Dedicated sort & filter entry point (opens a bottom sheet instead of inline chips)
-                        OutlinedButton(onClick = { showSortSheet = true }) {
-                            Icon(OpenSplitIcons.SortFilter, contentDescription = null, modifier = Modifier.size(18.dp))
-                            Spacer(modifier = Modifier.width(OpenSplitTokens.SpaceSM))
-                            Text("Sort & filter: ${selectedSort.label}")
+                        // Separate sort and filter entry points, each its own icon button.
+                        Row(horizontalArrangement = Arrangement.spacedBy(OpenSplitTokens.SpaceXS)) {
+                            IconButton(onClick = { showSortSheet = true }) {
+                                Icon(
+                                    OpenSplitIcons.Sort,
+                                    contentDescription = "Sort: ${selectedSort.label}",
+                                    tint = if (selectedSort != GroupSortOption.RECENT) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                            IconButton(onClick = { showFilterSheet = true }) {
+                                Icon(
+                                    OpenSplitIcons.Filter,
+                                    contentDescription = if (selectedCurrencyFilter != null) "Filter: $selectedCurrencyFilter" else "Filter",
+                                    tint = if (selectedCurrencyFilter != null) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
                         }
 
                         Spacer(modifier = Modifier.height(OpenSplitTokens.SpaceSM))
@@ -133,8 +140,10 @@ fun GroupsScreen(
                         }
 
                         // Pinned groups always float to the top, regardless of the chosen sort.
-                        val (pinned, unpinned) = remember(groups, searchQuery, selectedSort, pinnedGroupIds, groupLastActivity) {
-                            val filtered = groups.filter { it.name.contains(searchQuery, ignoreCase = true) }
+                        val (pinned, unpinned) = remember(groups, searchQuery, selectedSort, pinnedGroupIds, groupLastActivity, selectedCurrencyFilter) {
+                            val filtered = groups
+                                .filter { it.name.contains(searchQuery, ignoreCase = true) }
+                                .filter { selectedCurrencyFilter == null || it.currency == selectedCurrencyFilter }
                             val pinnedList = sortWithin(filtered.filter { pinnedGroupIds.contains(it.id) })
                             val unpinnedList = sortWithin(filtered.filterNot { pinnedGroupIds.contains(it.id) })
                             pinnedList to unpinnedList
@@ -160,7 +169,23 @@ fun GroupsScreen(
                                         group = group,
                                         isPinned = true,
                                         onClick = { onGroupClick(group.id) },
-                                        onTogglePin = { viewModel.togglePinnedGroup(group.id) }
+                                        onTogglePin = {
+                                            viewModel.togglePinnedGroup(group.id)
+                                            val nowPinned = !pinnedGroupIds.contains(group.id)
+                                            snackbar.showUndo(if (nowPinned) "Pinned ${group.name}" else "Unpinned ${group.name}") {
+                                                viewModel.togglePinnedGroup(group.id)
+                                            }
+                                        },
+                                        onAddExpense = { onAddExpense(group.id) },
+                                        onSettleUp = { onSettleUp(group.id) },
+                                        isOwner = group.createdBy == currentUid,
+                                        onLeave = {
+                                            viewModel.leaveGroup(group)
+                                            snackbar.showUndo("Left ${group.name}") {
+                                                viewModel.rejoinGroup(group)
+                                            }
+                                        },
+                                        onDelete = { groupPendingDelete = group }
                                     )
                                     HorizontalDivider(color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
                                 }
@@ -181,7 +206,23 @@ fun GroupsScreen(
                                     group = group,
                                     isPinned = false,
                                     onClick = { onGroupClick(group.id) },
-                                    onTogglePin = { viewModel.togglePinnedGroup(group.id) }
+                                    onTogglePin = {
+                                            viewModel.togglePinnedGroup(group.id)
+                                            val nowPinned = !pinnedGroupIds.contains(group.id)
+                                            snackbar.showUndo(if (nowPinned) "Pinned ${group.name}" else "Unpinned ${group.name}") {
+                                                viewModel.togglePinnedGroup(group.id)
+                                            }
+                                        },
+                                    onAddExpense = { onAddExpense(group.id) },
+                                    onSettleUp = { onSettleUp(group.id) },
+                                    isOwner = group.createdBy == currentUid,
+                                    onLeave = {
+                                        viewModel.leaveGroup(group)
+                                        snackbar.showUndo("Left ${group.name}") {
+                                            viewModel.rejoinGroup(group)
+                                        }
+                                    },
+                                    onDelete = { groupPendingDelete = group }
                                 )
                                 HorizontalDivider(color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
                             }
@@ -192,11 +233,42 @@ fun GroupsScreen(
         }
     }
 
+    // Deleting a group is destructive and affects every member, so it is confirmed
+    // explicitly rather than offered as an undoable snackbar.
+    groupPendingDelete?.let { target ->
+        AlertDialog(
+            onDismissRequest = { groupPendingDelete = null },
+            icon = { Icon(OpenSplitIcons.DeleteExpense, contentDescription = null) },
+            title = { Text("Delete ${target.name}?") },
+            text = {
+                Text("This removes the group and its expenses for everyone in it. You'll have a short window to undo.")
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        viewModel.deleteGroup(target.id)
+                        groupPendingDelete = null
+                        snackbar.showUndo("Deleted ${target.name}") {
+                            viewModel.restoreGroup(target)
+                        }
+                    },
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.error
+                    )
+                ) { Text("Delete") }
+            },
+            dismissButton = {
+                TextButton(onClick = { groupPendingDelete = null }) { Text("Cancel") }
+            }
+        )
+    }
+
     if (showCreateGroupDialog) {
         CreateGroupDialog(
             onDismiss = { showCreateGroupDialog = false },
-            onCreate = { name, currency ->
-                viewModel.createGroup(name, currency)
+            onCreate = { name, currency, avatarKey ->
+                viewModel.createGroup(name, currency, avatarKey)
+                snackbar.showMessage("Created $name")
                 showCreateGroupDialog = false
             }
         )
@@ -239,15 +311,74 @@ fun GroupsScreen(
             }
         }
     }
+
+    if (showFilterSheet) {
+        val currencies = remember(groupsState) {
+            ((groupsState as? com.opensplit.ui.viewmodel.ScreenState.Success)?.data ?: emptyList())
+                .map { it.currency }.distinct().sorted()
+        }
+        ModalBottomSheet(onDismissRequest = { showFilterSheet = false }) {
+            Column(modifier = Modifier.padding(horizontal = OpenSplitTokens.SpaceLG, vertical = OpenSplitTokens.SpaceMD)) {
+                Text(
+                    text = "Filter by currency",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold
+                )
+                Spacer(modifier = Modifier.height(OpenSplitTokens.SpaceSM))
+                ListItem(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(MaterialTheme.shapes.medium)
+                        .clickable {
+                            selectedCurrencyFilter = null
+                            showFilterSheet = false
+                        },
+                    headlineContent = { Text("All currencies") },
+                    leadingContent = {
+                        RadioButton(selected = selectedCurrencyFilter == null, onClick = {
+                            selectedCurrencyFilter = null
+                            showFilterSheet = false
+                        })
+                    }
+                )
+                currencies.forEach { currency ->
+                    ListItem(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(MaterialTheme.shapes.medium)
+                            .clickable {
+                                selectedCurrencyFilter = currency
+                                showFilterSheet = false
+                            },
+                        headlineContent = { Text(currency) },
+                        leadingContent = {
+                            RadioButton(selected = selectedCurrencyFilter == currency, onClick = {
+                                selectedCurrencyFilter = currency
+                                showFilterSheet = false
+                            })
+                        }
+                    )
+                }
+                Spacer(modifier = Modifier.height(OpenSplitTokens.SpaceMD))
+            }
+        }
+    }
 }
 
 @Composable
 private fun GroupRow(
     group: Group,
     isPinned: Boolean,
+    isOwner: Boolean,
     onClick: () -> Unit,
-    onTogglePin: () -> Unit
+    onTogglePin: () -> Unit,
+    onAddExpense: () -> Unit,
+    onSettleUp: () -> Unit,
+    onLeave: () -> Unit,
+    onDelete: () -> Unit
 ) {
+    var menuExpanded by remember { mutableStateOf(false) }
+
     ListItem(
         modifier = Modifier
             .fillMaxWidth()
@@ -268,20 +399,7 @@ private fun GroupRow(
             )
         },
         leadingContent = {
-            Surface(
-                shape = CircleShape,
-                color = MaterialTheme.colorScheme.primaryContainer,
-                modifier = Modifier.size(44.dp)
-            ) {
-                Box(contentAlignment = Alignment.Center) {
-                    Text(
-                        text = group.name.take(1).uppercase(),
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onPrimaryContainer
-                    )
-                }
-            }
+            com.opensplit.ui.components.GroupAvatar(name = group.name, avatarKey = group.avatarKey)
         },
         trailingContent = {
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -289,14 +407,79 @@ private fun GroupRow(
                     Icon(
                         imageVector = if (isPinned) OpenSplitIcons.PinFilled else OpenSplitIcons.PinOutline,
                         contentDescription = if (isPinned) "Unpin group" else "Pin group",
-                        tint = if (isPinned) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                        tint = if (isPinned) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.rotate(if (isPinned) 45f else 0f)
                     )
                 }
-                Icon(
-                    imageVector = OpenSplitIcons.ChevronRight,
-                    contentDescription = "View group",
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant
-                )
+                Box {
+                    IconButton(onClick = { menuExpanded = true }) {
+                        Icon(
+                            imageVector = OpenSplitIcons.More,
+                            contentDescription = "Quick actions",
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                    DropdownMenu(
+                        expanded = menuExpanded,
+                        onDismissRequest = { menuExpanded = false },
+                        shape = MaterialTheme.shapes.large
+                    ) {
+                        DropdownMenuItem(
+                            text = { Text("Add Expense") },
+                            leadingIcon = { Icon(OpenSplitIcons.AddExpense, contentDescription = null) },
+                            onClick = {
+                                menuExpanded = false
+                                onAddExpense()
+                            }
+                        )
+                        DropdownMenuItem(
+                            text = { Text("Settle Up") },
+                            leadingIcon = { Icon(OpenSplitIcons.Settle, contentDescription = null) },
+                            onClick = {
+                                menuExpanded = false
+                                onSettleUp()
+                            }
+                        )
+                        DropdownMenuItem(
+                            text = { Text("View Group") },
+                            leadingIcon = { Icon(OpenSplitIcons.Groups, contentDescription = null) },
+                            onClick = {
+                                menuExpanded = false
+                                onClick()
+                            }
+                        )
+
+                        HorizontalDivider()
+
+                        DropdownMenuItem(
+                            text = { Text("Leave group") },
+                            leadingIcon = { Icon(OpenSplitIcons.Leave, contentDescription = null) },
+                            onClick = {
+                                menuExpanded = false
+                                onLeave()
+                            }
+                        )
+                        // Deleting removes the group for everyone, so it's owner-only.
+                        if (isOwner) {
+                            DropdownMenuItem(
+                                text = {
+                                    Text("Delete group", color = MaterialTheme.colorScheme.error)
+                                },
+                                leadingIcon = {
+                                    Icon(
+                                        OpenSplitIcons.DeleteExpense,
+                                        contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.error
+                                    )
+                                },
+                                onClick = {
+                                    menuExpanded = false
+                                    onDelete()
+                                }
+                            )
+                        }
+                    }
+                }
             }
         }
     )

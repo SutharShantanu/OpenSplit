@@ -1,6 +1,5 @@
 package com.opensplit.ui.components
 
-import android.widget.Toast
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
@@ -46,6 +45,7 @@ fun ExportBottomSheet(
     onDismiss: () -> Unit
 ) {
     val context = LocalContext.current
+    val snackbar = LocalSnackbarController.current
     val coroutineScope = rememberCoroutineScope()
     var isExporting by remember { mutableStateOf(false) }
     var exportingFormatName by remember { mutableStateOf("") }
@@ -82,7 +82,7 @@ fun ExportBottomSheet(
                     contentAlignment = Alignment.Center
                 ) {
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        CircularProgressIndicator()
+                        AppLoadingIndicator()
                         Spacer(modifier = Modifier.height(16.dp))
                         Text(
                             text = "Generating $exportingFormatName...",
@@ -118,7 +118,7 @@ fun ExportBottomSheet(
                                         onDismiss()
                                     } catch (e: Exception) {
                                         isExporting = false
-                                        Toast.makeText(context, "Export failed: ${e.message}", Toast.LENGTH_LONG).show()
+                                        snackbar.showMessage("Export failed: ${e.message}")
                                     }
                                 }
                             },

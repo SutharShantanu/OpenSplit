@@ -9,7 +9,9 @@ plugins {
 
 android {
   namespace = "com.opensplit"
-  compileSdk { version = release(36) { minorApiLevel = 1 } }
+  // 37 is required by material3 1.5.0-alpha (M3 Expressive) and the compose-ui it pulls in.
+  // Compiling against 37 does not change runtime behaviour — targetSdk below still governs that.
+  compileSdk = 37
 
   defaultConfig {
     applicationId = "open.split_07"

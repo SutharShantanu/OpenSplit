@@ -1,5 +1,9 @@
 package com.opensplit.ui.screens
 
+import com.opensplit.ui.components.LocalSnackbarController
+
+import com.opensplit.ui.components.AppLoadingIndicator
+
 import android.content.Intent
 import android.content.pm.PackageManager
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -7,7 +11,6 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.content.ContextCompat
 import androidx.compose.ui.graphics.vector.ImageVector
 import android.net.Uri
-import android.widget.Toast
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
@@ -62,6 +65,7 @@ fun AccountScreen(
     viewModel: AccountViewModel
 ) {
     val context = LocalContext.current
+    val snackbar = LocalSnackbarController.current
     val uiState by viewModel.uiState.collectAsState()
     val theme by viewModel.themeFlow.collectAsState(initial = "system")
 
@@ -232,7 +236,8 @@ fun AccountScreen(
 
                                             DropdownMenu(
                                                 expanded = showCurrencyMenu,
-                                                onDismissRequest = { showCurrencyMenu = false }
+                                                onDismissRequest = { showCurrencyMenu = false },
+                                                shape = MaterialTheme.shapes.large
                                             ) {
                                                 val currencies = listOf("INR", "USD", "EUR", "GBP", "JPY", "AUD", "CAD")
                                                 currencies.forEach { curr ->
@@ -407,7 +412,7 @@ fun AccountScreen(
                                     try {
                                         context.startActivity(intent)
                                     } catch (e: Exception) {
-                                        Toast.makeText(context, "No email app found", Toast.LENGTH_SHORT).show()
+                                        snackbar.showMessage("No email app found")
                                     }
                                 }
                             )
@@ -515,11 +520,7 @@ fun AccountScreen(
                             isSending = true
                             viewModel.sendPasswordResetEmail(email) { result ->
                                 isSending = false
-                                Toast.makeText(
-                                    context,
-                                    if (result.isSuccess) "Email sent — check your inbox" else "Failed: ${result.exceptionOrNull()?.message}",
-                                    Toast.LENGTH_LONG
-                                ).show()
+                                snackbar.showMessage(if (result.isSuccess) "Email sent — check your inbox" else "Failed: ${result.exceptionOrNull()?.message}")
                             }
                         }
                         showPasswordResetDialog = false
@@ -577,7 +578,7 @@ fun AccountScreen(
                 }.getOrNull()
                 if (serverClientId.isNullOrBlank()) {
                     isReauthenticating = false
-                    Toast.makeText(context, "Google sign-in isn't configured for this build.", Toast.LENGTH_LONG).show()
+                    snackbar.showMessage("Google sign-in isn't configured for this build.")
                     return@launch
                 }
                 val credentialManager = CredentialManager.create(context)
@@ -608,16 +609,16 @@ fun AccountScreen(
                             if (success) {
                                 isGoogleVerified = true
                             } else {
-                                Toast.makeText(context, "Verification failed. Try again.", Toast.LENGTH_SHORT).show()
+                                snackbar.showMessage("Verification failed. Try again.")
                             }
                         }
                     } else {
                         isReauthenticating = false
-                        Toast.makeText(context, "Unexpected credential type from Google.", Toast.LENGTH_SHORT).show()
+                        snackbar.showMessage("Unexpected credential type from Google.")
                     }
                 } catch (e: Exception) {
                     isReauthenticating = false
-                    Toast.makeText(context, "Google verification failed: ${e.message}", Toast.LENGTH_LONG).show()
+                    snackbar.showMessage("Google verification failed: ${e.message}")
                 }
             }
         }
@@ -672,7 +673,7 @@ fun AccountScreen(
                                 modifier = Modifier.fillMaxWidth()
                             ) {
                                 if (isReauthenticating) {
-                                    CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp)
+                                    AppLoadingIndicator(size = 16.dp)
                                     Spacer(modifier = Modifier.width(OpenSplitTokens.SpaceSM))
                                     Text("Verifying...")
                                 } else {
@@ -711,7 +712,7 @@ fun AccountScreen(
                                     }
                                 } else {
                                     isReauthenticating = false
-                                    Toast.makeText(context, "Re-authentication failed. Please check password.", Toast.LENGTH_SHORT).show()
+                                    snackbar.showMessage("Re-authentication failed. Please check password.")
                                 }
                             }
                         }

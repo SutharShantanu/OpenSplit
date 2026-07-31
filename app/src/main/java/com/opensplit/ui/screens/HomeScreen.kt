@@ -1,6 +1,7 @@
 package com.opensplit.ui.screens
 
-import android.widget.Toast
+import com.opensplit.ui.components.LocalSnackbarController
+
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -20,6 +21,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -55,6 +57,7 @@ fun HomeScreen(
 ) {
     val state by viewModel.uiState.collectAsState()
     val context = LocalContext.current
+    val snackbar = LocalSnackbarController.current
     var showCreateGroupDialog by remember { mutableStateOf(false) }
     var showGroupPickerForAddExpense by remember { mutableStateOf(false) }
     var showGroupPickerForSettleUp by remember { mutableStateOf(false) }
@@ -152,13 +155,7 @@ fun HomeScreen(
                     horizontalArrangement = Arrangement.spacedBy(OpenSplitTokens.SpaceSM)
                 ) {
                     AssistChip(
-                        onClick = {
-                            if (homeState.allGroups.size == 1) {
-                                onNavigateToAddExpense(homeState.allGroups.first().id)
-                            } else {
-                                showGroupPickerForAddExpense = true
-                            }
-                        },
+                        onClick = { showGroupPickerForAddExpense = true },
                         label = { Text("Add expense") },
                         leadingIcon = { Icon(OpenSplitIcons.AddExpense, contentDescription = null, modifier = Modifier.size(18.dp)) },
                         colors = AssistChipDefaults.assistChipColors(
@@ -171,16 +168,13 @@ fun HomeScreen(
                     AssistChip(
                         onClick = {
                             when {
-                                settleableGroups.isEmpty() -> Toast.makeText(
-                                    context,
-                                    "Add another member to a group before settling up",
-                                    Toast.LENGTH_SHORT
-                                ).show()
+                                settleableGroups.isEmpty() -> snackbar.showMessage("Add another member to a group before settling up")
                                 settleableGroups.size == 1 -> onNavigateToSettleUp(settleableGroups.first().id)
                                 else -> showGroupPickerForSettleUp = true
                             }
                         },
-                        enabled = settleableGroups.isNotEmpty(),
+                        // Deliberately left enabled when there's nothing to settle: the onClick
+                        // explains *why* via snackbar, which a disabled chip could never do.
                         label = { Text("Settle up") },
                         leadingIcon = { Icon(OpenSplitIcons.Settle, contentDescription = null, modifier = Modifier.size(18.dp)) },
                         colors = AssistChipDefaults.assistChipColors(
@@ -299,20 +293,11 @@ fun HomeScreen(
                                             horizontalArrangement = Arrangement.SpaceBetween,
                                             verticalAlignment = Alignment.CenterVertically
                                         ) {
-                                            Surface(
-                                                shape = MaterialTheme.shapes.medium,
-                                                color = MaterialTheme.colorScheme.primaryContainer,
-                                                modifier = Modifier.size(40.dp)
-                                            ) {
-                                                Box(contentAlignment = Alignment.Center) {
-                                                    Text(
-                                                        text = groupWithBal.group.name.take(1).uppercase(),
-                                                        style = MaterialTheme.typography.titleMedium,
-                                                        fontWeight = FontWeight.Bold,
-                                                        color = MaterialTheme.colorScheme.onPrimaryContainer
-                                                    )
-                                                }
-                                            }
+                                            com.opensplit.ui.components.GroupAvatar(
+                                                name = groupWithBal.group.name,
+                                                avatarKey = groupWithBal.group.avatarKey,
+                                                size = 40.dp
+                                            )
 
                                             Box {
                                                 IconButton(
@@ -328,7 +313,8 @@ fun HomeScreen(
 
                                                 DropdownMenu(
                                                     expanded = menuExpanded,
-                                                    onDismissRequest = { menuExpanded = false }
+                                                    onDismissRequest = { menuExpanded = false },
+                                                    shape = MaterialTheme.shapes.large
                                                 ) {
                                                     DropdownMenuItem(
                                                         text = { Text("Add Expense") },
@@ -494,8 +480,9 @@ fun HomeScreen(
     if (showCreateGroupDialog) {
         CreateGroupDialog(
             onDismiss = { showCreateGroupDialog = false },
-            onCreate = { name, currency ->
-                viewModel.createGroup(name, currency)
+            onCreate = { name, currency, avatarKey ->
+                viewModel.createGroup(name, currency, avatarKey)
+                snackbar.showMessage("Created $name")
                 showCreateGroupDialog = false
             }
         )
@@ -538,25 +525,50 @@ fun GroupSelectionDialog(
 ) {
     AlertDialog(
         onDismissRequest = onDismiss,
+        icon = { Icon(OpenSplitIcons.Groups, contentDescription = null) },
         title = { Text(title) },
         text = {
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Column(verticalArrangement = Arrangement.spacedBy(OpenSplitTokens.SpaceXS)) {
+                Text(
+                    text = "Pick which group this belongs to.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Spacer(modifier = Modifier.height(OpenSplitTokens.SpaceXS))
                 groups.forEach { group ->
-                    Card(
+                    ListItem(
                         modifier = Modifier
                             .fillMaxWidth()
+                            .clip(MaterialTheme.shapes.medium)
                             .clickable { onSelectGroup(group.id) },
-                        colors = CardDefaults.cardColors(
-                            containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
-                        )
-                    ) {
-                        Row(
-                            modifier = Modifier.padding(16.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Text(group.name, style = MaterialTheme.typography.titleMedium)
+                        colors = ListItemDefaults.colors(
+                            containerColor = androidx.compose.ui.graphics.Color.Transparent
+                        ),
+                        leadingContent = {
+                            com.opensplit.ui.components.GroupAvatar(
+                                name = group.name,
+                                avatarKey = group.avatarKey,
+                                size = 40.dp
+                            )
+                        },
+                        headlineContent = {
+                            Text(group.name, fontWeight = FontWeight.SemiBold)
+                        },
+                        supportingContent = {
+                            Text(
+                                text = "${group.memberIds.size} ${if (group.memberIds.size == 1) "member" else "members"} • ${group.currency}",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        },
+                        trailingContent = {
+                            Icon(
+                                OpenSplitIcons.ChevronRight,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
                         }
-                    }
+                    )
                 }
             }
         },

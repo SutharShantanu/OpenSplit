@@ -1,6 +1,7 @@
 package com.opensplit.ui.screens
 
-import android.widget.Toast
+import com.opensplit.ui.components.LocalSnackbarController
+
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -45,6 +46,7 @@ fun FriendsScreen(
     var selectedFilter by rememberSaveable { mutableStateOf(FriendFilterOption.ALL) }
     var showInviteDialog by rememberSaveable { mutableStateOf(false) }
     val context = LocalContext.current
+    val snackbar = LocalSnackbarController.current
 
     Column(
         modifier = Modifier
@@ -78,7 +80,12 @@ fun FriendsScreen(
             ) {
                 Column {
                     friendInvites.forEachIndexed { index, invite ->
-                        InviteRow(invite = invite, onRevoke = { viewModel.revokeFriendInvite(invite.id) })
+                        InviteRow(invite = invite, onRevoke = {
+                            viewModel.revokeFriendInvite(invite.id)
+                            snackbar.showUndo("Invite to ${invite.email} revoked") {
+                                viewModel.sendFriendInvite(invite.email)
+                            }
+                        })
                         if (index < friendInvites.lastIndex) HorizontalDivider()
                     }
                 }
@@ -232,17 +239,11 @@ fun FriendsScreen(
     if (showInviteDialog) {
         InviteMemberDialog(
             title = "Invite a friend",
-            description = "Enter their email address, or pick them from your contacts, WhatsApp, or SMS.",
-            confirmLabel = "Send invite",
-            showShareChannels = true,
+            description = "Pick them from your contacts, or invite over WhatsApp or SMS.",
             onDismiss = { showInviteDialog = false },
             onSubmitEmail = { email ->
                 viewModel.sendFriendInvite(email) { success ->
-                    Toast.makeText(
-                        context,
-                        if (success) "Invite sent" else "Couldn't send (already invited or invalid email)",
-                        Toast.LENGTH_SHORT
-                    ).show()
+                    snackbar.showMessage(if (success) "Invite sent" else "Couldn't send (already invited or invalid email)")
                 }
             }
         )

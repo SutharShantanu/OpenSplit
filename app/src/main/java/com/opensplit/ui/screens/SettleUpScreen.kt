@@ -1,5 +1,7 @@
 package com.opensplit.ui.screens
 
+import com.opensplit.ui.components.LocalSnackbarController
+
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
@@ -29,6 +31,7 @@ fun SettleUpScreen(
     val members by viewModel.members.collectAsState()
     val currentUserId by viewModel.currentUserId.collectAsState()
     val currency by viewModel.currency.collectAsState()
+    val snackbar = LocalSnackbarController.current
     
     var fromUid by rememberSaveable { mutableStateOf(currentUserId ?: "") }
     var toUid by rememberSaveable { mutableStateOf(suggestedToUid ?: "") }
@@ -62,7 +65,10 @@ fun SettleUpScreen(
                                     amount = amount,
                                     method = method,
                                     note = note.ifBlank { null },
-                                    onSuccess = onNavigateBack
+                                    onSuccess = {
+                                        snackbar.showMessage("Settlement recorded")
+                                        onNavigateBack()
+                                    }
                                 )
                             }
                         },
@@ -212,7 +218,10 @@ fun SettleUpScreen(
                             amount = amount,
                             method = method,
                             note = note.ifBlank { null },
-                            onSuccess = onNavigateBack
+                            onSuccess = {
+                                snackbar.showMessage("Settlement recorded")
+                                onNavigateBack()
+                            }
                         )
                     }
                 },

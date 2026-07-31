@@ -1,5 +1,7 @@
 package com.opensplit.ui.screens
 
+import com.opensplit.ui.components.AppLoadingIndicator
+
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -27,6 +29,7 @@ import com.opensplit.ui.theme.OpenSplitIcons
 import com.opensplit.ui.theme.OpenSplitTokens
 import com.opensplit.ui.viewmodel.AnalyticsViewModel
 import com.opensplit.ui.viewmodel.CategorySpend
+import com.opensplit.ui.viewmodel.InsightsState
 import com.opensplit.ui.viewmodel.MonthlyBucket
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -36,10 +39,12 @@ fun AnalyticsScreen(
     onNavigateToExpenseDetail: (String, String) -> Unit = { _, _ -> }
 ) {
     val state by viewModel.uiState.collectAsState()
-    var scopeMenuExpanded by remember { mutableStateOf(false) }
+    val insights by viewModel.insightsState.collectAsState()
 
     StateLayout(state = state) { analyticsState ->
-        if (analyticsState.totalExpenseCount == 0) {
+        // Only a user with no groups at all has nothing to show; once groups exist the headline
+        // stats are meaningful even before the first expense is added.
+        if (analyticsState.groupCount == 0 && analyticsState.totalExpenseCount == 0) {
             Box(
                 modifier = Modifier
                     .fillMaxSize()
@@ -76,57 +81,33 @@ fun AnalyticsScreen(
                     .padding(OpenSplitTokens.SpaceLG),
                 verticalArrangement = Arrangement.spacedBy(OpenSplitTokens.SpaceLG)
             ) {
-                // Scope Picker Dropdown
-                Box(modifier = Modifier.fillMaxWidth()) {
-                    OutlinedCard(
-                        onClick = { scopeMenuExpanded = true },
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = MaterialTheme.shapes.large,
-                        colors = CardDefaults.outlinedCardColors(
-                            containerColor = MaterialTheme.colorScheme.surfaceContainer
-                        )
-                    ) {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(OpenSplitTokens.SpaceMD),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            val selectedName = if (analyticsState.selectedGroupId == null) {
-                                "All Groups"
-                            } else {
-                                analyticsState.groups.find { it.id == analyticsState.selectedGroupId }?.name ?: "Group"
-                            }
-                            Text(
-                                text = "Scope: $selectedName",
-                                style = MaterialTheme.typography.titleMedium,
-                                fontWeight = FontWeight.SemiBold
-                            )
-                            Icon(OpenSplitIcons.Dropdown, contentDescription = "Select scope")
-                        }
-                    }
+                // Scope tabs: "All Groups" followed by one tab per group.
+                val scopeIds: List<String?> = listOf(null) + analyticsState.groups.map { it.id }
+                val selectedScopeIndex = scopeIds.indexOf(analyticsState.selectedGroupId)
+                    .coerceAtLeast(0)
 
-                    DropdownMenu(
-                        expanded = scopeMenuExpanded,
-                        onDismissRequest = { scopeMenuExpanded = false }
-                    ) {
-                        DropdownMenuItem(
-                            text = { Text("All Groups") },
-                            onClick = {
-                                viewModel.selectGroupScope(null)
-                                scopeMenuExpanded = false
+                ScrollableTabRow(
+                    selectedTabIndex = selectedScopeIndex,
+                    edgePadding = 0.dp,
+                    containerColor = Color.Transparent,
+                    divider = {}
+                ) {
+                    scopeIds.forEachIndexed { index, groupId ->
+                        val label = if (groupId == null) {
+                            "All Groups"
+                        } else {
+                            analyticsState.groups.find { it.id == groupId }?.name ?: "Group"
+                        }
+                        Tab(
+                            selected = index == selectedScopeIndex,
+                            onClick = { viewModel.selectGroupScope(groupId) },
+                            text = {
+                                Text(
+                                    text = label,
+                                    fontWeight = if (index == selectedScopeIndex) FontWeight.Bold else FontWeight.Normal
+                                )
                             }
                         )
-                        analyticsState.groups.forEach { group ->
-                            DropdownMenuItem(
-                                text = { Text(group.name) },
-                                onClick = {
-                                    viewModel.selectGroupScope(group.id)
-                                    scopeMenuExpanded = false
-                                }
-                            )
-                        }
                     }
                 }
 
@@ -137,6 +118,87 @@ fun AnalyticsScreen(
                     title = "THIS MONTH'S SPEND",
                     isSpendTotal = true
                 )
+
+                // Headline stats: groups / people / money / expense count
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(OpenSplitTokens.SpaceSM)
+                ) {
+                    AnalyticsStatCard(
+                        modifier = Modifier.weight(1f),
+                        icon = OpenSplitIcons.Groups,
+                        label = "Groups",
+                        value = analyticsState.groupCount.toString()
+                    )
+                    AnalyticsStatCard(
+                        modifier = Modifier.weight(1f),
+                        icon = OpenSplitIcons.Friends,
+                        label = "People",
+                        value = analyticsState.peopleCount.toString()
+                    )
+                }
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(OpenSplitTokens.SpaceSM)
+                ) {
+                    AnalyticsStatCard(
+                        modifier = Modifier.weight(1f),
+                        icon = OpenSplitIcons.CategoryBills,
+                        label = "Total tracked",
+                        value = "${analyticsState.currency}${String.format("%.2f", analyticsState.totalMoneyTracked)}"
+                    )
+                    AnalyticsStatCard(
+                        modifier = Modifier.weight(1f),
+                        icon = OpenSplitIcons.SplitEqual,
+                        label = "Your share",
+                        value = "${analyticsState.currency}${String.format("%.2f", analyticsState.yourShareTotal)}"
+                    )
+                }
+                AnalyticsStatCard(
+                    modifier = Modifier.fillMaxWidth(),
+                    icon = OpenSplitIcons.CategoryOther,
+                    label = "Expenses recorded",
+                    value = analyticsState.totalExpenseCount.toString()
+                )
+
+                // AI insights — only offered when an API key is configured, and only once there
+                // is enough data for the model to say something meaningful.
+                if (viewModel.isAiConfigured && analyticsState.totalExpenseCount > 0) {
+                    AiInsightsCard(
+                        state = insights,
+                        onGenerate = { viewModel.generateInsights() }
+                    )
+                }
+
+                if (analyticsState.totalExpenseCount == 0) {
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = MaterialTheme.shapes.extraLarge,
+                        colors = CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.surfaceContainer
+                        )
+                    ) {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(OpenSplitTokens.SpaceLG),
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            Text(
+                                text = "No expenses yet",
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Spacer(modifier = Modifier.height(OpenSplitTokens.SpaceXS))
+                            Text(
+                                text = "Charts and AI insights unlock once this scope has expenses.",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                            )
+                        }
+                    }
+                }
 
                 // Category Breakdown Donut Chart
                 if (analyticsState.categoryBreakdown.isNotEmpty()) {
@@ -200,8 +262,9 @@ fun AnalyticsScreen(
                     }
                 }
 
-                // Monthly Spending Over Time Bar Chart
-                if (analyticsState.monthlyBuckets.isNotEmpty()) {
+                // Monthly Spending Over Time Bar Chart. The 6 buckets always exist, so gate on
+                // there actually being expenses — otherwise this renders as an empty axis.
+                if (analyticsState.totalExpenseCount > 0 && analyticsState.monthlyBuckets.isNotEmpty()) {
                     Card(
                         modifier = Modifier.fillMaxWidth(),
                         shape = MaterialTheme.shapes.extraLarge,
@@ -366,3 +429,139 @@ fun BarChart(buckets: List<MonthlyBucket>, currency: String) {
     }
 }
 
+
+/** Compact headline metric tile used in the Analytics stat grid. */
+@Composable
+private fun AnalyticsStatCard(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    label: String,
+    value: String,
+    modifier: Modifier = Modifier
+) {
+    Card(
+        modifier = modifier,
+        shape = MaterialTheme.shapes.large,
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceContainer
+        )
+    ) {
+        Column(modifier = Modifier.padding(OpenSplitTokens.SpaceMD)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(
+                    imageVector = icon,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(16.dp)
+                )
+                Spacer(modifier = Modifier.width(OpenSplitTokens.SpaceXS))
+                Text(
+                    text = label,
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+            Spacer(modifier = Modifier.height(OpenSplitTokens.SpaceXS))
+            Text(
+                text = value,
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.Bold,
+                maxLines = 1
+            )
+        }
+    }
+}
+
+/** On-demand AI summary of the current analytics scope. */
+@Composable
+private fun AiInsightsCard(
+    state: InsightsState,
+    onGenerate: () -> Unit
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = MaterialTheme.shapes.extraLarge,
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.4f)
+        )
+    ) {
+        Column(modifier = Modifier.padding(OpenSplitTokens.SpaceLG)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(
+                    imageVector = OpenSplitIcons.ReceiptScan,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(20.dp)
+                )
+                Spacer(modifier = Modifier.width(OpenSplitTokens.SpaceSM))
+                Text(
+                    text = "AI Insights",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+
+            Spacer(modifier = Modifier.height(OpenSplitTokens.SpaceSM))
+
+            when (state) {
+                is InsightsState.Idle -> {
+                    Text(
+                        text = "Get a plain-language read on where your money is going.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Spacer(modifier = Modifier.height(OpenSplitTokens.SpaceMD))
+                    Button(onClick = onGenerate) {
+                        Text("Generate insights")
+                    }
+                }
+
+                is InsightsState.Loading -> {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        AppLoadingIndicator(size = 18.dp)
+                        Spacer(modifier = Modifier.width(OpenSplitTokens.SpaceSM))
+                        Text(
+                            text = "Analyzing your spending...",
+                            style = MaterialTheme.typography.bodyMedium
+                        )
+                    }
+                }
+
+                is InsightsState.Ready -> {
+                    state.insights.forEach { insight ->
+                        Row(
+                            modifier = Modifier.padding(vertical = OpenSplitTokens.SpaceXS),
+                            verticalAlignment = Alignment.Top
+                        ) {
+                            Text(
+                                text = "•",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                            Spacer(modifier = Modifier.width(OpenSplitTokens.SpaceSM))
+                            Text(
+                                text = insight,
+                                style = MaterialTheme.typography.bodyMedium
+                            )
+                        }
+                    }
+                    Spacer(modifier = Modifier.height(OpenSplitTokens.SpaceSM))
+                    TextButton(onClick = onGenerate) {
+                        Text("Regenerate")
+                    }
+                }
+
+                is InsightsState.Failed -> {
+                    Text(
+                        text = state.message,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.error
+                    )
+                    Spacer(modifier = Modifier.height(OpenSplitTokens.SpaceSM))
+                    Button(onClick = onGenerate) {
+                        Text("Try again")
+                    }
+                }
+            }
+        }
+    }
+}

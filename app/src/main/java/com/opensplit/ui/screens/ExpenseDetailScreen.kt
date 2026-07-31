@@ -1,5 +1,7 @@
 package com.opensplit.ui.screens
 
+import com.opensplit.ui.components.LocalSnackbarController
+
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -32,6 +34,7 @@ fun ExpenseDetailScreen(
     val state by viewModel.uiState.collectAsState()
     var commentText by remember { mutableStateOf("") }
     var showDeleteConfirmDialog by remember { mutableStateOf(false) }
+    val snackbar = LocalSnackbarController.current
 
     Scaffold(
         topBar = {
@@ -246,9 +249,16 @@ fun ExpenseDetailScreen(
             confirmButton = {
                 Button(
                     onClick = {
-                        viewModel.deleteExpense {
+                        viewModel.deleteExpense { deleted ->
                             showDeleteConfirmDialog = false
                             onNavigateBack()
+                            if (deleted != null) {
+                                snackbar.showUndo("Expense deleted") {
+                                    viewModel.restoreExpense(deleted)
+                                }
+                            } else {
+                                snackbar.showMessage("Expense deleted")
+                            }
                         }
                     },
                     colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)

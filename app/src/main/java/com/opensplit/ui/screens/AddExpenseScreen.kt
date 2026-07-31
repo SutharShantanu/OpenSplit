@@ -1,6 +1,9 @@
 package com.opensplit.ui.screens
 
-import android.widget.Toast
+import com.opensplit.ui.components.LocalSnackbarController
+
+import com.opensplit.ui.components.AppLoadingIndicator
+
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
@@ -59,7 +62,22 @@ fun AddExpenseScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val context = LocalContext.current
+    val snackbar = LocalSnackbarController.current
     val sheetState = rememberModalBottomSheetState()
+
+    // This screen is reached via a NavHost `dialog()` destination, so the previous screen (Home,
+    // GroupDetail, ...) stays visible behind it instead of being disposed. Blur it through the
+    // outer dialog window (API 31+) so the sheet reads as "floating over" the app instead of a
+    // flat scrim — the ModalBottomSheet's own scrim below still provides the dim/opacity.
+    if (android.os.Build.VERSION.SDK_INT >= 31) {
+        val dialogWindowProvider = androidx.compose.ui.platform.LocalView.current.parent as? androidx.compose.ui.window.DialogWindowProvider
+        LaunchedEffect(dialogWindowProvider) {
+            dialogWindowProvider?.window?.apply {
+                setBackgroundBlurRadius(48)
+                setDimAmount(0f)
+            }
+        }
+    }
 
     ModalBottomSheet(
         onDismissRequest = onNavigateBack,
@@ -180,9 +198,9 @@ fun AddExpenseScreen(
                         if (!items.isNullOrEmpty()) {
                             itemizedList.addAll(items)
                             selectedSplitIndex = 4
-                            Toast.makeText(context, "Added ${items.size} items from receipt", Toast.LENGTH_SHORT).show()
+                            snackbar.showMessage("Added ${items.size} items from receipt")
                         } else {
-                            Toast.makeText(context, "Couldn't read receipt (check Gemini API key)", Toast.LENGTH_SHORT).show()
+                            snackbar.showMessage("Couldn't read receipt (check Gemini API key)")
                         }
                     }
                 }
@@ -292,6 +310,28 @@ fun AddExpenseScreen(
                     )
                     IconButton(onClick = onNavigateBack, enabled = !isSaving) {
                         Icon(OpenSplitIcons.Close, contentDescription = "Close")
+                    }
+                }
+
+                // Which group this expense belongs to — always visible so the context is never ambiguous.
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Surface(
+                        shape = MaterialTheme.shapes.small,
+                        color = MaterialTheme.colorScheme.secondaryContainer
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = OpenSplitTokens.SpaceSM, vertical = OpenSplitTokens.SpaceXS),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(OpenSplitIcons.Groups, contentDescription = null, modifier = Modifier.size(14.dp))
+                            Spacer(modifier = Modifier.width(OpenSplitTokens.SpaceXS))
+                            Text(
+                                text = group.name,
+                                style = MaterialTheme.typography.labelMedium,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onSecondaryContainer
+                            )
+                        }
                     }
                 }
 
@@ -772,7 +812,7 @@ fun AddExpenseScreen(
                                 modifier = Modifier.fillMaxWidth()
                             ) {
                                 if (isScanning) {
-                                    CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp)
+                                    AppLoadingIndicator(size = 16.dp)
                                     Spacer(modifier = Modifier.width(OpenSplitTokens.SpaceSM))
                                     Text("Scanning receipt...")
                                 } else {
@@ -889,7 +929,7 @@ fun AddExpenseScreen(
 
                             val onDone: () -> Unit = {
                                 isSaving = false
-                                Toast.makeText(context, if (isEditing) "Expense updated!" else "Expense saved successfully!", Toast.LENGTH_SHORT).show()
+                                snackbar.showMessage(if (isEditing) "Expense updated!" else "Expense saved successfully!")
                                 onNavigateBack()
                             }
                             if (isEditing) viewModel.updateExpense(builtExpense, pickedReceiptUri, onDone)
@@ -900,7 +940,7 @@ fun AddExpenseScreen(
                     enabled = isFormValid
                 ) {
                     if (isSaving) {
-                        CircularProgressIndicator(modifier = Modifier.size(20.dp), color = MaterialTheme.colorScheme.onPrimary, strokeWidth = 2.dp)
+                        AppLoadingIndicator(size = 20.dp, color = MaterialTheme.colorScheme.onPrimary)
                         Spacer(modifier = Modifier.width(OpenSplitTokens.SpaceSM))
                         Text("Saving...")
                     } else {
@@ -932,11 +972,10 @@ fun AddExpenseScreen(
                     com.opensplit.ui.components.InviteMemberDialog(
                         title = "Invite to this group",
                         description = "They'll be added to the split once they accept. Until then they show as pending.",
-                        confirmLabel = "Send invite",
                         onDismiss = { showInvitePersonDialog = false },
                         onSubmitEmail = { email ->
                             viewModel.addMemberByEmail(email)
-                            Toast.makeText(context, "Invite sent — they'll appear as pending", Toast.LENGTH_SHORT).show()
+                            snackbar.showMessage("Invite sent — they'll appear as pending")
                         }
                     )
                 }

@@ -144,6 +144,25 @@ class GroupDetailViewModel(
         }
     }
 
+    fun setGroupAvatar(avatarKey: String) {
+        val g = currentGroup() ?: return
+        if (avatarKey == g.avatarKey) return
+        viewModelScope.launch {
+            groupRepository.updateGroup(g.copy(avatarKey = avatarKey))
+            retry()
+        }
+    }
+
+    /** Puts a removed member back into the group (the Undo half of [removeMember]). */
+    fun restoreMember(uid: String) {
+        val g = currentGroup() ?: return
+        if (g.memberIds.contains(uid)) return
+        viewModelScope.launch {
+            groupRepository.updateGroup(g.copy(memberIds = g.memberIds + uid))
+            retry()
+        }
+    }
+
     fun removeMember(uid: String) {
         val g = currentGroup() ?: return
         if (!g.memberIds.contains(uid)) return

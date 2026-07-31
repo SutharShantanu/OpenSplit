@@ -88,5 +88,6 @@ object OpenSplitIcons {
     val VisibilityOff  = Icons.Rounded.VisibilityOff
     val Success        = Icons.Rounded.CheckCircle
     val ErrorIcon      = Icons.Rounded.ErrorOutline
+    val DateRange      = Icons.Rounded.DateRange
 }
 

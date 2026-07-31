@@ -1,17 +1,22 @@
 package com.opensplit.ui.screens
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import com.opensplit.domain.model.Activity
 import com.opensplit.domain.model.ActivityType
 import com.opensplit.ui.components.BellWavesIllustration
 import com.opensplit.ui.components.StateLayout
@@ -24,7 +29,29 @@ import com.opensplit.ui.viewmodel.ActivitySortOrder
 import com.opensplit.ui.viewmodel.ActivityViewModel
 import dev.chrisbanes.haze.HazeState
 import java.text.SimpleDateFormat
+import java.util.Calendar
+import java.util.Date
 import java.util.Locale
+
+private enum class DateRangePreset(val label: String) {
+    ALL_TIME("All time"),
+    TODAY("Today"),
+    THIS_WEEK("This week"),
+    THIS_MONTH("This month"),
+    CUSTOM("Custom range")
+}
+
+/** "Today" / "Yesterday" / "MMM d, yyyy" section header for a timestamp. */
+private fun dayLabel(date: Date): String {
+    val cal = Calendar.getInstance().apply { time = date }
+    val today = Calendar.getInstance()
+    val yesterday = Calendar.getInstance().apply { add(Calendar.DAY_OF_YEAR, -1) }
+    return when {
+        cal.get(Calendar.YEAR) == today.get(Calendar.YEAR) && cal.get(Calendar.DAY_OF_YEAR) == today.get(Calendar.DAY_OF_YEAR) -> "Today"
+        cal.get(Calendar.YEAR) == yesterday.get(Calendar.YEAR) && cal.get(Calendar.DAY_OF_YEAR) == yesterday.get(Calendar.DAY_OF_YEAR) -> "Yesterday"
+        else -> SimpleDateFormat("MMM d, yyyy", Locale.getDefault()).format(date)
+    }
+}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -88,8 +115,9 @@ fun ActivityScreen(
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
+                            .horizontalScroll(rememberScrollState())
                             .padding(bottom = OpenSplitTokens.SpaceXS),
-                        horizontalArrangement = Arrangement.SpaceBetween,
+                        horizontalArrangement = Arrangement.spacedBy(OpenSplitTokens.SpaceSM),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         // Group dropdown
@@ -110,7 +138,8 @@ fun ActivityScreen(
 
                             DropdownMenu(
                                 expanded = groupDropdownExpanded,
-                                onDismissRequest = { groupDropdownExpanded = false }
+                                onDismissRequest = { groupDropdownExpanded = false },
+                                shape = MaterialTheme.shapes.large
                             ) {
                                 DropdownMenuItem(
                                     text = { Text("All Groups") },
@@ -153,7 +182,8 @@ fun ActivityScreen(
 
                             DropdownMenu(
                                 expanded = sortDropdownExpanded,
-                                onDismissRequest = { sortDropdownExpanded = false }
+                                onDismissRequest = { sortDropdownExpanded = false },
+                                shape = MaterialTheme.shapes.large
                             ) {
                                 ActivitySortOrder.values().forEach { order ->
                                     DropdownMenuItem(
@@ -169,6 +199,94 @@ fun ActivityScreen(
                                         }
                                     )
                                 }
+                            }
+                        }
+
+                        // Date range
+                        var datePreset by remember { mutableStateOf(DateRangePreset.ALL_TIME) }
+                        var dateDropdownExpanded by remember { mutableStateOf(false) }
+                        var showCustomRangeDialog by remember { mutableStateOf(false) }
+
+                        fun applyPreset(preset: DateRangePreset) {
+                            datePreset = preset
+                            val now = Calendar.getInstance()
+                            when (preset) {
+                                DateRangePreset.ALL_TIME -> viewModel.setDateRange(null, null)
+                                DateRangePreset.TODAY -> {
+                                    val start = (now.clone() as Calendar).apply {
+                                        set(Calendar.HOUR_OF_DAY, 0); set(Calendar.MINUTE, 0); set(Calendar.SECOND, 0); set(Calendar.MILLISECOND, 0)
+                                    }
+                                    viewModel.setDateRange(start.timeInMillis, now.timeInMillis)
+                                }
+                                DateRangePreset.THIS_WEEK -> {
+                                    val start = (now.clone() as Calendar).apply {
+                                        set(Calendar.DAY_OF_WEEK, firstDayOfWeek)
+                                        set(Calendar.HOUR_OF_DAY, 0); set(Calendar.MINUTE, 0); set(Calendar.SECOND, 0); set(Calendar.MILLISECOND, 0)
+                                    }
+                                    viewModel.setDateRange(start.timeInMillis, now.timeInMillis)
+                                }
+                                DateRangePreset.THIS_MONTH -> {
+                                    val start = (now.clone() as Calendar).apply {
+                                        set(Calendar.DAY_OF_MONTH, 1)
+                                        set(Calendar.HOUR_OF_DAY, 0); set(Calendar.MINUTE, 0); set(Calendar.SECOND, 0); set(Calendar.MILLISECOND, 0)
+                                    }
+                                    viewModel.setDateRange(start.timeInMillis, now.timeInMillis)
+                                }
+                                DateRangePreset.CUSTOM -> showCustomRangeDialog = true
+                            }
+                        }
+
+                        Box {
+                            FilterChip(
+                                selected = datePreset != DateRangePreset.ALL_TIME,
+                                onClick = { dateDropdownExpanded = true },
+                                label = { Text(datePreset.label) },
+                                leadingIcon = { Icon(OpenSplitIcons.DateRange, contentDescription = "Date range", modifier = Modifier.size(16.dp)) },
+                                shape = MaterialTheme.shapes.medium
+                            )
+
+                            DropdownMenu(
+                                expanded = dateDropdownExpanded,
+                                onDismissRequest = { dateDropdownExpanded = false },
+                                shape = MaterialTheme.shapes.large
+                            ) {
+                                DateRangePreset.values().forEach { preset ->
+                                    DropdownMenuItem(
+                                        text = { Text(preset.label) },
+                                        onClick = {
+                                            dateDropdownExpanded = false
+                                            applyPreset(preset)
+                                        },
+                                        leadingIcon = {
+                                            if (datePreset == preset) {
+                                                Icon(OpenSplitIcons.Check, contentDescription = null)
+                                            }
+                                        }
+                                    )
+                                }
+                            }
+                        }
+
+                        if (showCustomRangeDialog) {
+                            val rangeState = rememberDateRangePickerState()
+                            DatePickerDialog(
+                                onDismissRequest = { showCustomRangeDialog = false },
+                                confirmButton = {
+                                    TextButton(onClick = {
+                                        val start = rangeState.selectedStartDateMillis
+                                        val end = rangeState.selectedEndDateMillis
+                                        if (start != null) {
+                                            viewModel.setDateRange(start, end ?: start)
+                                            datePreset = DateRangePreset.CUSTOM
+                                        }
+                                        showCustomRangeDialog = false
+                                    }) { Text("Apply") }
+                                },
+                                dismissButton = {
+                                    TextButton(onClick = { showCustomRangeDialog = false }) { Text("Cancel") }
+                                }
+                            ) {
+                                DateRangePicker(state = rangeState, modifier = Modifier.weight(1f))
                             }
                         }
                     }
@@ -228,59 +346,30 @@ fun ActivityScreen(
                             }
                         }
                     } else {
+                        val lastSeen = uiState.lastSeenBeforeThisVisit
+                        val grouped = remember(uiState.activities) {
+                            uiState.activities.groupBy { dayLabel(it.timestamp.toDate()) }
+                        }
+
                         LazyColumn(
                             verticalArrangement = Arrangement.spacedBy(OpenSplitTokens.SpaceXS),
                             contentPadding = PaddingValues(bottom = OpenSplitTokens.SpaceLG)
                         ) {
-                            items(uiState.activities, key = { it.id }) { act ->
-                                val timeStr = remember(act.timestamp) {
-                                    SimpleDateFormat("MMM d, yyyy • h:mm a", Locale.getDefault())
-                                        .format(act.timestamp.toDate())
+                            grouped.forEach { (label, activitiesForDay) ->
+                                item(key = "header_$label") {
+                                    Text(
+                                        text = label,
+                                        style = MaterialTheme.typography.titleSmall,
+                                        fontWeight = FontWeight.Bold,
+                                        color = MaterialTheme.colorScheme.primary,
+                                        modifier = Modifier.padding(vertical = OpenSplitTokens.SpaceXS)
+                                    )
                                 }
-
-                                val icon = when (act.type) {
-                                    ActivityType.EXPENSE_ADDED, ActivityType.EXPENSE_EDITED, ActivityType.EXPENSE_DELETED -> OpenSplitIcons.CategoryBills
-                                    ActivityType.SETTLEMENT_ADDED -> OpenSplitIcons.Settle
-                                    ActivityType.GROUP_CREATED, ActivityType.MEMBER_ADDED, ActivityType.MEMBER_REMOVED -> OpenSplitIcons.Groups
-                                    ActivityType.COMMENT_ADDED -> OpenSplitIcons.CategoryOther
+                                items(activitiesForDay, key = { it.id }) { act ->
+                                    val isUnread = lastSeen != null && act.timestamp.seconds > lastSeen.seconds
+                                    ActivityRow(act = act, isUnread = isUnread)
+                                    HorizontalDivider(color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
                                 }
-
-                                ListItem(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .clip(MaterialTheme.shapes.medium),
-                                    headlineContent = {
-                                        Text(
-                                            text = act.message,
-                                            style = MaterialTheme.typography.bodyLarge,
-                                            fontWeight = FontWeight.Medium
-                                        )
-                                    },
-                                    supportingContent = {
-                                        Text(
-                                            text = timeStr,
-                                            style = MaterialTheme.typography.labelSmall,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                                        )
-                                    },
-                                    leadingContent = {
-                                        Surface(
-                                            shape = CircleShape,
-                                            color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f),
-                                            modifier = Modifier.size(40.dp)
-                                        ) {
-                                            Box(contentAlignment = Alignment.Center) {
-                                                Icon(
-                                                    imageVector = icon,
-                                                    contentDescription = null,
-                                                    tint = MaterialTheme.colorScheme.primary,
-                                                    modifier = Modifier.size(20.dp)
-                                                )
-                                            }
-                                        }
-                                    }
-                                )
-                                HorizontalDivider(color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
                             }
                         }
                     }
@@ -290,4 +379,66 @@ fun ActivityScreen(
     }
 }
 
+@Composable
+private fun ActivityRow(act: Activity, isUnread: Boolean) {
+    val timeStr = remember(act.timestamp) {
+        SimpleDateFormat("h:mm a", Locale.getDefault()).format(act.timestamp.toDate())
+    }
+
+    val icon = when (act.type) {
+        ActivityType.EXPENSE_ADDED, ActivityType.EXPENSE_EDITED, ActivityType.EXPENSE_DELETED -> OpenSplitIcons.CategoryBills
+        ActivityType.SETTLEMENT_ADDED -> OpenSplitIcons.Settle
+        ActivityType.GROUP_CREATED, ActivityType.MEMBER_ADDED, ActivityType.MEMBER_REMOVED -> OpenSplitIcons.Groups
+        ActivityType.COMMENT_ADDED -> OpenSplitIcons.CategoryOther
+    }
+
+    ListItem(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(MaterialTheme.shapes.medium),
+        colors = ListItemDefaults.colors(
+            containerColor = if (isUnread) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.25f) else Color.Transparent
+        ),
+        headlineContent = {
+            Text(
+                text = act.message,
+                style = MaterialTheme.typography.bodyLarge,
+                fontWeight = if (isUnread) FontWeight.Bold else FontWeight.Medium
+            )
+        },
+        supportingContent = {
+            Text(
+                text = timeStr,
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        },
+        leadingContent = {
+            Surface(
+                shape = CircleShape,
+                color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f),
+                modifier = Modifier.size(40.dp)
+            ) {
+                Box(contentAlignment = Alignment.Center) {
+                    Icon(
+                        imageVector = icon,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+            }
+        },
+        trailingContent = if (isUnread) {
+            {
+                Box(
+                    modifier = Modifier
+                        .size(8.dp)
+                        .clip(CircleShape)
+                        .background(MaterialTheme.colorScheme.primary)
+                )
+            }
+        } else null
+    )
+}
 

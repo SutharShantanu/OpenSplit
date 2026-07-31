@@ -1,5 +1,6 @@
 package com.opensplit.ui.components
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.*
@@ -16,9 +17,11 @@ import com.opensplit.ui.theme.OpenSplitTokens
 @Composable
 fun CreateGroupBottomSheet(
     onDismiss: () -> Unit,
-    onCreate: (name: String, currency: String) -> Unit
+    onCreate: (name: String, currency: String, avatarKey: String?) -> Unit
 ) {
     var name by remember { mutableStateOf("") }
+    var avatarKey by remember { mutableStateOf<String?>(null) }
+    var showAvatarPicker by remember { mutableStateOf(false) }
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
     ModalBottomSheet(
@@ -68,6 +71,16 @@ fun CreateGroupBottomSheet(
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
 
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Box(modifier = Modifier.clickable { showAvatarPicker = true }) {
+                    GroupAvatar(name = name.ifBlank { "?" }, avatarKey = avatarKey, size = 56.dp)
+                }
+                Spacer(modifier = Modifier.width(OpenSplitTokens.SpaceMD))
+                TextButton(onClick = { showAvatarPicker = true }) {
+                    Text(if (avatarKey == null) "Choose an avatar" else "Change avatar")
+                }
+            }
+
             OutlinedTextField(
                 value = name,
                 onValueChange = { name = it },
@@ -93,7 +106,7 @@ fun CreateGroupBottomSheet(
                 Button(
                     onClick = {
                         if (name.isNotBlank()) {
-                            onCreate(name.trim(), "INR")
+                            onCreate(name.trim(), "INR", avatarKey)
                         }
                     },
                     enabled = name.isNotBlank(),
@@ -104,6 +117,14 @@ fun CreateGroupBottomSheet(
             }
         }
     }
+
+    if (showAvatarPicker) {
+        GroupAvatarPickerSheet(
+            currentKey = avatarKey,
+            onDismiss = { showAvatarPicker = false },
+            onSelect = { avatarKey = it }
+        )
+    }
 }
 
 /**
@@ -112,7 +133,7 @@ fun CreateGroupBottomSheet(
 @Composable
 fun CreateGroupDialog(
     onDismiss: () -> Unit,
-    onCreate: (name: String, currency: String) -> Unit
+    onCreate: (name: String, currency: String, avatarKey: String?) -> Unit
 ) {
     CreateGroupBottomSheet(onDismiss = onDismiss, onCreate = onCreate)
 }

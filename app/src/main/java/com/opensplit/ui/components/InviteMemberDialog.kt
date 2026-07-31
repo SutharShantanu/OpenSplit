@@ -3,13 +3,11 @@ package com.opensplit.ui.components
 import android.content.Intent
 import android.net.Uri
 import android.provider.ContactsContract
-import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -17,18 +15,19 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import com.opensplit.ui.theme.OpenSplitIcons
 import com.opensplit.ui.theme.OpenSplitTokens
 import kotlinx.coroutines.launch
 
 /**
- * Single "add / invite a person" dialog used everywhere in the app (group members, expense
- * split-between, friends) so the visual language stays identical. Always offers email entry +
- * picking a contact; [showShareChannels] additionally offers WhatsApp/SMS for contexts that
- * aren't bound to a specific group (those channels can't carry a group-scoped pending invite,
- * only a generic "come join OpenSplit" message).
+ * The one "add / invite a person" dialog used everywhere in the app — group members, expense
+ * split-between, and friends — so the flow is identical wherever you invite someone.
+ *
+ * Invites go out through channels only (contacts, WhatsApp, SMS); there is deliberately no
+ * free-text email field. Picking a contact resolves their email and routes it to
+ * [onSubmitEmail], which is what creates a real, group-scoped invite. WhatsApp and SMS share a
+ * generic join message, since those channels can't carry an invite record.
  */
 @Composable
 fun InviteMemberDialog(
@@ -36,13 +35,11 @@ fun InviteMemberDialog(
     description: String,
     onDismiss: () -> Unit,
     onSubmitEmail: (String) -> Unit,
-    confirmLabel: String = "Add member",
-    showShareChannels: Boolean = false,
     shareMessage: String = "Join me on OpenSplit to split expenses easily!"
 ) {
     val context = LocalContext.current
+    val snackbar = LocalSnackbarController.current
     val scope = rememberCoroutineScope()
-    var email by remember { mutableStateOf("") }
 
     val contactPickerLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.PickContact()
@@ -54,7 +51,7 @@ fun InviteMemberDialog(
                     onSubmitEmail(resolved)
                     onDismiss()
                 } else {
-                    Toast.makeText(context, "That contact has no email address on file", Toast.LENGTH_SHORT).show()
+                    snackbar.showMessage("That contact has no email address on file")
                 }
             }
         }
@@ -63,7 +60,7 @@ fun InviteMemberDialog(
         ActivityResultContracts.RequestPermission()
     ) { granted ->
         if (granted) contactPickerLauncher.launch(null)
-        else Toast.makeText(context, "Contacts permission is needed to pick a person", Toast.LENGTH_SHORT).show()
+        else snackbar.showMessage("Contacts permission is needed to pick a person")
     }
 
     AlertDialog(
@@ -71,19 +68,11 @@ fun InviteMemberDialog(
         icon = { Icon(OpenSplitIcons.AddMember, contentDescription = null) },
         title = { Text(title) },
         text = {
-            Column(verticalArrangement = Arrangement.spacedBy(OpenSplitTokens.SpaceMD)) {
+            Column(verticalArrangement = Arrangement.spacedBy(OpenSplitTokens.SpaceSM)) {
                 Text(
                     text = description,
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-                OutlinedTextField(
-                    value = email,
-                    onValueChange = { email = it },
-                    label = { Text("Email address") },
-                    singleLine = true,
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
-                    modifier = Modifier.fillMaxWidth()
                 )
                 InviteChannelRow(
                     icon = OpenSplitIcons.Contacts,
@@ -92,55 +81,43 @@ fun InviteMemberDialog(
                 ) {
                     contactsPermissionLauncher.launch(android.Manifest.permission.READ_CONTACTS)
                 }
-                if (showShareChannels) {
-                    InviteChannelRow(
-                        icon = OpenSplitIcons.Whatsapp,
-                        label = "WhatsApp",
-                        subtitle = "Share an invite message"
-                    ) {
-                        try {
-                            context.startActivity(
-                                Intent(Intent.ACTION_SEND).apply {
-                                    type = "text/plain"
-                                    setPackage("com.whatsapp")
-                                    putExtra(Intent.EXTRA_TEXT, shareMessage)
-                                }
-                            )
-                        } catch (e: Exception) {
-                            Toast.makeText(context, "WhatsApp not installed", Toast.LENGTH_SHORT).show()
-                        }
-                        onDismiss()
+                InviteChannelRow(
+                    icon = OpenSplitIcons.Whatsapp,
+                    label = "WhatsApp",
+                    subtitle = "Share an invite message"
+                ) {
+                    try {
+                        context.startActivity(
+                            Intent(Intent.ACTION_SEND).apply {
+                                type = "text/plain"
+                                setPackage("com.whatsapp")
+                                putExtra(Intent.EXTRA_TEXT, shareMessage)
+                            }
+                        )
+                    } catch (e: Exception) {
+                        snackbar.showMessage("WhatsApp not installed")
                     }
-                    InviteChannelRow(
-                        icon = OpenSplitIcons.Sms,
-                        label = "SMS",
-                        subtitle = "Send a text invite"
-                    ) {
-                        try {
-                            context.startActivity(
-                                Intent(Intent.ACTION_SENDTO, Uri.parse("smsto:")).apply {
-                                    putExtra("sms_body", shareMessage)
-                                }
-                            )
-                        } catch (e: Exception) {
-                            Toast.makeText(context, "No messaging app found", Toast.LENGTH_SHORT).show()
-                        }
-                        onDismiss()
+                    onDismiss()
+                }
+                InviteChannelRow(
+                    icon = OpenSplitIcons.Sms,
+                    label = "SMS",
+                    subtitle = "Send a text invite"
+                ) {
+                    try {
+                        context.startActivity(
+                            Intent(Intent.ACTION_SENDTO, Uri.parse("smsto:")).apply {
+                                putExtra("sms_body", shareMessage)
+                            }
+                        )
+                    } catch (e: Exception) {
+                        snackbar.showMessage("No messaging app found")
                     }
+                    onDismiss()
                 }
             }
         },
-        confirmButton = {
-            Button(
-                onClick = {
-                    onSubmitEmail(email.trim())
-                    onDismiss()
-                },
-                enabled = email.trim().contains("@")
-            ) {
-                Text(confirmLabel)
-            }
-        },
+        confirmButton = {},
         dismissButton = {
             TextButton(onClick = onDismiss) { Text("Cancel") }
         }

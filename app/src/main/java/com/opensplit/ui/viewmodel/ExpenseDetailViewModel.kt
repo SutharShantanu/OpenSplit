@@ -73,12 +73,24 @@ class ExpenseDetailViewModel(
         }
     }
 
-    fun deleteExpense(onSuccess: () -> Unit) {
+    /**
+     * Deletes the expense and hands the caller the pre-delete snapshot, so the UI can offer an
+     * Undo that restores it verbatim via [restoreExpense].
+     */
+    fun deleteExpense(onSuccess: (deleted: Expense?) -> Unit) {
         viewModelScope.launch {
+            val snapshot = (_uiState.value as? ScreenState.Success)?.data?.expense
             val result = appContainer.expenseRepository.deleteExpense(groupId, expenseId)
             if (result.isSuccess) {
-                onSuccess()
+                onSuccess(snapshot)
             }
+        }
+    }
+
+    /** Re-creates a previously deleted expense (the Undo half of [deleteExpense]). */
+    fun restoreExpense(expense: Expense) {
+        viewModelScope.launch {
+            appContainer.expenseRepository.addExpense(expense)
         }
     }
 }

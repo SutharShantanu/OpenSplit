@@ -2,7 +2,6 @@ package com.opensplit.ui.components
 
 import android.content.Intent
 import android.net.Uri
-import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
@@ -32,6 +31,7 @@ fun AccountDropdownMenu(
     onSignOut: () -> Unit
 ) {
     val context = LocalContext.current
+    val snackbar = LocalSnackbarController.current
     val currentUser = FirebaseAuth.getInstance().currentUser
     var showSignOutDialog by remember { mutableStateOf(false) }
     var showThemeDialog by remember { mutableStateOf(false) }
@@ -117,7 +117,7 @@ fun AccountDropdownMenu(
                 try {
                     context.startActivity(intent)
                 } catch (e: Exception) {
-                    Toast.makeText(context, "No email client found", Toast.LENGTH_SHORT).show()
+                    snackbar.showMessage("No email client found")
                 }
             }
         )

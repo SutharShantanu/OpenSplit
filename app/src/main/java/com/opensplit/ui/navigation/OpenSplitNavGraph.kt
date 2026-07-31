@@ -1,5 +1,7 @@
 package com.opensplit.ui.navigation
 
+import com.opensplit.ui.components.AppLoadingIndicator
+
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.material3.Button
@@ -9,7 +11,6 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -20,12 +21,15 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.DialogProperties
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
+import androidx.navigation.compose.dialog
 import androidx.navigation.compose.rememberNavController
 import com.opensplit.di.AppContainer
+import com.opensplit.ui.theme.OpenSplitMotion
 import com.opensplit.domain.repository.AuthState
 import com.opensplit.ui.screens.SplashScreen
 import com.opensplit.ui.screens.auth.WelcomeScreen
@@ -61,7 +65,7 @@ fun OpenSplitNavGraph(
         when (authState) {
             is AuthState.Loading -> {
                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    CircularProgressIndicator()
+                    AppLoadingIndicator()
                 }
             }
             is AuthState.LoggedOut -> {
@@ -90,7 +94,17 @@ fun MainNavHost(navController: NavHostController, appContainer: AppContainer, au
     val hasCompletedPrimer by appContainer.userPreferencesRepository.hasCompletedPermissionPrimer.collectAsState(initial = true)
     val startDest = if (!hasCompletedPrimer) "permission_primer" else "home"
 
-    NavHost(navController = navController, startDestination = startDest) {
+    // M3 shared-axis (X): pushing a destination slides content forward, popping mirrors it,
+    // so the back gesture reads as reversing the same motion. Defined once here so every
+    // destination inherits it. `dialog()` destinations are unaffected.
+    NavHost(
+        navController = navController,
+        startDestination = startDest,
+        enterTransition = { OpenSplitMotion.sharedAxisX(forward = true).targetContentEnter },
+        exitTransition = { OpenSplitMotion.sharedAxisX(forward = true).initialContentExit },
+        popEnterTransition = { OpenSplitMotion.sharedAxisX(forward = false).targetContentEnter },
+        popExitTransition = { OpenSplitMotion.sharedAxisX(forward = false).initialContentExit }
+    ) {
         composable("permission_primer") {
             val vm = remember { com.opensplit.ui.viewmodel.PermissionPrimerViewModel(appContainer.userPreferencesRepository) }
             com.opensplit.ui.screens.PermissionPrimerScreen(
@@ -151,9 +165,16 @@ fun MainNavHost(navController: NavHostController, appContainer: AppContainer, au
             )
         }
 
-        composable("edit_expense/{groupId}/{expenseId}") { backStackEntry ->
-            val groupId = backStackEntry.arguments?.getString("groupId") ?: return@composable
-            val expenseId = backStackEntry.arguments?.getString("expenseId") ?: return@composable
+        dialog(
+            "edit_expense/{groupId}/{expenseId}",
+            dialogProperties = DialogProperties(
+                usePlatformDefaultWidth = false,
+                dismissOnBackPress = false,
+                dismissOnClickOutside = false
+            )
+        ) { backStackEntry ->
+            val groupId = backStackEntry.arguments?.getString("groupId") ?: return@dialog
+            val expenseId = backStackEntry.arguments?.getString("expenseId") ?: return@dialog
             val groupDetailViewModel: com.opensplit.ui.viewmodel.GroupDetailViewModel = androidx.lifecycle.viewmodel.compose.viewModel(
                 factory = com.opensplit.ui.viewmodel.GroupDetailViewModelFactory(groupId, appContainer)
             )
@@ -179,8 +200,15 @@ fun MainNavHost(navController: NavHostController, appContainer: AppContainer, au
             )
         }
 
-        composable("add_expense/{groupId}") { backStackEntry ->
-            val groupId = backStackEntry.arguments?.getString("groupId") ?: return@composable
+        dialog(
+            "add_expense/{groupId}",
+            dialogProperties = DialogProperties(
+                usePlatformDefaultWidth = false,
+                dismissOnBackPress = false,
+                dismissOnClickOutside = false
+            )
+        ) { backStackEntry ->
+            val groupId = backStackEntry.arguments?.getString("groupId") ?: return@dialog
             val groupDetailViewModel: com.opensplit.ui.viewmodel.GroupDetailViewModel = androidx.lifecycle.viewmodel.compose.viewModel(
                 factory = com.opensplit.ui.viewmodel.GroupDetailViewModelFactory(groupId, appContainer)
             )

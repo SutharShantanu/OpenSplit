@@ -1,6 +1,7 @@
 package com.opensplit.ui.screens.auth
 
-import android.widget.Toast
+import com.opensplit.ui.components.LocalSnackbarController
+
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -45,10 +46,11 @@ import com.opensplit.ui.viewmodel.AuthViewModel
 fun WelcomeScreen(viewModel: AuthViewModel) {
     val uiState by viewModel.uiState.collectAsState()
     val context = LocalContext.current
+    val snackbar = LocalSnackbarController.current
 
     LaunchedEffect(uiState) {
         if (uiState is AuthUiState.Error) {
-            Toast.makeText(context, (uiState as AuthUiState.Error).message, Toast.LENGTH_LONG).show()
+            snackbar.showMessage((uiState as AuthUiState.Error).message)
             viewModel.resetState()
         }
     }
