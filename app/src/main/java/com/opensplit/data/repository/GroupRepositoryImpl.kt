@@ -18,18 +18,25 @@ class GroupRepositoryImpl(
     
     private val groupsCollection = firestore.collection("groups")
 
-    override fun getGroupsForUser(userId: String): Flow<List<Group>> = callbackFlow {
-        val listener = groupsCollection
-            .whereArrayContains("memberIds", userId)
-            .addSnapshotListener { snapshot, e ->
-                if (e != null) {
-                    close(e)
-                    return@addSnapshotListener
+    override fun getGroupsForUser(userId: String): Flow<List<Group>> {
+        val firestoreFlow = callbackFlow<List<Group>> {
+            val listener = groupsCollection
+                .whereArrayContains("memberIds", userId)
+                .addSnapshotListener { snapshot, e ->
+                    if (e != null) {
+                        trySend(emptyList())
+                        return@addSnapshotListener
+                    }
+                    val groups = snapshot?.documents?.mapNotNull { it.toObject(Group::class.java) } ?: emptyList()
+                    trySend(groups)
                 }
-                val groups = snapshot?.documents?.mapNotNull { it.toObject(Group::class.java) } ?: emptyList()
-                trySend(groups)
-            }
-        awaitClose { listener.remove() }
+            awaitClose { listener.remove() }
+        }
+
+        return kotlinx.coroutines.flow.combine(firestoreFlow, com.opensplit.data.local.InMemoryDataStore.groups) { remote, local ->
+            val userLocal = local.filter { it.memberIds.contains(userId) }
+            (remote + userLocal).distinctBy { it.id }
+        }
     }
 
     override suspend fun getGroup(groupId: String): Group? {

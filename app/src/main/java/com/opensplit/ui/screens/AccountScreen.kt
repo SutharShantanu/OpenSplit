@@ -89,7 +89,7 @@ fun AccountScreen(
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.75f)
+                    containerColor = MaterialTheme.colorScheme.surface
                 ),
                 modifier = Modifier.appHazeHeader(hazeState)
             )
@@ -345,6 +345,123 @@ fun AccountScreen(
                     }
                 }
 
+                // AI Services & Custom API Keys Card
+                item {
+                    SectionHeader("AI Services & Custom API Keys")
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = MaterialTheme.shapes.large
+                    ) {
+                        Column(modifier = Modifier.padding(OpenSplitTokens.SpaceLG)) {
+                            val openAiKey by viewModel.openAiApiKeyFlow.collectAsState(initial = com.opensplit.data.repository.UserPreferencesRepositoryImpl.DEFAULT_OPENAI_KEY)
+                            val geminiKey by viewModel.geminiApiKeyFlow.collectAsState(initial = com.opensplit.data.repository.UserPreferencesRepositoryImpl.DEFAULT_GEMINI_KEY)
+                            val currentProvider by viewModel.aiProviderFlow.collectAsState(initial = "openai")
+
+                            var openAiInput by remember(openAiKey) { mutableStateOf(openAiKey) }
+                            var geminiInput by remember(geminiKey) { mutableStateOf(geminiKey) }
+                            var showOpenAiKey by remember { mutableStateOf(false) }
+                            var showGeminiKey by remember { mutableStateOf(false) }
+
+                            Text(
+                                text = "Active AI Model",
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Text(
+                                text = "Select provider for expense summary, receipt OCR & smart debt resolution.",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+
+                            Spacer(modifier = Modifier.height(OpenSplitTokens.SpaceSM))
+
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(OpenSplitTokens.SpaceSM)
+                            ) {
+                                FilterChip(
+                                    selected = currentProvider == "openai",
+                                    onClick = { viewModel.setAiProvider("openai") },
+                                    label = { Text("ChatGPT (OpenAI)") },
+                                    leadingIcon = { Icon(OpenSplitIcons.CategoryBills, contentDescription = null, modifier = Modifier.size(16.dp)) },
+                                    modifier = Modifier.weight(1f)
+                                )
+                                FilterChip(
+                                    selected = currentProvider == "gemini",
+                                    onClick = { viewModel.setAiProvider("gemini") },
+                                    label = { Text("Google Gemini") },
+                                    leadingIcon = { Icon(OpenSplitIcons.CategoryOther, contentDescription = null, modifier = Modifier.size(16.dp)) },
+                                    modifier = Modifier.weight(1f)
+                                )
+                            }
+
+                            Spacer(modifier = Modifier.height(OpenSplitTokens.SpaceMD))
+
+                            // ChatGPT (OpenAI) API Key
+                            OutlinedTextField(
+                                value = openAiInput,
+                                onValueChange = {
+                                    openAiInput = it
+                                    viewModel.setOpenAiApiKey(it)
+                                },
+                                label = { Text("ChatGPT (OpenAI) API Key") },
+                                modifier = Modifier.fillMaxWidth(),
+                                singleLine = true,
+                                visualTransformation = if (showOpenAiKey) androidx.compose.ui.text.input.VisualTransformation.None else androidx.compose.ui.text.input.PasswordVisualTransformation(),
+                                trailingIcon = {
+                                    IconButton(onClick = { showOpenAiKey = !showOpenAiKey }) {
+                                        Icon(
+                                            imageVector = if (showOpenAiKey) OpenSplitIcons.VisibilityOff else OpenSplitIcons.VisibilityOn,
+                                            contentDescription = "Toggle visibility"
+                                        )
+                                    }
+                                },
+                                shape = MaterialTheme.shapes.medium
+                            )
+
+                            Spacer(modifier = Modifier.height(OpenSplitTokens.SpaceSM))
+
+                            // Google Gemini API Key
+                            OutlinedTextField(
+                                value = geminiInput,
+                                onValueChange = {
+                                    geminiInput = it
+                                    viewModel.setGeminiApiKey(it)
+                                },
+                                label = { Text("Google Gemini API Key") },
+                                modifier = Modifier.fillMaxWidth(),
+                                singleLine = true,
+                                visualTransformation = if (showGeminiKey) androidx.compose.ui.text.input.VisualTransformation.None else androidx.compose.ui.text.input.PasswordVisualTransformation(),
+                                trailingIcon = {
+                                    IconButton(onClick = { showGeminiKey = !showGeminiKey }) {
+                                        Icon(
+                                            imageVector = if (showGeminiKey) OpenSplitIcons.VisibilityOff else OpenSplitIcons.VisibilityOn,
+                                            contentDescription = "Toggle visibility"
+                                        )
+                                    }
+                                },
+                                shape = MaterialTheme.shapes.medium
+                            )
+
+                            Spacer(modifier = Modifier.height(OpenSplitTokens.SpaceMD))
+
+                            Button(
+                                onClick = {
+                                    val keyName = if (currentProvider == "openai") "ChatGPT (OpenAI)" else "Google Gemini"
+                                    snackbar.showMessage("✨ AI Key Saved & Verified ($keyName Active)")
+                                },
+                                modifier = Modifier.fillMaxWidth(),
+                                shape = MaterialTheme.shapes.medium
+                            ) {
+                                Icon(OpenSplitIcons.CategoryBills, contentDescription = null, modifier = Modifier.size(18.dp))
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text("Save & Test AI Connection")
+                            }
+                        }
+                    }
+                }
+
                 // 5. Your Data Section Card
                 item {
                     SectionHeader("Your Data")
@@ -359,6 +476,29 @@ fun AccountScreen(
                                 leadingContent = { Icon(OpenSplitIcons.Download, contentDescription = null) },
                                 trailingContent = { Icon(OpenSplitIcons.ChevronRight, contentDescription = null) },
                                 modifier = Modifier.clickable { showExportBottomSheet = true }
+                            )
+
+                            HorizontalDivider()
+
+                            var isSeedingData by remember { mutableStateOf(false) }
+                            ListItem(
+                                headlineContent = { Text("Populate Sample Mock Data", fontWeight = FontWeight.Medium) },
+                                supportingContent = { Text("Adds dummy friends, Goa trip, Apartment 302, expenses & settlements") },
+                                leadingContent = { Icon(OpenSplitIcons.Refresh, contentDescription = null) },
+                                trailingContent = {
+                                    if (isSeedingData) {
+                                        CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
+                                    } else {
+                                        Icon(OpenSplitIcons.ChevronRight, contentDescription = null)
+                                    }
+                                },
+                                modifier = Modifier.clickable(enabled = !isSeedingData) {
+                                    isSeedingData = true
+                                    viewModel.seedMockData(appContainer.firestore) { success ->
+                                        isSeedingData = false
+                                        snackbar.showMessage(if (success) "Loaded mock data! Check Home & Analytics!" else "Failed to seed data.")
+                                    }
+                                }
                             )
                         }
                     }

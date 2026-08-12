@@ -145,7 +145,7 @@ fun PersonBalanceScreen(
                         ) {
                             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                                 Icon(
-                                    imageVector = Icons.Rounded.ReceiptLong,
+                                    imageVector = com.opensplit.ui.theme.OpenSplitIcons.ReceiptLong,
                                     contentDescription = null,
                                     modifier = Modifier.size(48.dp),
                                     tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)

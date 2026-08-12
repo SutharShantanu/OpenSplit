@@ -78,17 +78,21 @@ class SettleUpViewModel(
                 method = method,
                 note = note
             )
+            val fromName = _members.value.find { it.uid == fromUid }?.displayName ?: "A member"
+            val toName = _members.value.find { it.uid == toUid }?.displayName ?: "B member"
+            val groupNameStr = groupRepository.getGroup(groupId)?.name ?: "Group"
+
+            com.opensplit.data.local.InMemoryDataStore.recordSettlement(settlement, groupNameStr, fromName, toName)
+
             val result = settlementRepository.addSettlement(groupId, settlement)
             if (result.isSuccess) {
-                val fromName = _members.value.find { it.uid == fromUid }?.displayName ?: "Someone"
-                val toName = _members.value.find { it.uid == toUid }?.displayName ?: "someone"
                 val formatted = com.opensplit.util.CurrencyFormatter.format(amount, _currency.value)
                 activityRepository.logActivity(
                     groupId,
                     Activity(
                         type = ActivityType.SETTLEMENT_ADDED,
                         actorUid = fromUid,
-                        message = "$fromName paid $toName $formatted",
+                        message = "$fromName paid $formatted to $toName in '$groupNameStr'",
                         relatedExpenseId = result.getOrNull()
                     )
                 )

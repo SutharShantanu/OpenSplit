@@ -14,5 +14,13 @@ interface UserPreferencesRepository {
 
     val pinnedGroupIdsFlow: Flow<Set<String>>
     suspend fun togglePinnedGroup(groupId: String)
-}
 
+    val openAiApiKeyFlow: Flow<String>
+    suspend fun setOpenAiApiKey(key: String)
+
+    val geminiApiKeyFlow: Flow<String>
+    suspend fun setGeminiApiKey(key: String)
+
+    val aiProviderFlow: Flow<String>
+    suspend fun setAiProvider(provider: String)
+}

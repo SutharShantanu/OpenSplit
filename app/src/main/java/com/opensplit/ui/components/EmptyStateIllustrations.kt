@@ -272,3 +272,55 @@ fun ChartBarsIllustration(
         )
     }
 }
+
+@Composable
+fun CloudOfflineIllustration(
+    modifier: Modifier = Modifier,
+    size: Dp = 120.dp,
+    color: Color = MaterialTheme.colorScheme.primary
+) {
+    val outlineColor = color.copy(alpha = 0.7f)
+    val fillColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.4f)
+    val errorAccent = MaterialTheme.colorScheme.error.copy(alpha = 0.8f)
+    val cloudBgColor = MaterialTheme.colorScheme.surface
+
+    Canvas(modifier = modifier.size(size)) {
+        val w = this.size.width
+        val h = this.size.height
+        val strokeWidth = 3.dp.toPx()
+
+        // Background soft circle
+        drawCircle(
+            color = fillColor,
+            center = Offset(w * 0.5f, h * 0.5f),
+            radius = w * 0.42f
+        )
+
+        // Cloud shape path
+        val cloudPath = Path().apply {
+            moveTo(w * 0.3f, h * 0.62f)
+            cubicTo(w * 0.18f, h * 0.62f, w * 0.18f, h * 0.46f, w * 0.3f, h * 0.44f)
+            cubicTo(w * 0.32f, h * 0.28f, w * 0.55f, h * 0.24f, w * 0.65f, h * 0.36f)
+            cubicTo(w * 0.78f, h * 0.36f, w * 0.82f, h * 0.52f, w * 0.72f, h * 0.62f)
+            close()
+        }
+
+        drawPath(path = cloudPath, color = cloudBgColor)
+        drawPath(path = cloudPath, color = outlineColor, style = Stroke(width = strokeWidth))
+
+        // Exclamation / Refresh symbol inside cloud center
+        drawLine(
+            color = errorAccent,
+            start = Offset(w * 0.5f, h * 0.42f),
+            end = Offset(w * 0.5f, h * 0.52f),
+            strokeWidth = strokeWidth * 1.2f
+        )
+        drawCircle(
+            color = errorAccent,
+            radius = strokeWidth * 0.8f,
+            center = Offset(w * 0.5f, h * 0.57f)
+        )
+    }
+}
+
+

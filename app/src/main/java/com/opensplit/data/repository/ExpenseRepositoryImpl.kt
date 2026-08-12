@@ -21,41 +21,55 @@ class ExpenseRepositoryImpl(
     private fun getGroupExpensesRef(groupId: String) =
         firestore.collection("groups").document(groupId).collection("expenses")
 
-    override fun getExpensesForGroup(groupId: String): Flow<List<Expense>> = callbackFlow {
-        if (groupId.isBlank()) {
-            trySend(emptyList())
-            awaitClose {}
-            return@callbackFlow
+    override fun getExpensesForGroup(groupId: String): Flow<List<Expense>> {
+        val firestoreFlow = callbackFlow<List<Expense>> {
+            if (groupId.isBlank()) {
+                trySend(emptyList())
+                awaitClose {}
+                return@callbackFlow
+            }
+
+            val listener = getGroupExpensesRef(groupId)
+                .addSnapshotListener { snapshot, e ->
+                    if (e != null) {
+                        trySend(emptyList())
+                        return@addSnapshotListener
+                    }
+                    val expenses = snapshot?.documents?.mapNotNull { doc ->
+                        doc.toObject(Expense::class.java)?.copy(id = doc.id)
+                    }?.filter { !it.isDeleted } ?: emptyList()
+                    trySend(expenses)
+                }
+            awaitClose { listener.remove() }
         }
 
-        val listener = getGroupExpensesRef(groupId)
-            .addSnapshotListener { snapshot, e ->
-                if (e != null) {
-                    trySend(emptyList())
-                    return@addSnapshotListener
-                }
-                val expenses = snapshot?.documents?.mapNotNull { doc ->
-                    doc.toObject(Expense::class.java)?.copy(id = doc.id)
-                }?.filter { !it.isDeleted } ?: emptyList()
-                trySend(expenses.sortedByDescending { it.date })
-            }
-        awaitClose { listener.remove() }
+        return kotlinx.coroutines.flow.combine(firestoreFlow, com.opensplit.data.local.InMemoryDataStore.expenses) { remote, local ->
+            val groupLocal = local.filter { it.groupId == groupId && !it.isDeleted }
+            (remote + groupLocal).distinctBy { it.id }.sortedByDescending { it.date }
+        }
     }
 
-    override fun getExpensesForUser(userId: String): Flow<List<Expense>> = callbackFlow {
-        val listener = topLevelExpensesCollection
-            .whereEqualTo("paidBy", userId)
-            .addSnapshotListener { snapshot, e ->
-                if (e != null) {
-                    trySend(emptyList())
-                    return@addSnapshotListener
+    override fun getExpensesForUser(userId: String): Flow<List<Expense>> {
+        val firestoreFlow = callbackFlow<List<Expense>> {
+            val listener = topLevelExpensesCollection
+                .whereEqualTo("paidBy", userId)
+                .addSnapshotListener { snapshot, e ->
+                    if (e != null) {
+                        trySend(emptyList())
+                        return@addSnapshotListener
+                    }
+                    val expenses = snapshot?.documents?.mapNotNull { doc ->
+                        doc.toObject(Expense::class.java)?.copy(id = doc.id)
+                    }?.filter { !it.isDeleted } ?: emptyList()
+                    trySend(expenses)
                 }
-                val expenses = snapshot?.documents?.mapNotNull { doc ->
-                    doc.toObject(Expense::class.java)?.copy(id = doc.id)
-                }?.filter { !it.isDeleted } ?: emptyList()
-                trySend(expenses.sortedByDescending { it.date })
-            }
-        awaitClose { listener.remove() }
+            awaitClose { listener.remove() }
+        }
+
+        return kotlinx.coroutines.flow.combine(firestoreFlow, com.opensplit.data.local.InMemoryDataStore.expenses) { remote, local ->
+            val userLocal = local.filter { (it.paidBy == userId || it.splits.any { s -> s.uid == userId }) && !it.isDeleted }
+            (remote + userLocal).distinctBy { it.id }.sortedByDescending { it.date }
+        }
     }
 
     override fun getCommentsForExpense(groupId: String, expenseId: String): Flow<List<com.opensplit.domain.model.Comment>> = callbackFlow {

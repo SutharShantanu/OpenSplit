@@ -51,8 +51,8 @@ private val LightColorScheme =
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 fun OpenSplitTheme(
   darkTheme: Boolean = isSystemInDarkTheme(),
-  // Enable dynamic color for Material You system color syncing (disabled by default for brand consistency)
-  dynamicColor: Boolean = false,
+  // Enable dynamic color for Material You system wallpaper color syncing
+  dynamicColor: Boolean = true,
   content: @Composable () -> Unit,
 ) {
   val colorScheme =

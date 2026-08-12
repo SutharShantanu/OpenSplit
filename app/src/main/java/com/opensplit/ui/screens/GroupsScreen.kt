@@ -111,22 +111,27 @@ fun GroupsScreen(
 
                         Spacer(modifier = Modifier.height(OpenSplitTokens.SpaceMD))
 
-                        // Separate sort and filter entry points, each its own icon button.
-                        Row(horizontalArrangement = Arrangement.spacedBy(OpenSplitTokens.SpaceXS)) {
-                            IconButton(onClick = { showSortSheet = true }) {
-                                Icon(
-                                    OpenSplitIcons.Sort,
-                                    contentDescription = "Sort: ${selectedSort.label}",
-                                    tint = if (selectedSort != GroupSortOption.RECENT) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            }
-                            IconButton(onClick = { showFilterSheet = true }) {
-                                Icon(
-                                    OpenSplitIcons.Filter,
-                                    contentDescription = if (selectedCurrencyFilter != null) "Filter: $selectedCurrencyFilter" else "Filter",
-                                    tint = if (selectedCurrencyFilter != null) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            }
+                        // Labeled FilterChips for Sort and Currency Filter
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            FilterChip(
+                                selected = selectedSort != GroupSortOption.RECENT,
+                                onClick = { showSortSheet = true },
+                                label = { Text("Sort: ${selectedSort.label}", fontWeight = FontWeight.Medium, maxLines = 1) },
+                                leadingIcon = { Icon(OpenSplitIcons.Sort, contentDescription = null, modifier = Modifier.size(16.dp)) },
+                                trailingIcon = { Icon(OpenSplitIcons.Dropdown, contentDescription = null, modifier = Modifier.size(16.dp)) }
+                            )
+
+                            FilterChip(
+                                selected = selectedCurrencyFilter != null,
+                                onClick = { showFilterSheet = true },
+                                label = { Text(if (selectedCurrencyFilter != null) "Currency: $selectedCurrencyFilter" else "Currency", fontWeight = FontWeight.Medium, maxLines = 1) },
+                                leadingIcon = { Icon(OpenSplitIcons.Filter, contentDescription = null, modifier = Modifier.size(16.dp)) },
+                                trailingIcon = { Icon(OpenSplitIcons.Dropdown, contentDescription = null, modifier = Modifier.size(16.dp)) }
+                            )
                         }
 
                         Spacer(modifier = Modifier.height(OpenSplitTokens.SpaceSM))

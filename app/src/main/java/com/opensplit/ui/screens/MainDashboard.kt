@@ -12,6 +12,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Analytics
 import androidx.compose.material.icons.rounded.Group
@@ -124,7 +125,12 @@ fun MainDashboard(
                     else -> showFabSettleUpPicker = true
                 }
             },
-            QuickAction("New Group", OpenSplitIcons.Groups) { showFabCreateGroup = true }
+            QuickAction("New Group", OpenSplitIcons.Groups) { showFabCreateGroup = true },
+            QuickAction("Load Demo Data", OpenSplitIcons.Refresh) {
+                mainViewModel.seedMockData { success ->
+                    snackbar.showMessage(if (success) "Sample data loaded! Check Home & Analytics!" else "Failed to load sample data.")
+                }
+            }
         )
         2 -> listOf(
             QuickAction("Invite a friend", OpenSplitIcons.Invite) { showFabInviteFriend = true }
@@ -174,35 +180,11 @@ fun MainDashboard(
                         }
                     }
 
-                    Spacer(modifier = Modifier.width(4.dp))
-
-                    // Avatar button with dropdown menu
-                    Box(modifier = Modifier.padding(end = 12.dp)) {
-                        Box(
-                            modifier = Modifier
-                                .size(36.dp)
-                                .clip(CircleShape)
-                                .clickable { menuExpanded = true }
-                        ) {
-                            com.opensplit.ui.components.UserAvatar(
-                                photoUrl = currentUserState?.photoUrl,
-                                displayName = currentUserState?.displayName,
-                                size = 36.dp
-                            )
-                        }
-
-                        com.opensplit.ui.components.AccountDropdownMenu(
-                            expanded = menuExpanded,
-                            onDismissRequest = { menuExpanded = false },
-                            onNavigateToAccount = { rootNavController.navigate("account") },
-                            onSignOut = {
-                                coroutineScope.launch {
-                                    appContainer.authRepository.signOut()
-                                    rootNavController.navigate("login") {
-                                        popUpTo(0)
-                                    }
-                                }
-                            }
+                    // Direct Account & Settings Button
+                    IconButton(onClick = { rootNavController.navigate("account") }) {
+                        Icon(
+                            imageVector = OpenSplitIcons.Account,
+                            contentDescription = "Account & Settings"
                         )
                     }
                 }
@@ -210,34 +192,75 @@ fun MainDashboard(
         },
         floatingActionButton = {
             if (quickActions.isNotEmpty()) {
-                // M3 Expressive FloatingActionButtonMenu: the spec'd component for a FAB that
-                // expands into a list of actions, replacing the previous hand-rolled version.
-                FloatingActionButtonMenu(
-                    expanded = fabExpanded,
-                    button = {
-                        ToggleFloatingActionButton(
-                            checked = fabExpanded,
-                            onCheckedChange = {
-                                // A single action needs no menu — just run it.
-                                if (quickActions.size == 1) quickActions.first().onClick()
-                                else fabExpanded = it
-                            }
+                Column(
+                    horizontalAlignment = Alignment.End,
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    AnimatedVisibility(
+                        visible = fabExpanded,
+                        enter = fadeIn() + expandVertically(),
+                        exit = fadeOut() + shrinkVertically()
+                    ) {
+                        Column(
+                            horizontalAlignment = Alignment.End,
+                            verticalArrangement = Arrangement.spacedBy(10.dp),
+                            modifier = Modifier.padding(bottom = 4.dp)
                         ) {
-                            Icon(
-                                imageVector = if (fabExpanded) OpenSplitIcons.Close else OpenSplitIcons.AddExpense,
-                                contentDescription = if (fabExpanded) "Close quick actions" else "Quick actions"
-                            )
+                            quickActions.forEach { action ->
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                    modifier = Modifier.clickable {
+                                        fabExpanded = false
+                                        action.onClick()
+                                    }
+                                ) {
+                                    Surface(
+                                        shape = RoundedCornerShape(8.dp),
+                                        color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                                        tonalElevation = 3.dp,
+                                        shadowElevation = 2.dp
+                                    ) {
+                                        Text(
+                                            text = action.label,
+                                            style = MaterialTheme.typography.labelMedium,
+                                            fontWeight = FontWeight.SemiBold,
+                                            color = MaterialTheme.colorScheme.onSurface,
+                                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
+                                        )
+                                    }
+
+                                    SmallFloatingActionButton(
+                                        onClick = {
+                                            fabExpanded = false
+                                            action.onClick()
+                                        },
+                                        containerColor = MaterialTheme.colorScheme.secondaryContainer,
+                                        contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
+                                        shape = CircleShape
+                                    ) {
+                                        Icon(action.icon, contentDescription = action.label, modifier = Modifier.size(18.dp))
+                                    }
+                                }
+                            }
                         }
                     }
-                ) {
-                    quickActions.forEach { action ->
-                        FloatingActionButtonMenuItem(
-                            onClick = {
-                                fabExpanded = false
-                                action.onClick()
-                            },
-                            icon = { Icon(action.icon, contentDescription = null) },
-                            text = { Text(action.label) }
+
+                    FloatingActionButton(
+                        onClick = {
+                            if (quickActions.size == 1) {
+                                quickActions.first().onClick()
+                            } else {
+                                fabExpanded = !fabExpanded
+                            }
+                        },
+                        containerColor = MaterialTheme.colorScheme.primaryContainer,
+                        contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                        shape = CircleShape
+                    ) {
+                        Icon(
+                            imageVector = if (fabExpanded) OpenSplitIcons.Close else OpenSplitIcons.AddExpense,
+                            contentDescription = if (fabExpanded) "Close quick actions" else "Quick actions"
                         )
                     }
                 }

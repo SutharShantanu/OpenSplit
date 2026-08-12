@@ -16,10 +16,18 @@ private val Context.dataStore: DataStore<Preferences> by preferencesDataStore(na
 
 class UserPreferencesRepositoryImpl(private val context: Context) : UserPreferencesRepository {
 
+    companion object {
+        const val DEFAULT_OPENAI_KEY = "" // User must provide their own key in Account settings
+        const val DEFAULT_GEMINI_KEY = "" // User must provide their own key in Account settings
+    }
+
     private val THEME_KEY = stringPreferencesKey("theme")
     private val PERMISSION_PRIMER_KEY = booleanPreferencesKey("has_completed_permission_primer")
     private val NOTIFICATIONS_KEY = booleanPreferencesKey("notifications_enabled")
     private val PINNED_GROUPS_KEY = stringSetPreferencesKey("pinned_group_ids")
+    private val OPENAI_API_KEY = stringPreferencesKey("openai_api_key")
+    private val GEMINI_API_KEY = stringPreferencesKey("gemini_api_key")
+    private val AI_PROVIDER_KEY = stringPreferencesKey("ai_provider")
 
     override val themeFlow: Flow<String> = context.dataStore.data
         .map { preferences ->
@@ -65,5 +73,37 @@ class UserPreferencesRepositoryImpl(private val context: Context) : UserPreferen
             preferences[PINNED_GROUPS_KEY] = if (groupId in current) current - groupId else current + groupId
         }
     }
-}
 
+    override val openAiApiKeyFlow: Flow<String> = context.dataStore.data
+        .map { preferences ->
+            preferences[OPENAI_API_KEY] ?: DEFAULT_OPENAI_KEY
+        }
+
+    override suspend fun setOpenAiApiKey(key: String) {
+        context.dataStore.edit { preferences ->
+            preferences[OPENAI_API_KEY] = key
+        }
+    }
+
+    override val geminiApiKeyFlow: Flow<String> = context.dataStore.data
+        .map { preferences ->
+            preferences[GEMINI_API_KEY] ?: DEFAULT_GEMINI_KEY
+        }
+
+    override suspend fun setGeminiApiKey(key: String) {
+        context.dataStore.edit { preferences ->
+            preferences[GEMINI_API_KEY] = key
+        }
+    }
+
+    override val aiProviderFlow: Flow<String> = context.dataStore.data
+        .map { preferences ->
+            preferences[AI_PROVIDER_KEY] ?: "openai"
+        }
+
+    override suspend fun setAiProvider(provider: String) {
+        context.dataStore.edit { preferences ->
+            preferences[AI_PROVIDER_KEY] = provider
+        }
+    }
+}

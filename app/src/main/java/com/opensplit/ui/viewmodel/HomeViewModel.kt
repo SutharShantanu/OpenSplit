@@ -22,6 +22,8 @@ data class HomeUiState(
     val user: User,
     /** Net balance per currency (currencyCode -> amount); never summed across currencies. */
     val netByCurrency: Map<String, Double>,
+    val youAreOwedByCurrency: Map<String, Double> = emptyMap(),
+    val youOweByCurrency: Map<String, Double> = emptyMap(),
     val recentGroups: List<GroupWithBalance>,
     val recentActivities: List<Activity>,
     val smartNudge: DebtSimplifier.SettlementSuggestion? = null,
@@ -74,6 +76,15 @@ class HomeViewModel(private val appContainer: AppContainer) : ViewModel() {
                 val netByCurrency = groupWithBalances
                     .groupBy { it.group.currency.ifEmpty { "INR" } }
                     .mapValues { entry -> entry.value.sumOf { it.balance } }
+
+                val youAreOwedByCurrency = groupWithBalances
+                    .groupBy { it.group.currency.ifEmpty { "INR" } }
+                    .mapValues { entry -> entry.value.filter { g -> g.balance > 0.01 }.sumOf { g -> g.balance } }
+
+                val youOweByCurrency = groupWithBalances
+                    .groupBy { it.group.currency.ifEmpty { "INR" } }
+                    .mapValues { entry -> entry.value.filter { g -> g.balance < -0.01 }.sumOf { g -> kotlin.math.abs(g.balance) } }
+
                 val defaultCurrency = currentUser.defaultCurrency.ifEmpty { "INR" }
 
                 // Recent groups sorted by recent activity or group creation
@@ -104,6 +115,8 @@ class HomeViewModel(private val appContainer: AppContainer) : ViewModel() {
                     HomeUiState(
                         user = currentUser,
                         netByCurrency = netByCurrency,
+                        youAreOwedByCurrency = youAreOwedByCurrency,
+                        youOweByCurrency = youOweByCurrency,
                         recentGroups = sortedGroups,
                         recentActivities = recentActivities,
                         smartNudge = relevantSuggestion,
@@ -183,5 +196,16 @@ class HomeViewModel(private val appContainer: AppContainer) : ViewModel() {
             }
         }
         return net
+    }
+
+    fun seedMockData(onDone: (Boolean) -> Unit = {}) {
+        viewModelScope.launch {
+            val uid = appContainer.authRepository.getCurrentUserId() ?: run {
+                onDone(false)
+                return@launch
+            }
+            val result = com.opensplit.util.MockDataSeeder.seedMockData(appContainer.firestore, uid)
+            onDone(result.isSuccess)
+        }
     }
 }

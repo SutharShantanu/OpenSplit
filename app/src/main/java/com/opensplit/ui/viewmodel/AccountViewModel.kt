@@ -31,6 +31,9 @@ class AccountViewModel(
 
     val themeFlow = userPreferencesRepository.themeFlow
     val notificationsEnabledFlow = userPreferencesRepository.notificationsEnabledFlow
+    val openAiApiKeyFlow = userPreferencesRepository.openAiApiKeyFlow
+    val geminiApiKeyFlow = userPreferencesRepository.geminiApiKeyFlow
+    val aiProviderFlow = userPreferencesRepository.aiProviderFlow
 
     fun setTheme(theme: String) {
         viewModelScope.launch {
@@ -41,6 +44,24 @@ class AccountViewModel(
     fun setNotificationsEnabled(enabled: Boolean) {
         viewModelScope.launch {
             userPreferencesRepository.setNotificationsEnabled(enabled)
+        }
+    }
+
+    fun setOpenAiApiKey(key: String) {
+        viewModelScope.launch {
+            userPreferencesRepository.setOpenAiApiKey(key)
+        }
+    }
+
+    fun setGeminiApiKey(key: String) {
+        viewModelScope.launch {
+            userPreferencesRepository.setGeminiApiKey(key)
+        }
+    }
+
+    fun setAiProvider(provider: String) {
+        viewModelScope.launch {
+            userPreferencesRepository.setAiProvider(provider)
         }
     }
 
@@ -138,6 +159,18 @@ class AccountViewModel(
     fun sendPasswordResetEmail(email: String, onResult: (Result<Unit>) -> Unit) {
         viewModelScope.launch {
             onResult(authRepository.sendPasswordResetEmail(email))
+        }
+    }
+
+    fun seedMockData(firestore: com.google.firebase.firestore.FirebaseFirestore, onResult: (Boolean) -> Unit) {
+        viewModelScope.launch {
+            val uid = authRepository.getCurrentUserId() ?: run {
+                onResult(false)
+                return@launch
+            }
+            val res = com.opensplit.util.MockDataSeeder.seedMockData(firestore, uid)
+            retryTrigger.value++
+            onResult(res.isSuccess)
         }
     }
 }

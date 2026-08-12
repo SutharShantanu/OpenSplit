@@ -90,13 +90,41 @@ fun HomeScreen(
                         textAlign = androidx.compose.ui.text.style.TextAlign.Center
                     )
                     Spacer(modifier = Modifier.height(24.dp))
-                    Button(
-                        onClick = { showCreateGroupDialog = true },
-                        contentPadding = PaddingValues(horizontal = 24.dp, vertical = 12.dp)
+                    var isSeeding by remember { mutableStateOf(false) }
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Icon(Icons.Rounded.GroupAdd, contentDescription = null)
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text("Create your first group")
+                        Button(
+                            onClick = { showCreateGroupDialog = true },
+                            contentPadding = PaddingValues(horizontal = 20.dp, vertical = 12.dp)
+                        ) {
+                            Icon(Icons.Rounded.GroupAdd, contentDescription = null)
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text("Create group")
+                        }
+
+                        OutlinedButton(
+                            onClick = {
+                                isSeeding = true
+                                viewModel.seedMockData { success ->
+                                    isSeeding = false
+                                    snackbar.showMessage(if (success) "Sample data loaded successfully!" else "Failed to load sample data.")
+                                }
+                            },
+                            enabled = !isSeeding,
+                            contentPadding = PaddingValues(horizontal = 20.dp, vertical = 12.dp)
+                        ) {
+                            if (isSeeding) {
+                                CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text("Loading...")
+                            } else {
+                                Icon(OpenSplitIcons.Refresh, contentDescription = null, modifier = Modifier.size(18.dp))
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text("Load Sample Data")
+                            }
+                        }
                     }
                 }
             }
@@ -136,6 +164,8 @@ fun HomeScreen(
                 HeroBalanceCard(
                     amount = homeState.netByCurrency[primaryCurrency] ?: 0.0,
                     currency = primaryCurrency,
+                    youAreOwed = homeState.youAreOwedByCurrency[primaryCurrency] ?: 0.0,
+                    youOwe = homeState.youOweByCurrency[primaryCurrency] ?: 0.0,
                     title = "TOTAL NET BALANCE"
                 )
                 if (nonZeroNet.size > 1) {

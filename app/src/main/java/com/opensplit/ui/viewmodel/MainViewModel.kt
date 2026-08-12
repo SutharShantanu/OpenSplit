@@ -233,4 +233,17 @@ class MainViewModel(
             groupRepository.createGroup(newGroup)
         }
     }
+
+    fun seedMockData(onDone: (Boolean) -> Unit = {}) {
+        viewModelScope.launch {
+            val uid = authRepository.getCurrentUserId() ?: run {
+                onDone(false)
+                return@launch
+            }
+            val firestore = com.google.firebase.firestore.FirebaseFirestore.getInstance()
+            val result = com.opensplit.util.MockDataSeeder.seedMockData(firestore, uid)
+            retry()
+            onDone(result.isSuccess)
+        }
+    }
 }

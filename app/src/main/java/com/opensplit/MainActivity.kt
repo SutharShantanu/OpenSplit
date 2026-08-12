@@ -5,6 +5,8 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.lifecycle.lifecycleScope
+import kotlinx.coroutines.launch
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
@@ -38,6 +40,16 @@ class MainActivity : ComponentActivity() {
 
         val appContainer = (application as OpenSplitApp).container
 
+        kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
+            val uid = appContainer.authRepository.getCurrentUserId()
+            if (uid != null) {
+                com.opensplit.util.MockDataSeeder.seedMockData(
+                    appContainer.firestore,
+                    uid
+                )
+            }
+        }
+
         setContent {
             val themeMode by appContainer.userPreferencesRepository.themeFlow.collectAsState(initial = "system")
             val isDark = when (themeMode) {
@@ -46,7 +58,7 @@ class MainActivity : ComponentActivity() {
                 else -> isSystemInDarkTheme()
             }
 
-            OpenSplitTheme(darkTheme = isDark) {
+            OpenSplitTheme(darkTheme = isDark, dynamicColor = true) {
                 // One snackbar host for the whole app, overlaid above every screen so any
                 // composable can confirm an action via LocalSnackbarController.
                 val snackbarHostState = remember { SnackbarHostState() }

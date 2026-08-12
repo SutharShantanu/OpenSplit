@@ -1,8 +1,9 @@
 package com.opensplit.ui.theme
 
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.*
+import androidx.compose.material.icons.automirrored.rounded.*
 import androidx.compose.material.icons.outlined.PushPin
+import androidx.compose.material.icons.rounded.*
 
 object OpenSplitIcons {
     // Navigation
@@ -14,10 +15,10 @@ object OpenSplitIcons {
     val Account     = Icons.Rounded.AccountCircle
 
     // Expense actions
-    val AddExpense  = Icons.Rounded.Add
-    val EditExpense = Icons.Rounded.Edit
+    val AddExpense    = Icons.Rounded.Add
+    val EditExpense   = Icons.Rounded.Edit
     val DeleteExpense = Icons.Rounded.Delete
-    val ReceiptScan = Icons.Rounded.DocumentScanner
+    val ReceiptScan   = Icons.Rounded.DocumentScanner
 
     // Categories (use these same icons on list rows, chips, chart legends, everywhere)
     val CategoryFood          = Icons.Rounded.Restaurant
@@ -43,7 +44,7 @@ object OpenSplitIcons {
     val SplitExact      = Icons.Rounded.Numbers
     val SplitPercent    = Icons.Rounded.Percent
     val SplitShares     = Icons.Rounded.PieChart
-    val SplitItemized   = Icons.Rounded.ListAlt
+    val SplitItemized   = Icons.AutoMirrored.Rounded.ListAlt
 
     // Settlement / balance
     val Settle         = Icons.Rounded.Handshake
@@ -53,7 +54,7 @@ object OpenSplitIcons {
     // General UI
     val Search         = Icons.Rounded.Search
     val Filter         = Icons.Rounded.FilterList
-    val Sort           = Icons.Rounded.Sort
+    val Sort           = Icons.AutoMirrored.Rounded.Sort
     val More           = Icons.Rounded.MoreVert
     val Share          = Icons.Rounded.Share
     val Export         = Icons.Rounded.FileDownload
@@ -61,26 +62,26 @@ object OpenSplitIcons {
     val Contacts       = Icons.Rounded.Contacts
     val Close          = Icons.Rounded.Close
     val Check          = Icons.Rounded.Check
-    val Back           = Icons.Rounded.ArrowBack
+    val Back           = Icons.AutoMirrored.Rounded.ArrowBack
     val ChevronRight   = Icons.Rounded.ChevronRight
     val Invite         = Icons.Rounded.PersonAdd
-    val Leave          = Icons.Rounded.ExitToApp
+    val Leave          = Icons.AutoMirrored.Rounded.ExitToApp
     val Dropdown       = Icons.Rounded.ArrowDropDown
     val Security       = Icons.Rounded.Lock
     val Info           = Icons.Rounded.Info
     val Theme          = Icons.Rounded.Palette
-    val Help           = Icons.Rounded.HelpOutline
-    val Logout         = Icons.Rounded.Logout
+    val Help           = Icons.AutoMirrored.Rounded.HelpOutline
+    val Logout         = Icons.AutoMirrored.Rounded.Logout
     val Person         = Icons.Rounded.Person
     val Edit           = Icons.Rounded.Edit
     val Download       = Icons.Rounded.FileDownload
     val AddMember      = Icons.Rounded.PersonAdd
-    val Whatsapp       = Icons.Rounded.Chat
-    val Sms            = Icons.Rounded.Sms
+    val Whatsapp       = Icons.AutoMirrored.Rounded.Chat
+    val Sms            = Icons.AutoMirrored.Rounded.Comment
     val PinFilled      = Icons.Rounded.PushPin
     val PinOutline     = Icons.Outlined.PushPin
     val SortFilter     = Icons.Rounded.Tune
-    val Notes          = Icons.Rounded.Notes
+    val Notes          = Icons.AutoMirrored.Rounded.Notes
     val AttachFile     = Icons.Rounded.AttachFile
     val Pdf            = Icons.Rounded.PictureAsPdf
     val Pending        = Icons.Rounded.HourglassEmpty
@@ -89,5 +90,9 @@ object OpenSplitIcons {
     val Success        = Icons.Rounded.CheckCircle
     val ErrorIcon      = Icons.Rounded.ErrorOutline
     val DateRange      = Icons.Rounded.DateRange
+    val Refresh        = Icons.Rounded.Refresh
+    val ReceiptLong    = Icons.AutoMirrored.Rounded.ReceiptLong
 }
+
+
 

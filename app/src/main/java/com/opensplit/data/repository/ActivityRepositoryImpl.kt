@@ -12,19 +12,24 @@ class ActivityRepositoryImpl(
     private val firestore: FirebaseFirestore
 ) : ActivityRepository {
 
-    override fun getActivityForGroup(groupId: String): Flow<List<Activity>> = callbackFlow {
-        val listener = firestore.collection("groups").document(groupId)
-            .collection("activity")
-            .orderBy("timestamp", com.google.firebase.firestore.Query.Direction.DESCENDING)
-            .addSnapshotListener { snapshot, error ->
-                if (error != null) {
-                    trySend(emptyList())
-                    return@addSnapshotListener
+    override fun getActivityForGroup(groupId: String): Flow<List<Activity>> {
+        val firestoreFlow = callbackFlow<List<Activity>> {
+            val listener = firestore.collection("groups").document(groupId)
+                .collection("activity")
+                .addSnapshotListener { snapshot, error ->
+                    if (error != null) {
+                        trySend(emptyList())
+                        return@addSnapshotListener
+                    }
+                    val activities = snapshot?.documents?.mapNotNull { it.toObject(Activity::class.java)?.copy(id = it.id) } ?: emptyList()
+                    trySend(activities)
                 }
-                val activities = snapshot?.documents?.mapNotNull { it.toObject(Activity::class.java)?.copy(id = it.id) } ?: emptyList()
-                trySend(activities)
-            }
-        awaitClose { listener.remove() }
+            awaitClose { listener.remove() }
+        }
+
+        return kotlinx.coroutines.flow.combine(firestoreFlow, com.opensplit.data.local.InMemoryDataStore.activities) { remote, local ->
+            (remote + local).distinctBy { it.id }.sortedByDescending { it.timestamp.seconds }
+        }
     }
 
     @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)

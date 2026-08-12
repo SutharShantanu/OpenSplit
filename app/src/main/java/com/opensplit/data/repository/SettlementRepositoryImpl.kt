@@ -13,23 +13,30 @@ class SettlementRepositoryImpl(
     private val activityRepository: com.opensplit.domain.repository.ActivityRepository
 ) : SettlementRepository {
 
-    override fun getSettlementsForGroup(groupId: String): Flow<List<Settlement>> = callbackFlow {
-        if (groupId.isBlank()) {
-            trySend(emptyList())
-            awaitClose {}
-            return@callbackFlow
-        }
-        val listener = firestore.collection("groups").document(groupId)
-            .collection("settlements")
-            .addSnapshotListener { snapshot, error ->
-                if (error != null) {
-                    trySend(emptyList())
-                    return@addSnapshotListener
-                }
-                val settlements = snapshot?.documents?.mapNotNull { it.toObject(Settlement::class.java)?.copy(id = it.id) } ?: emptyList()
-                trySend(settlements.sortedByDescending { it.date })
+    override fun getSettlementsForGroup(groupId: String): Flow<List<Settlement>> {
+        val firestoreFlow = callbackFlow<List<Settlement>> {
+            if (groupId.isBlank()) {
+                trySend(emptyList())
+                awaitClose {}
+                return@callbackFlow
             }
-        awaitClose { listener.remove() }
+            val listener = firestore.collection("groups").document(groupId)
+                .collection("settlements")
+                .addSnapshotListener { snapshot, error ->
+                    if (error != null) {
+                        trySend(emptyList())
+                        return@addSnapshotListener
+                    }
+                    val settlements = snapshot?.documents?.mapNotNull { it.toObject(Settlement::class.java)?.copy(id = it.id) } ?: emptyList()
+                    trySend(settlements)
+                }
+            awaitClose { listener.remove() }
+        }
+
+        return kotlinx.coroutines.flow.combine(firestoreFlow, com.opensplit.data.local.InMemoryDataStore.settlements) { remote, local ->
+            val groupLocal = local.filter { it.fromUid.isNotBlank() }
+            (remote + groupLocal).distinctBy { it.id }.sortedByDescending { it.date }
+        }
     }
 
     override suspend fun addSettlement(groupId: String, settlement: Settlement): Result<String> {

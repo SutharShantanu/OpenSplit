@@ -14,6 +14,9 @@ class UserRepositoryImpl(
     private val usersCollection = firestore.collection("users")
 
     override suspend fun getUser(uid: String): User? {
+        val localMatch = com.opensplit.data.local.InMemoryDataStore.friends.value.find { it.uid == uid }
+        if (localMatch != null) return localMatch
+
         return try {
             val snapshot = usersCollection.document(uid).get().await()
             snapshot.toObject(User::class.java)
@@ -25,7 +28,12 @@ class UserRepositoryImpl(
     override fun getUserFlow(uid: String): Flow<User?> = callbackFlow {
         val listener = usersCollection.document(uid).addSnapshotListener { snapshot, e ->
             if (e != null) {
-                close(e)
+                val current = com.google.firebase.auth.FirebaseAuth.getInstance().currentUser
+                if (current != null && current.uid == uid) {
+                    trySend(User(uid = uid, displayName = current.displayName ?: "User", email = current.email ?: ""))
+                } else {
+                    trySend(null)
+                }
                 return@addSnapshotListener
             }
             trySend(snapshot?.toObject(User::class.java))

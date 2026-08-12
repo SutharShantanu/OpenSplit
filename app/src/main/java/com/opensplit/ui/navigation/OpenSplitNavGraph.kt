@@ -165,16 +165,9 @@ fun MainNavHost(navController: NavHostController, appContainer: AppContainer, au
             )
         }
 
-        dialog(
-            "edit_expense/{groupId}/{expenseId}",
-            dialogProperties = DialogProperties(
-                usePlatformDefaultWidth = false,
-                dismissOnBackPress = false,
-                dismissOnClickOutside = false
-            )
-        ) { backStackEntry ->
-            val groupId = backStackEntry.arguments?.getString("groupId") ?: return@dialog
-            val expenseId = backStackEntry.arguments?.getString("expenseId") ?: return@dialog
+        composable("edit_expense/{groupId}/{expenseId}") { backStackEntry ->
+            val groupId = backStackEntry.arguments?.getString("groupId") ?: return@composable
+            val expenseId = backStackEntry.arguments?.getString("expenseId") ?: return@composable
             val groupDetailViewModel: com.opensplit.ui.viewmodel.GroupDetailViewModel = androidx.lifecycle.viewmodel.compose.viewModel(
                 factory = com.opensplit.ui.viewmodel.GroupDetailViewModelFactory(groupId, appContainer)
             )
@@ -200,15 +193,8 @@ fun MainNavHost(navController: NavHostController, appContainer: AppContainer, au
             )
         }
 
-        dialog(
-            "add_expense/{groupId}",
-            dialogProperties = DialogProperties(
-                usePlatformDefaultWidth = false,
-                dismissOnBackPress = false,
-                dismissOnClickOutside = false
-            )
-        ) { backStackEntry ->
-            val groupId = backStackEntry.arguments?.getString("groupId") ?: return@dialog
+        composable("add_expense/{groupId}") { backStackEntry ->
+            val groupId = backStackEntry.arguments?.getString("groupId") ?: return@composable
             val groupDetailViewModel: com.opensplit.ui.viewmodel.GroupDetailViewModel = androidx.lifecycle.viewmodel.compose.viewModel(
                 factory = com.opensplit.ui.viewmodel.GroupDetailViewModelFactory(groupId, appContainer)
             )
