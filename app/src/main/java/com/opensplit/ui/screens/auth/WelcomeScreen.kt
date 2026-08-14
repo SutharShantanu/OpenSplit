@@ -61,17 +61,17 @@ fun WelcomeScreen(viewModel: AuthViewModel) {
             .padding(horizontal = 28.dp, vertical = 40.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        // ---- Top: branding ----
-        Spacer(modifier = Modifier.height(24.dp))
+        // ---- Top: branding & AI pill ----
+        Spacer(modifier = Modifier.height(16.dp))
         Image(
             painter = painterResource(id = R.drawable.ic_launcher_foreground),
             contentDescription = "OpenSplit",
             modifier = Modifier
-                .size(88.dp)
+                .size(80.dp)
                 .clip(CircleShape)
         )
 
-        Spacer(modifier = Modifier.height(24.dp))
+        Spacer(modifier = Modifier.height(16.dp))
         Text(
             text = "Welcome to OpenSplit",
             style = MaterialTheme.typography.headlineMedium,
@@ -79,34 +79,50 @@ fun WelcomeScreen(viewModel: AuthViewModel) {
             color = MaterialTheme.colorScheme.onSurface,
             textAlign = TextAlign.Center
         )
-        Spacer(modifier = Modifier.height(10.dp))
+        Spacer(modifier = Modifier.height(6.dp))
+        
+        Surface(
+            shape = CircleShape,
+            color = MaterialTheme.colorScheme.tertiaryContainer,
+            modifier = Modifier.padding(vertical = 4.dp)
+        ) {
+            Text(
+                text = "✨ Powered by Gemini AI & Local-First Engine",
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onTertiaryContainer,
+                fontWeight = FontWeight.SemiBold,
+                modifier = Modifier.padding(horizontal = 14.dp, vertical = 6.dp)
+            )
+        }
+
+        Spacer(modifier = Modifier.height(8.dp))
         Text(
-            text = "Split expenses fairly with anyone — free, open-source, no paywalls.",
-            style = MaterialTheme.typography.bodyLarge,
+            text = "Split expenses fairly with anyone — zero fees, local-first speed, smart AI insights.",
+            style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             textAlign = TextAlign.Center,
-            modifier = Modifier.fillMaxWidth(0.9f)
+            modifier = Modifier.fillMaxWidth(0.95f)
         )
 
-        Spacer(modifier = Modifier.height(40.dp))
+        Spacer(modifier = Modifier.height(28.dp))
 
         // ---- Middle: feature highlights ----
         FeatureRow(
             icon = OpenSplitIcons.Groups,
-            title = "Split fairly with anyone",
+            title = "Fair & Flexible Splitting",
             subtitle = "Equal, exact, percentage, shares or itemized."
         )
-        Spacer(modifier = Modifier.height(20.dp))
+        Spacer(modifier = Modifier.height(16.dp))
         FeatureRow(
             icon = OpenSplitIcons.Settle,
-            title = "Settle up in a tap",
+            title = "Settle Up in a Tap",
             subtitle = "Smart debt simplification keeps payments minimal."
         )
-        Spacer(modifier = Modifier.height(20.dp))
+        Spacer(modifier = Modifier.height(16.dp))
         FeatureRow(
             icon = OpenSplitIcons.Analytics,
-            title = "Track balances & spending",
-            subtitle = "See who owes whom and where money goes."
+            title = "AI Receipts & Smart Insights",
+            subtitle = "Instant receipt scanning and Gemini spending tips."
         )
 
         // ---- Bottom: Google sign-in ----

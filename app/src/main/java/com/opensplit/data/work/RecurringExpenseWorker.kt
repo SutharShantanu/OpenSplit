@@ -51,6 +51,13 @@ class RecurringExpenseWorker(
                     expenseRepository.updateExpense(
                         template.copy(recurrence = rule.copy(nextOccurrence = advanced))
                     )
+
+                    val formatted = com.opensplit.util.CurrencyFormatter.format(instance.amount, instance.currency)
+                    com.opensplit.service.NotificationHelper.sendRecurringExpenseNotification(
+                        applicationContext,
+                        instance.description,
+                        formatted
+                    )
                 }
             }
             Result.success()

@@ -48,11 +48,15 @@ object CurrencyFormatter {
 
         // Indian lakh/crore grouping only for INR; standard thousands grouping otherwise.
         // Decimal places follow the currency's minor units (e.g. JPY has none).
-        val grouping = if (currencyCode.equals("INR", ignoreCase = true)) "#,##,##0" else "#,##0"
         val digits = fractionDigits(currencyCode)
-        val pattern = if (digits > 0) "$grouping.${"0".repeat(digits)}" else grouping
-        val formatter = DecimalFormat(pattern, DecimalFormatSymbols(Locale.US))
-        val formattedNum = formatter.format(absAmount)
+        val formattedNum = if (currencyCode.equals("INR", ignoreCase = true)) {
+            formatIndianNumber(absAmount, digits)
+        } else {
+            val grouping = "#,##0"
+            val pattern = if (digits > 0) "$grouping.${"0".repeat(digits)}" else grouping
+            val formatter = DecimalFormat(pattern, DecimalFormatSymbols(Locale.US))
+            formatter.format(absAmount)
+        }
 
         val base = if (showSymbol) "$symbol$formattedNum" else formattedNum
         val suffix = if (showSuffixDash) "/-" else ""
@@ -63,6 +67,31 @@ object CurrencyFormatter {
             amount > 0.001 && showSign -> "+$formatted"
             else -> formatted
         }
+    }
+
+    private fun formatIndianNumber(amount: Double, decimals: Int): String {
+        val rawStr = if (decimals > 0) String.format(Locale.US, "%.${decimals}f", amount) else String.format(Locale.US, "%.0f", amount)
+        val parts = rawStr.split(".")
+        val integerPart = parts[0]
+        val decimalPart = if (parts.size > 1) "." + parts[1] else ""
+
+        if (integerPart.length <= 3) {
+            return integerPart + decimalPart
+        }
+
+        val lastThree = integerPart.substring(integerPart.length - 3)
+        val rest = integerPart.substring(0, integerPart.length - 3)
+
+        val sb = StringBuilder()
+        var count = 0
+        for (i in rest.length - 1 downTo 0) {
+            if (count > 0 && count % 2 == 0) {
+                sb.insert(0, ",")
+            }
+            sb.insert(0, rest[i])
+            count++
+        }
+        return sb.toString() + "," + lastThree + decimalPart
     }
 
     fun getCurrencyDisplayName(code: String): String {

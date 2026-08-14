@@ -53,16 +53,6 @@ fun FriendsScreen(
             .fillMaxSize()
             .padding(horizontal = OpenSplitTokens.SpaceLG, vertical = OpenSplitTokens.SpaceMD)
     ) {
-        // Invite a friend
-        Button(
-            onClick = { showInviteDialog = true },
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Icon(OpenSplitIcons.Invite, contentDescription = null, modifier = Modifier.size(18.dp))
-            Spacer(modifier = Modifier.width(OpenSplitTokens.SpaceSM))
-            Text("Invite a friend")
-        }
-
         // Pending invites
         if (friendInvites.isNotEmpty()) {
             Spacer(modifier = Modifier.height(OpenSplitTokens.SpaceMD))
@@ -186,20 +176,23 @@ fun FriendsScreen(
                             ListItem(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .clip(MaterialTheme.shapes.medium)
                                     .clickable { onFriendClick(fb.user.uid) },
                                 headlineContent = {
                                     Text(
                                         text = fb.user.displayName,
                                         style = MaterialTheme.typography.titleMedium,
-                                        fontWeight = FontWeight.SemiBold
+                                        fontWeight = FontWeight.SemiBold,
+                                        maxLines = 1,
+                                        overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
                                     )
                                 },
                                 supportingContent = {
                                     Text(
                                         text = fb.user.email,
                                         style = MaterialTheme.typography.bodySmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        maxLines = 1,
+                                        overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
                                     )
                                 },
                                 leadingContent = {
@@ -224,7 +217,9 @@ fun FriendsScreen(
                                         color = color,
                                         style = MaterialTheme.typography.titleSmall,
                                         fontWeight = FontWeight.Bold,
-                                        textAlign = TextAlign.End
+                                        textAlign = TextAlign.End,
+                                        maxLines = 1,
+                                        overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
                                     )
                                 }
                             )

@@ -3,8 +3,11 @@ package com.opensplit.ui.screens
 import android.content.Intent
 import android.net.Uri
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -62,11 +65,7 @@ fun SettleUpScreen(
     var amountText by rememberSaveable { mutableStateOf(suggestedAmount?.let { CurrencyFormatter.format(it, showSymbol = false) } ?: "") }
     var note by rememberSaveable { mutableStateOf("") }
     
-    // Only show UPI options (UPI App or Number / UPI ID)
     var method by rememberSaveable { mutableStateOf(SettlementMethod.UPI) }
-
-    var showPayerMenu by remember { mutableStateOf(false) }
-    var showRecipientMenu by remember { mutableStateOf(false) }
 
     var isSuccessScreenShown by remember { mutableStateOf(false) }
     var recordedSettlementAmount by remember { mutableStateOf(0.0) }
@@ -101,7 +100,7 @@ fun SettleUpScreen(
         if (rawAmount > 0) {
             CurrencyFormatter.format(rawAmount, showSymbol = false)
         } else {
-            "0.00"
+            "0"
         }
     }
 
@@ -161,14 +160,6 @@ fun SettleUpScreen(
                         IconButton(onClick = onNavigateBack) {
                             Icon(OpenSplitIcons.Close, contentDescription = "Close")
                         }
-                    },
-                    actions = {
-                        TextButton(
-                            onClick = handleRecordSettlement,
-                            enabled = canSubmit
-                        ) {
-                            Text("Save", fontWeight = FontWeight.Bold)
-                        }
                     }
                 )
             }
@@ -181,7 +172,7 @@ fun SettleUpScreen(
                     .padding(OpenSplitTokens.SpaceLG),
                 verticalArrangement = Arrangement.spacedBy(OpenSplitTokens.SpaceLG)
             ) {
-                // 1. Top Card: Payer & Recipient Details + Non-Collapsing Amount + Description
+                // 1. Top Card: Fixed Payer & Recipient Details + Amount + Description
                 Card(
                     modifier = Modifier.fillMaxWidth(),
                     shape = MaterialTheme.shapes.extraLarge,
@@ -196,61 +187,36 @@ fun SettleUpScreen(
                             .padding(OpenSplitTokens.SpaceLG),
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
-                        // Transfer Flow Header
+                        // Transfer Flow Header (Fixed Member Settle - No Recipient Switching)
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.SpaceEvenly,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            // Payer Block
-                            Box {
-                                Column(
-                                    horizontalAlignment = Alignment.CenterHorizontally,
-                                    modifier = Modifier
-                                        .clip(RoundedCornerShape(12.dp))
-                                        .clickable { if (displayMembers.size > 1) showPayerMenu = true }
-                                        .padding(8.dp)
-                                ) {
-                                    UserAvatar(
-                                        name = fromUser?.displayName ?: "Payer",
-                                        photoUrl = fromUser?.photoUrl,
-                                        size = 52
-                                    )
-                                    Spacer(modifier = Modifier.height(6.dp))
-                                    Text(
-                                        text = fromUser?.displayName + if (fromUser?.uid == currentUserId) " (You)" else "",
-                                        style = MaterialTheme.typography.titleMedium,
-                                        fontWeight = FontWeight.Bold,
-                                        color = MaterialTheme.colorScheme.onSurface,
-                                        textAlign = TextAlign.Center
-                                    )
-                                    Text(
-                                        text = "Payer",
-                                        style = MaterialTheme.typography.labelMedium,
-                                        fontWeight = FontWeight.SemiBold,
-                                        color = MaterialTheme.colorScheme.primary
-                                    )
-                                }
-
-                                DropdownMenu(
-                                    expanded = showPayerMenu,
-                                    onDismissRequest = { showPayerMenu = false }
-                                ) {
-                                    displayMembers.forEach { user ->
-                                        DropdownMenuItem(
-                                            text = { Text(user.displayName + if (user.uid == currentUserId) " (You)" else "") },
-                                            onClick = {
-                                                fromUid = user.uid
-                                                showPayerMenu = false
-                                            },
-                                            leadingIcon = {
-                                                if (user.uid == fromUid) {
-                                                    Icon(OpenSplitIcons.Check, contentDescription = null)
-                                                }
-                                            }
-                                        )
-                                    }
-                                }
+                            // Payer Block (Fixed)
+                            Column(
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                modifier = Modifier.padding(8.dp)
+                            ) {
+                                UserAvatar(
+                                    name = fromUser?.displayName ?: "Payer",
+                                    photoUrl = fromUser?.photoUrl,
+                                    size = 52
+                                )
+                                Spacer(modifier = Modifier.height(6.dp))
+                                Text(
+                                    text = fromUser?.displayName + if (fromUser?.uid == currentUserId) " (You)" else "",
+                                    style = MaterialTheme.typography.titleMedium,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.onSurface,
+                                    textAlign = TextAlign.Center
+                                )
+                                Text(
+                                    text = "Payer",
+                                    style = MaterialTheme.typography.labelMedium,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = MaterialTheme.colorScheme.primary
+                                )
                             }
 
                             // Directional Arrow Icon
@@ -268,55 +234,30 @@ fun SettleUpScreen(
                                 )
                             }
 
-                            // Recipient Block
-                            Box {
-                                Column(
-                                    horizontalAlignment = Alignment.CenterHorizontally,
-                                    modifier = Modifier
-                                        .clip(RoundedCornerShape(12.dp))
-                                        .clickable { if (displayMembers.size > 1) showRecipientMenu = true }
-                                        .padding(8.dp)
-                                ) {
-                                    UserAvatar(
-                                        name = toUser?.displayName ?: "Recipient",
-                                        photoUrl = toUser?.photoUrl,
-                                        size = 52
-                                    )
-                                    Spacer(modifier = Modifier.height(6.dp))
-                                    Text(
-                                        text = toUser?.displayName + if (toUser?.uid == currentUserId) " (You)" else "",
-                                        style = MaterialTheme.typography.titleMedium,
-                                        fontWeight = FontWeight.Bold,
-                                        color = MaterialTheme.colorScheme.onSurface,
-                                        textAlign = TextAlign.Center
-                                    )
-                                    Text(
-                                        text = "Recipient",
-                                        style = MaterialTheme.typography.labelMedium,
-                                        fontWeight = FontWeight.SemiBold,
-                                        color = MaterialTheme.colorScheme.secondary
-                                    )
-                                }
-
-                                DropdownMenu(
-                                    expanded = showRecipientMenu,
-                                    onDismissRequest = { showRecipientMenu = false }
-                                ) {
-                                    displayMembers.filter { it.uid != fromUid }.forEach { user ->
-                                        DropdownMenuItem(
-                                            text = { Text(user.displayName + if (user.uid == currentUserId) " (You)" else "") },
-                                            onClick = {
-                                                toUid = user.uid
-                                                showRecipientMenu = false
-                                            },
-                                            leadingIcon = {
-                                                if (user.uid == toUid) {
-                                                    Icon(OpenSplitIcons.Check, contentDescription = null)
-                                                }
-                                            }
-                                        )
-                                    }
-                                }
+                            // Recipient Block (Fixed to target member)
+                            Column(
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                modifier = Modifier.padding(8.dp)
+                            ) {
+                                UserAvatar(
+                                    name = toUser?.displayName ?: "Recipient",
+                                    photoUrl = toUser?.photoUrl,
+                                    size = 52
+                                )
+                                Spacer(modifier = Modifier.height(6.dp))
+                                Text(
+                                    text = toUser?.displayName + if (toUser?.uid == currentUserId) " (You)" else "",
+                                    style = MaterialTheme.typography.titleMedium,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.onSurface,
+                                    textAlign = TextAlign.Center
+                                )
+                                Text(
+                                    text = "Recipient",
+                                    style = MaterialTheme.typography.labelMedium,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = MaterialTheme.colorScheme.secondary
+                                )
                             }
                         }
 
@@ -324,7 +265,7 @@ fun SettleUpScreen(
                         HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
                         Spacer(modifier = Modifier.height(OpenSplitTokens.SpaceMD))
 
-                        // Amount Input Section (Non-Collapsing, Indian Rupee Formatting)
+                        // Amount Input Section (Single '0' placeholder, no rupee symbol or /- in placeholder)
                         Text(
                             text = "SETTLEMENT AMOUNT",
                             style = MaterialTheme.typography.labelSmall,
@@ -338,18 +279,10 @@ fun SettleUpScreen(
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.Center,
-                            modifier = Modifier.fillMaxWidth()
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 8.dp)
                         ) {
-                            Text(
-                                text = currencySymbol,
-                                style = MaterialTheme.typography.titleMedium.copy(
-                                    fontWeight = FontWeight.Bold,
-                                    color = MaterialTheme.colorScheme.primary
-                                ),
-                                modifier = Modifier.padding(bottom = 8.dp, end = 4.dp)
-                            )
-
-                            // Non-collapsing numeric text input with dynamic font size
                             BasicTextField(
                                 value = amountText,
                                 onValueChange = { newValue ->
@@ -365,17 +298,19 @@ fun SettleUpScreen(
                                 ),
                                 singleLine = true,
                                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                                modifier = Modifier
-                                    .width(IntrinsicSize.Min)
-                                    .widthIn(min = 80.dp, max = 220.dp),
+                                modifier = Modifier.fillMaxWidth(),
                                 decorationBox = { innerTextField ->
-                                    Box(contentAlignment = Alignment.Center) {
+                                    Box(
+                                        contentAlignment = Alignment.Center,
+                                        modifier = Modifier.fillMaxWidth()
+                                    ) {
                                         if (amountText.isEmpty()) {
                                             Text(
-                                                text = "0.00",
+                                                text = "0",
                                                 style = MaterialTheme.typography.displayMedium.copy(
                                                     fontSize = dynamicFontSize,
-                                                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f)
+                                                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f),
+                                                    textAlign = TextAlign.Center
                                                 )
                                             )
                                         }
@@ -383,34 +318,6 @@ fun SettleUpScreen(
                                     }
                                 }
                             )
-
-                            Text(
-                                text = "/-",
-                                style = MaterialTheme.typography.displayMedium.copy(
-                                    fontSize = dynamicFontSize,
-                                    fontWeight = FontWeight.Bold,
-                                    color = MaterialTheme.colorScheme.primary
-                                ),
-                                maxLines = 1,
-                                modifier = Modifier.padding(start = 2.dp)
-                            )
-                        }
-
-                        // Formatted preview badge with Indian commas (e.g., ₹10,000.00/-)
-                        if (rawAmount > 0) {
-                            Spacer(modifier = Modifier.height(4.dp))
-                            Surface(
-                                shape = RoundedCornerShape(8.dp),
-                                color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f)
-                            ) {
-                                Text(
-                                    text = "$currencySymbol$formattedDisplayAmount/-",
-                                    style = MaterialTheme.typography.labelMedium,
-                                    fontWeight = FontWeight.Bold,
-                                    color = MaterialTheme.colorScheme.onPrimaryContainer,
-                                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 2.dp)
-                                )
-                            }
                         }
 
                         // Full Balance Shortcut Chip
@@ -420,7 +327,7 @@ fun SettleUpScreen(
                                 onClick = { amountText = CurrencyFormatter.format(suggestedAmount, showSymbol = false) },
                                 label = {
                                     Text(
-                                        text = "Full Balance: $currencySymbol${CurrencyFormatter.format(suggestedAmount, showSymbol = false)}/-",
+                                        text = "Full Balance: ${CurrencyFormatter.format(suggestedAmount, showSymbol = false)}",
                                         fontWeight = FontWeight.SemiBold
                                     )
                                 },
@@ -447,63 +354,35 @@ fun SettleUpScreen(
                     }
                 }
 
-                // 2. Payment Options: UPI App vs Number / UPI ID only
-                Column {
-                    Text(
-                        text = "Payment Method",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold
-                    )
-                    Spacer(modifier = Modifier.height(OpenSplitTokens.SpaceSM))
-
-                    val upiMethods = listOf(
-                        SettlementMethod.UPI to "UPI App",
-                        SettlementMethod.BANK_TRANSFER to "Number / UPI ID"
-                    )
-
-                    SingleChoiceSegmentedButtonRow(
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        upiMethods.forEachIndexed { index, (option, label) ->
-                            val icon = if (option == SettlementMethod.UPI) Icons.Rounded.QrCodeScanner else Icons.Rounded.PhoneAndroid
-                            SegmentedButton(
-                                selected = method == option,
-                                onClick = { method = option },
-                                shape = SegmentedButtonDefaults.itemShape(index = index, count = upiMethods.size),
-                                icon = { Icon(icon, contentDescription = null, modifier = Modifier.size(18.dp)) }
-                            ) {
-                                Text(label, fontWeight = FontWeight.Bold)
-                            }
-                        }
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(OpenSplitTokens.SpaceSM))
-
-                // 3. Record & Pay Settlement Button
-                Button(
-                    onClick = handleRecordSettlement,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(52.dp),
-                    shape = MaterialTheme.shapes.medium,
-                    enabled = canSubmit,
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = MaterialTheme.colorScheme.primary,
-                        contentColor = MaterialTheme.colorScheme.onPrimary
-                    )
+                // Show Pay Button ONLY when user fills the amount to pay
+                AnimatedVisibility(
+                    visible = canSubmit,
+                    enter = fadeIn() + expandVertically(),
+                    exit = fadeOut() + shrinkVertically()
                 ) {
-                    Icon(
-                        imageVector = Icons.Rounded.QrCodeScanner,
-                        contentDescription = null,
-                        modifier = Modifier.size(20.dp)
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(
-                        text = "Pay via UPI & Settle",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold
-                    )
+                    Button(
+                        onClick = handleRecordSettlement,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(52.dp),
+                        shape = MaterialTheme.shapes.medium,
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = MaterialTheme.colorScheme.primary,
+                            contentColor = MaterialTheme.colorScheme.onPrimary
+                        )
+                    ) {
+                        Icon(
+                            imageVector = OpenSplitIcons.Check,
+                            contentDescription = null,
+                            modifier = Modifier.size(20.dp)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = "Pay",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
                 }
             }
         }

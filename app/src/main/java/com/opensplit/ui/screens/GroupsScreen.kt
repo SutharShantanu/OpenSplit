@@ -5,6 +5,7 @@ import com.opensplit.ui.components.LocalSnackbarController
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
@@ -111,27 +112,31 @@ fun GroupsScreen(
 
                         Spacer(modifier = Modifier.height(OpenSplitTokens.SpaceMD))
 
-                        // Labeled FilterChips for Sort and Currency Filter
-                        Row(
+                        // Labeled FilterChips for Sort and Currency Filter (Horizontal LazyRow for narrow screens)
+                        LazyRow(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.spacedBy(8.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            FilterChip(
-                                selected = selectedSort != GroupSortOption.RECENT,
-                                onClick = { showSortSheet = true },
-                                label = { Text("Sort: ${selectedSort.label}", fontWeight = FontWeight.Medium, maxLines = 1) },
-                                leadingIcon = { Icon(OpenSplitIcons.Sort, contentDescription = null, modifier = Modifier.size(16.dp)) },
-                                trailingIcon = { Icon(OpenSplitIcons.Dropdown, contentDescription = null, modifier = Modifier.size(16.dp)) }
-                            )
+                            item {
+                                FilterChip(
+                                    selected = selectedSort != GroupSortOption.RECENT,
+                                    onClick = { showSortSheet = true },
+                                    label = { Text("Sort: ${selectedSort.label}", fontWeight = FontWeight.Medium, maxLines = 1) },
+                                    leadingIcon = { Icon(OpenSplitIcons.Sort, contentDescription = null, modifier = Modifier.size(16.dp)) },
+                                    trailingIcon = { Icon(OpenSplitIcons.Dropdown, contentDescription = null, modifier = Modifier.size(16.dp)) }
+                                )
+                            }
 
-                            FilterChip(
-                                selected = selectedCurrencyFilter != null,
-                                onClick = { showFilterSheet = true },
-                                label = { Text(if (selectedCurrencyFilter != null) "Currency: $selectedCurrencyFilter" else "Currency", fontWeight = FontWeight.Medium, maxLines = 1) },
-                                leadingIcon = { Icon(OpenSplitIcons.Filter, contentDescription = null, modifier = Modifier.size(16.dp)) },
-                                trailingIcon = { Icon(OpenSplitIcons.Dropdown, contentDescription = null, modifier = Modifier.size(16.dp)) }
-                            )
+                            item {
+                                FilterChip(
+                                    selected = selectedCurrencyFilter != null,
+                                    onClick = { showFilterSheet = true },
+                                    label = { Text(if (selectedCurrencyFilter != null) "Currency: $selectedCurrencyFilter" else "Currency", fontWeight = FontWeight.Medium, maxLines = 1) },
+                                    leadingIcon = { Icon(OpenSplitIcons.Filter, contentDescription = null, modifier = Modifier.size(16.dp)) },
+                                    trailingIcon = { Icon(OpenSplitIcons.Dropdown, contentDescription = null, modifier = Modifier.size(16.dp)) }
+                                )
+                            }
                         }
 
                         Spacer(modifier = Modifier.height(OpenSplitTokens.SpaceSM))

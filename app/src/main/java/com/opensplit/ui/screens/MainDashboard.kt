@@ -8,6 +8,8 @@ import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
+import androidx.compose.animation.*
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -25,10 +27,14 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
 import coil.compose.AsyncImage
@@ -45,7 +51,9 @@ import com.opensplit.ui.components.appHazeHeader
 import com.opensplit.ui.components.appHazeSource
 import com.opensplit.ui.theme.OpenSplitIcons
 import com.opensplit.ui.theme.OpenSplitMotion
+import dev.chrisbanes.haze.HazeDefaults
 import dev.chrisbanes.haze.HazeState
+import dev.chrisbanes.haze.hazeEffect
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
@@ -108,7 +116,7 @@ fun MainDashboard(
     data class QuickAction(val label: String, val icon: androidx.compose.ui.graphics.vector.ImageVector, val onClick: () -> Unit)
 
     val quickActions: List<QuickAction> = when (selectedTab) {
-        0, 1 -> listOfNotNull(
+        0 -> listOfNotNull(
             QuickAction("Add Expense", OpenSplitIcons.AddExpense) {
                 if (allGroups.isEmpty()) {
                     snackbar.showMessage("Create a group first")
@@ -126,14 +134,74 @@ fun MainDashboard(
                 }
             },
             QuickAction("New Group", OpenSplitIcons.Groups) { showFabCreateGroup = true },
+            QuickAction("Invite a Friend", OpenSplitIcons.Invite) { showFabInviteFriend = true },
             QuickAction("Load Demo Data", OpenSplitIcons.Refresh) {
                 mainViewModel.seedMockData { success ->
                     snackbar.showMessage(if (success) "Sample data loaded! Check Home & Analytics!" else "Failed to load sample data.")
                 }
             }
         )
-        2 -> listOf(
-            QuickAction("Invite a friend", OpenSplitIcons.Invite) { showFabInviteFriend = true }
+        1 -> listOfNotNull(
+            QuickAction("New Group", OpenSplitIcons.Groups) { showFabCreateGroup = true },
+            QuickAction("Add Expense", OpenSplitIcons.AddExpense) {
+                if (allGroups.isEmpty()) {
+                    snackbar.showMessage("Create a group first")
+                } else if (allGroups.size == 1) {
+                    rootNavController.navigate("add_expense/${allGroups.first().id}")
+                } else {
+                    showFabAddExpensePicker = true
+                }
+            },
+            QuickAction("Settle Up", OpenSplitIcons.Settle) {
+                when {
+                    settleableGroups.isEmpty() -> snackbar.showMessage("Add another member to a group before settling up")
+                    settleableGroups.size == 1 -> rootNavController.navigate("settle_up/${settleableGroups.first().id}")
+                    else -> showFabSettleUpPicker = true
+                }
+            },
+            QuickAction("Load Demo Data", OpenSplitIcons.Refresh) {
+                mainViewModel.seedMockData { success ->
+                    snackbar.showMessage(if (success) "Sample data loaded! Check Home & Analytics!" else "Failed to load sample data.")
+                }
+            }
+        )
+        2 -> listOfNotNull(
+            QuickAction("Invite a Friend", OpenSplitIcons.Invite) { showFabInviteFriend = true },
+            QuickAction("Settle Up", OpenSplitIcons.Settle) {
+                when {
+                    settleableGroups.isEmpty() -> snackbar.showMessage("Add another member to a group before settling up")
+                    settleableGroups.size == 1 -> rootNavController.navigate("settle_up/${settleableGroups.first().id}")
+                    else -> showFabSettleUpPicker = true
+                }
+            },
+            QuickAction("Add Expense", OpenSplitIcons.AddExpense) {
+                if (allGroups.isEmpty()) {
+                    snackbar.showMessage("Create a group first")
+                } else if (allGroups.size == 1) {
+                    rootNavController.navigate("add_expense/${allGroups.first().id}")
+                } else {
+                    showFabAddExpensePicker = true
+                }
+            }
+        )
+        3 -> listOfNotNull(
+            QuickAction("Add Expense", OpenSplitIcons.AddExpense) {
+                if (allGroups.isEmpty()) {
+                    snackbar.showMessage("Create a group first")
+                } else if (allGroups.size == 1) {
+                    rootNavController.navigate("add_expense/${allGroups.first().id}")
+                } else {
+                    showFabAddExpensePicker = true
+                }
+            },
+            QuickAction("Settle Up", OpenSplitIcons.Settle) {
+                when {
+                    settleableGroups.isEmpty() -> snackbar.showMessage("Add another member to a group before settling up")
+                    settleableGroups.size == 1 -> rootNavController.navigate("settle_up/${settleableGroups.first().id}")
+                    else -> showFabSettleUpPicker = true
+                }
+            },
+            QuickAction("New Group", OpenSplitIcons.Groups) { showFabCreateGroup = true }
         )
         else -> emptyList()
     }
@@ -167,8 +235,20 @@ fun MainDashboard(
                         BadgedBox(
                             badge = {
                                 if (unreadCount > 0) {
-                                    Badge {
-                                        Text(text = if (unreadCount > 99) "99+" else "$unreadCount")
+                                    Badge(
+                                        containerColor = MaterialTheme.colorScheme.errorContainer,
+                                        contentColor = MaterialTheme.colorScheme.onErrorContainer,
+                                        modifier = Modifier.offset(x = (-6).dp, y = 3.dp)
+                                    ) {
+                                        Text(
+                                            text = if (unreadCount > 10) "10+" else "$unreadCount",
+                                            style = MaterialTheme.typography.labelSmall.copy(
+                                                fontSize = 10.sp,
+                                                fontWeight = FontWeight.Bold,
+                                                lineHeight = 10.sp
+                                            ),
+                                            modifier = Modifier.padding(horizontal = 3.dp)
+                                        )
                                     }
                                 }
                             }
@@ -246,6 +326,12 @@ fun MainDashboard(
                         }
                     }
 
+                    val fabMainIcon = when (selectedTab) {
+                        2 -> OpenSplitIcons.Invite
+                        1 -> OpenSplitIcons.Groups
+                        else -> OpenSplitIcons.AddExpense
+                    }
+
                     FloatingActionButton(
                         onClick = {
                             if (quickActions.size == 1) {
@@ -259,7 +345,7 @@ fun MainDashboard(
                         shape = CircleShape
                     ) {
                         Icon(
-                            imageVector = if (fabExpanded) OpenSplitIcons.Close else OpenSplitIcons.AddExpense,
+                            imageVector = if (fabExpanded) OpenSplitIcons.Close else fabMainIcon,
                             contentDescription = if (fabExpanded) "Close quick actions" else "Quick actions"
                         )
                     }
@@ -301,32 +387,70 @@ fun MainDashboard(
                 transitionSpec = { OpenSplitMotion.fadeThrough() },
                 label = "dashboardTab"
             ) { tab ->
-            when (tab) {
-                0 -> HomeScreen(
-                    viewModel = homeViewModel,
-                    onNavigateToGroupsTab = { selectedTab = 1 },
-                    onNavigateToGroupDetail = { groupId -> rootNavController.navigate("group_detail/$groupId") },
-                    onNavigateToActivity = { rootNavController.navigate("activity") },
-                    onNavigateToAddExpense = { groupId -> rootNavController.navigate("add_expense/$groupId") },
-                    onNavigateToSettleUp = { groupId -> rootNavController.navigate("settle_up/$groupId") }
-                )
-                1 -> GroupsScreen(
-                    viewModel = mainViewModel,
-                    onGroupClick = { groupId -> rootNavController.navigate("group_detail/$groupId") },
-                    onAddExpense = { groupId -> rootNavController.navigate("add_expense/$groupId") },
-                    onSettleUp = { groupId -> rootNavController.navigate("settle_up/$groupId") }
-                )
-                2 -> FriendsScreen(
-                    viewModel = mainViewModel,
-                    onFriendClick = { friendId -> rootNavController.navigate("person_balance/$friendId") }
-                )
-                3 -> AnalyticsScreen(
-                    viewModel = analyticsViewModel,
-                    onNavigateToExpenseDetail = { groupId, expenseId ->
-                        rootNavController.navigate("expense_detail/$groupId/$expenseId")
-                    }
-                )
+                when (tab) {
+                    0 -> HomeScreen(
+                        viewModel = homeViewModel,
+                        mainViewModel = mainViewModel,
+                        onNavigateToGroupsTab = { selectedTab = 1 },
+                        onNavigateToGroupDetail = { groupId -> rootNavController.navigate("group_detail/$groupId") },
+                        onNavigateToActivity = { rootNavController.navigate("activity") },
+                        onNavigateToAddExpense = { groupId -> rootNavController.navigate("add_expense/$groupId") },
+                        onNavigateToSettleUp = { groupId -> rootNavController.navigate("settle_up/$groupId") },
+                        onNavigateToPersonBalance = { friendId -> rootNavController.navigate("person_balance/$friendId") }
+                    )
+                    1 -> GroupsScreen(
+                        viewModel = mainViewModel,
+                        onGroupClick = { groupId -> rootNavController.navigate("group_detail/$groupId") },
+                        onAddExpense = { groupId -> rootNavController.navigate("add_expense/$groupId") },
+                        onSettleUp = { groupId -> rootNavController.navigate("settle_up/$groupId") }
+                    )
+                    2 -> FriendsScreen(
+                        viewModel = mainViewModel,
+                        onFriendClick = { friendId -> rootNavController.navigate("person_balance/$friendId") }
+                    )
+                    3 -> AnalyticsScreen(
+                        viewModel = analyticsViewModel,
+                        onNavigateToExpenseDetail = { groupId, expenseId ->
+                            rootNavController.navigate("expense_detail/$groupId/$expenseId")
+                        }
+                    )
+                }
             }
+
+            // Faded Blue Radial Blur Overlay starting from bottom right when Speed Dial FAB is expanded
+            AnimatedVisibility(
+                visible = fabExpanded,
+                enter = fadeIn(animationSpec = tween(250)),
+                exit = fadeOut(animationSpec = tween(200))
+            ) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .hazeEffect(
+                            state = hazeState,
+                            style = HazeDefaults.style(
+                                backgroundColor = Color.Transparent,
+                                blurRadius = 24.dp
+                            )
+                        )
+                        .drawBehind {
+                            val center = Offset(size.width, size.height)
+                            val radius = size.maxDimension * 1.15f
+                            drawRect(
+                                brush = Brush.radialGradient(
+                                    colors = listOf(
+                                        Color(0xFF2563EB).copy(alpha = 0.45f), // Radiant vibrant blue at bottom-right FAB
+                                        Color(0xFF1E3A8A).copy(alpha = 0.55f), // Deep royal blue transition
+                                        Color(0xFF0F172A).copy(alpha = 0.65f), // Dark navy backdrop
+                                        Color.Black.copy(alpha = 0.60f)        // Deep dark shadow across screen
+                                    ),
+                                    center = center,
+                                    radius = radius
+                                )
+                            )
+                        }
+                        .clickable { fabExpanded = false }
+                )
             }
         }
     }
@@ -343,6 +467,18 @@ fun MainDashboard(
             },
             onNavigateToFriend = { friendId ->
                 rootNavController.navigate("person_balance/$friendId")
+            },
+            onAddExpense = {
+                showFabAddExpensePicker = true
+            },
+            onCreateGroup = {
+                showFabCreateGroup = true
+            },
+            onSettleUp = {
+                showFabSettleUpPicker = true
+            },
+            onInviteFriend = {
+                showFabInviteFriend = true
             }
         )
     }

@@ -27,14 +27,18 @@ import com.opensplit.util.CurrencyFormatter
 import com.google.firebase.auth.FirebaseAuth
 import kotlinx.coroutines.flow.combine
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
 fun GlobalSearchSheet(
     appContainer: AppContainer,
     onDismiss: () -> Unit,
     onNavigateToGroup: (String) -> Unit,
     onNavigateToExpense: (groupId: String, expenseId: String) -> Unit,
-    onNavigateToFriend: (String) -> Unit
+    onNavigateToFriend: (String) -> Unit,
+    onAddExpense: (() -> Unit)? = null,
+    onCreateGroup: (() -> Unit)? = null,
+    onSettleUp: (() -> Unit)? = null,
+    onInviteFriend: (() -> Unit)? = null
 ) {
     var query by remember { mutableStateOf("") }
     val focusRequester = remember { FocusRequester() }
@@ -107,7 +111,7 @@ fun GlobalSearchSheet(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .fillMaxHeight(0.85f)
+                .fillMaxHeight(0.9f)
                 .padding(horizontal = OpenSplitTokens.SpaceLG)
         ) {
             // Header with Search TextField
@@ -135,32 +139,131 @@ fun GlobalSearchSheet(
             Spacer(modifier = Modifier.height(OpenSplitTokens.SpaceMD))
 
             if (query.isBlank()) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(OpenSplitTokens.SpaceXL),
-                    contentAlignment = Alignment.Center
+                LazyColumn(
+                    modifier = Modifier.fillMaxSize(),
+                    verticalArrangement = Arrangement.spacedBy(OpenSplitTokens.SpaceMD),
+                    contentPadding = PaddingValues(bottom = OpenSplitTokens.SpaceXL)
                 ) {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Icon(
-                            imageVector = OpenSplitIcons.Search,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
-                            modifier = Modifier.size(64.dp)
-                        )
-                        Spacer(modifier = Modifier.height(OpenSplitTokens.SpaceMD))
-                        Text(
-                            text = "Search OpenSplit",
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                        Spacer(modifier = Modifier.height(OpenSplitTokens.SpaceXS))
-                        Text(
-                            text = "Type to search across all your groups, expenses, and friends.",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.75f)
-                        )
+                    // 1. SEARCH SUGGESTIONS CHIPS
+                    item {
+                        SectionHeader(title = "Search Suggestions")
+                        FlowRow(
+                            horizontalArrangement = Arrangement.spacedBy(OpenSplitTokens.SpaceXS),
+                            verticalArrangement = Arrangement.spacedBy(OpenSplitTokens.SpaceXS),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(top = OpenSplitTokens.SpaceXS)
+                        ) {
+                            val suggestions = listOf(
+                                "🍔 Food & Dining" to "Food",
+                                "🏖️ Trip & Travel" to "Trip",
+                                "🏠 Rent & Bills" to "Rent",
+                                "🛒 Groceries" to "Grocery",
+                                "🚕 Transport" to "Transport",
+                                "🍿 Movies" to "Movie"
+                            )
+                            suggestions.forEach { (label, keyword) ->
+                                FilterChip(
+                                    selected = false,
+                                    onClick = { query = keyword },
+                                    label = { Text(label, style = MaterialTheme.typography.bodyMedium) },
+                                    shape = MaterialTheme.shapes.medium,
+                                    colors = FilterChipDefaults.filterChipColors(
+                                        containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
+                                    )
+                                )
+                            }
+                        }
+                    }
+
+                    // 2. RECENT GROUPS
+                    if (groups.isNotEmpty()) {
+                        item {
+                            SectionHeader(title = "Recent Groups")
+                        }
+                        items(groups.take(3)) { group ->
+                            ListItem(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clip(MaterialTheme.shapes.medium)
+                                    .clickable {
+                                        onDismiss()
+                                        onNavigateToGroup(group.id)
+                                    },
+                                headlineContent = { Text(group.name, fontWeight = FontWeight.SemiBold) },
+                                supportingContent = { Text("${group.memberIds.size} members • ${group.currency}", style = MaterialTheme.typography.bodySmall) },
+                                leadingContent = {
+                                    GroupAvatar(name = group.name, avatarKey = group.avatarKey, size = 36.dp)
+                                },
+                                trailingContent = { Icon(OpenSplitIcons.ChevronRight, contentDescription = null) }
+                            )
+                        }
+                    }
+
+                    // 4. RECENT EXPENSES
+                    if (expenses.isNotEmpty()) {
+                        item {
+                            SectionHeader(title = "Recent Expenses")
+                        }
+                        items(expenses.take(3)) { exp ->
+                            val group = groups.find { it.id == exp.groupId }
+                            val groupName = group?.name ?: "Group"
+                            val amtStr = CurrencyFormatter.format(exp.amount, exp.currency)
+
+                            ListItem(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clip(MaterialTheme.shapes.medium)
+                                    .clickable {
+                                        onDismiss()
+                                        onNavigateToExpense(exp.groupId, exp.id)
+                                    },
+                                headlineContent = { Text(exp.description, fontWeight = FontWeight.SemiBold) },
+                                supportingContent = { Text("$groupName • ${exp.category}", style = MaterialTheme.typography.bodySmall) },
+                                leadingContent = {
+                                    Surface(
+                                        shape = CircleShape,
+                                        color = MaterialTheme.colorScheme.secondaryContainer,
+                                        modifier = Modifier.size(36.dp)
+                                    ) {
+                                        Box(contentAlignment = Alignment.Center) {
+                                            Icon(OpenSplitIcons.ReceiptScan, contentDescription = null, modifier = Modifier.size(20.dp))
+                                        }
+                                    }
+                                },
+                                trailingContent = {
+                                    Text(amtStr, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+                                }
+                            )
+                        }
+                    }
+
+                    // 5. FRIENDS
+                    if (friends.isNotEmpty()) {
+                        item {
+                            SectionHeader(title = "Recent Friends")
+                        }
+                        items(friends.take(3)) { friend ->
+                            ListItem(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clip(MaterialTheme.shapes.medium)
+                                    .clickable {
+                                        onDismiss()
+                                        onNavigateToFriend(friend.uid)
+                                    },
+                                headlineContent = { Text(friend.displayName, fontWeight = FontWeight.SemiBold) },
+                                supportingContent = { Text(friend.email, style = MaterialTheme.typography.bodySmall) },
+                                leadingContent = {
+                                    UserAvatar(
+                                        photoUrl = friend.photoUrl,
+                                        displayName = friend.displayName,
+                                        size = 36.dp
+                                    )
+                                },
+                                trailingContent = { Icon(OpenSplitIcons.ChevronRight, contentDescription = null) }
+                            )
+                        }
                     }
                 }
             } else if (totalResults == 0) {
@@ -199,15 +302,7 @@ fun GlobalSearchSheet(
                                 headlineContent = { Text(group.name, fontWeight = FontWeight.SemiBold) },
                                 supportingContent = { Text("${group.memberIds.size} members • ${group.currency}", style = MaterialTheme.typography.bodySmall) },
                                 leadingContent = {
-                                    Surface(
-                                        shape = CircleShape,
-                                        color = MaterialTheme.colorScheme.primaryContainer,
-                                        modifier = Modifier.size(36.dp)
-                                    ) {
-                                        Box(contentAlignment = Alignment.Center) {
-                                            Icon(OpenSplitIcons.Groups, contentDescription = null, modifier = Modifier.size(20.dp))
-                                        }
-                                    }
+                                    GroupAvatar(name = group.name, avatarKey = group.avatarKey, size = 36.dp)
                                 },
                                 trailingContent = { Icon(OpenSplitIcons.ChevronRight, contentDescription = null) }
                             )
@@ -281,6 +376,67 @@ fun GlobalSearchSheet(
                     }
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun QuickActionRow(
+    title: String,
+    subtitle: String,
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    containerColor: androidx.compose.ui.graphics.Color,
+    iconColor: androidx.compose.ui.graphics.Color,
+    onClick: () -> Unit
+) {
+    Surface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(MaterialTheme.shapes.medium)
+            .clickable(onClick = onClick),
+        color = MaterialTheme.colorScheme.surfaceContainerLow,
+        shape = MaterialTheme.shapes.medium
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(OpenSplitTokens.SpaceMD),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(OpenSplitTokens.SpaceMD)
+        ) {
+            Surface(
+                shape = CircleShape,
+                color = containerColor,
+                modifier = Modifier.size(40.dp)
+            ) {
+                Box(contentAlignment = Alignment.Center) {
+                    Icon(
+                        imageVector = icon,
+                        contentDescription = null,
+                        tint = iconColor,
+                        modifier = Modifier.size(22.dp)
+                    )
+                }
+            }
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = title,
+                    style = MaterialTheme.typography.bodyLarge,
+                    fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+                Text(
+                    text = subtitle,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+            Icon(
+                imageVector = OpenSplitIcons.ChevronRight,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
+                modifier = Modifier.size(20.dp)
+            )
         }
     }
 }

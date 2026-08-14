@@ -92,6 +92,7 @@ object OpenSplitIcons {
     val DateRange      = Icons.Rounded.DateRange
     val Refresh        = Icons.Rounded.Refresh
     val ReceiptLong    = Icons.AutoMirrored.Rounded.ReceiptLong
+    val AutoAwesome    = Icons.Rounded.AutoAwesome
 }
 
 

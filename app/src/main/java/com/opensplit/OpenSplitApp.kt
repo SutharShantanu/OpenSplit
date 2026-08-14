@@ -19,27 +19,29 @@ class OpenSplitApp : Application() {
     override fun onCreate() {
         super.onCreate()
         container = AppContainer(this)
-        createNotificationChannel()
-        scheduleRecurringExpenses()
+        com.opensplit.service.NotificationHelper.createNotificationChannels(this)
+        scheduleBackgroundWorkers()
     }
 
-    private fun createNotificationChannel() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val channel = NotificationChannel(
-                OpenSplitMessagingService.CHANNEL_ID,
-                "Activity",
-                NotificationManager.IMPORTANCE_DEFAULT
-            ).apply { description = "New expenses, settlements, and reminders" }
-            getSystemService(NotificationManager::class.java)?.createNotificationChannel(channel)
+    private fun scheduleBackgroundWorkers() {
+        try {
+            val wm = WorkManager.getInstance(this)
+
+            val recurringRequest = PeriodicWorkRequestBuilder<RecurringExpenseWorker>(1, TimeUnit.DAYS).build()
+            wm.enqueueUniquePeriodicWork(
+                RecurringExpenseWorker.UNIQUE_NAME,
+                ExistingPeriodicWorkPolicy.KEEP,
+                recurringRequest
+            )
+
+            val debtReminderRequest = PeriodicWorkRequestBuilder<com.opensplit.data.work.DebtReminderWorker>(3, TimeUnit.DAYS).build()
+            wm.enqueueUniquePeriodicWork(
+                com.opensplit.data.work.DebtReminderWorker.UNIQUE_NAME,
+                ExistingPeriodicWorkPolicy.KEEP,
+                debtReminderRequest
+            )
+        } catch (e: Exception) {
+            // WorkManager initialization may fail in test environments without full background services
         }
-    }
-
-    private fun scheduleRecurringExpenses() {
-        val request = PeriodicWorkRequestBuilder<RecurringExpenseWorker>(1, TimeUnit.DAYS).build()
-        WorkManager.getInstance(this).enqueueUniquePeriodicWork(
-            RecurringExpenseWorker.UNIQUE_NAME,
-            ExistingPeriodicWorkPolicy.KEEP,
-            request
-        )
     }
 }

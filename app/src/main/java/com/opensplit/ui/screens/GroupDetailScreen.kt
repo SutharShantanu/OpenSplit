@@ -704,8 +704,12 @@ fun GroupDetailScreen(
             }
 
             if (showAvatarPicker) {
+                val aiSuggestedKey = remember(group.name) {
+                    com.opensplit.data.ai.GeminiGroupIconSuggester.getLocalHeuristicSuggestion(group.name)
+                }
                 GroupAvatarPickerSheet(
                     currentKey = group.avatarKey,
+                    aiSuggestedKey = aiSuggestedKey,
                     onDismiss = { showAvatarPicker = false },
                     onSelect = {
                         viewModel.setGroupAvatar(it)

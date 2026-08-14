@@ -99,6 +99,7 @@ fun GroupAvatar(
 @Composable
 fun GroupAvatarPickerSheet(
     currentKey: String?,
+    aiSuggestedKey: String? = null,
     onDismiss: () -> Unit,
     onSelect: (String) -> Unit
 ) {
@@ -110,7 +111,41 @@ fun GroupAvatarPickerSheet(
                 .padding(bottom = OpenSplitTokens.SpaceXL),
             verticalArrangement = Arrangement.spacedBy(OpenSplitTokens.SpaceMD)
         ) {
-            Text("Choose an avatar", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text("Choose an avatar", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                if (aiSuggestedKey != null) {
+                    val aiPreset = GroupAvatarPresets.find(aiSuggestedKey)
+                    if (aiPreset != null) {
+                        Surface(
+                            shape = CircleShape,
+                            color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f)
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(4.dp)
+                            ) {
+                                Icon(
+                                    OpenSplitIcons.AutoAwesome,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.size(14.dp)
+                                )
+                                Text(
+                                    text = "AI Choice: ${aiPreset.emoji}",
+                                    style = MaterialTheme.typography.labelMedium,
+                                    color = MaterialTheme.colorScheme.primary,
+                                    fontWeight = FontWeight.SemiBold
+                                )
+                            }
+                        }
+                    }
+                }
+            }
             LazyVerticalGrid(
                 columns = GridCells.Fixed(4),
                 horizontalArrangement = Arrangement.spacedBy(OpenSplitTokens.SpaceMD),
@@ -119,15 +154,18 @@ fun GroupAvatarPickerSheet(
             ) {
                 items(GroupAvatarPresets.all) { preset ->
                     val isSelected = preset.key == currentKey
+                    val isAiSuggested = preset.key == aiSuggestedKey
                     Box(
                         modifier = Modifier
                             .aspectRatio(1f)
                             .clip(MaterialTheme.shapes.large)
                             .background(preset.color.copy(alpha = 0.22f))
                             .then(
-                                if (isSelected) {
-                                    Modifier.border(2.dp, preset.color, MaterialTheme.shapes.large)
-                                } else Modifier
+                                when {
+                                    isSelected -> Modifier.border(2.dp, preset.color, MaterialTheme.shapes.large)
+                                    isAiSuggested -> Modifier.border(2.dp, MaterialTheme.colorScheme.primary, MaterialTheme.shapes.large)
+                                    else -> Modifier
+                                }
                             )
                             .clickable {
                                 onSelect(preset.key)
@@ -136,6 +174,18 @@ fun GroupAvatarPickerSheet(
                         contentAlignment = Alignment.Center
                     ) {
                         Text(text = preset.emoji, fontSize = 28.sp)
+                        if (isAiSuggested && !isSelected) {
+                            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.TopEnd) {
+                                Icon(
+                                    OpenSplitIcons.AutoAwesome,
+                                    contentDescription = "AI Pick",
+                                    tint = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier
+                                        .padding(4.dp)
+                                        .size(14.dp)
+                                )
+                            }
+                        }
                         if (isSelected) {
                             Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.BottomEnd) {
                                 Icon(

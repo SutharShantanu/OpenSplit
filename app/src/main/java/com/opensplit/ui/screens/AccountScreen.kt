@@ -154,7 +154,9 @@ fun AccountScreen(
                                 Text(
                                     text = accountData.user.email ?: "",
                                     style = MaterialTheme.typography.bodyMedium,
-                                    color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.75f)
+                                    color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.75f),
+                                    maxLines = 1,
+                                    overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
                                 )
                             }
                         }
@@ -228,7 +230,8 @@ fun AccountScreen(
                                                 Text(
                                                     text = "$currentFlag ${accountData.defaultCurrency} ($currentSymbol)",
                                                     fontWeight = FontWeight.Bold,
-                                                    color = MaterialTheme.colorScheme.primary
+                                                    color = MaterialTheme.colorScheme.primary,
+                                                    maxLines = 1
                                                 )
                                                 Spacer(modifier = Modifier.width(OpenSplitTokens.SpaceXS))
                                                 Icon(OpenSplitIcons.Dropdown, contentDescription = "Select Currency")
@@ -267,29 +270,37 @@ fun AccountScreen(
 
                             HorizontalDivider()
 
-                            // Theme segmented button row
-                            ListItem(
-                                headlineContent = { Text("Theme", fontWeight = FontWeight.Medium) },
-                                trailingContent = {
-                                    val options = listOf("Light", "Dark", "System")
-                                    val selectedIndex = when (theme.lowercase()) {
-                                        "light" -> 0
-                                        "dark" -> 1
-                                        else -> 2
-                                    }
-                                    SingleChoiceSegmentedButtonRow {
-                                        options.forEachIndexed { index, label ->
-                                            SegmentedButton(
-                                                selected = index == selectedIndex,
-                                                onClick = { viewModel.setTheme(label.lowercase()) },
-                                                shape = SegmentedButtonDefaults.itemShape(index = index, count = options.size)
-                                            ) {
-                                                Text(label, style = MaterialTheme.typography.labelSmall)
-                                            }
+                            // Theme segmented button row (Responsive Column layout for narrow screens)
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 16.dp, vertical = 12.dp)
+                            ) {
+                                Text(
+                                    text = "Theme",
+                                    fontWeight = FontWeight.Medium,
+                                    style = MaterialTheme.typography.bodyLarge
+                                )
+                                Spacer(modifier = Modifier.height(8.dp))
+
+                                val options = listOf("Light", "Dark", "System")
+                                val selectedIndex = when (theme.lowercase()) {
+                                    "light" -> 0
+                                    "dark" -> 1
+                                    else -> 2
+                                }
+                                SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
+                                    options.forEachIndexed { index, label ->
+                                        SegmentedButton(
+                                            selected = index == selectedIndex,
+                                            onClick = { viewModel.setTheme(label.lowercase()) },
+                                            shape = SegmentedButtonDefaults.itemShape(index = index, count = options.size)
+                                        ) {
+                                            Text(label, style = MaterialTheme.typography.labelSmall, maxLines = 1)
                                         }
                                     }
                                 }
-                            )
+                            }
 
                             HorizontalDivider()
 
@@ -912,9 +923,12 @@ private fun StatChip(
             ) { targetValue ->
                 Text(
                     text = targetValue,
-                    style = MaterialTheme.typography.titleLarge,
+                    style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold,
-                    color = valueColor
+                    color = valueColor,
+                    maxLines = 1,
+                    softWrap = false,
+                    overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
                 )
             }
         }

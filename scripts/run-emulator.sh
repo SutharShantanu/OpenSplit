@@ -16,7 +16,7 @@
 #
 set -euo pipefail
 
-APP_ID="com.opensplit"
+APP_ID="open.split_07"
 
 # --- locate the repo root (this script lives in <root>/scripts) ---------------
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"

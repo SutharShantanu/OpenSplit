@@ -2,6 +2,7 @@ package com.opensplit.ui.components
 
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -10,8 +11,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.unit.dp
+import com.opensplit.data.ai.GeminiGroupIconSuggester
 import com.opensplit.ui.theme.OpenSplitIcons
 import com.opensplit.ui.theme.OpenSplitTokens
+import kotlinx.coroutines.delay
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -21,8 +24,46 @@ fun CreateGroupBottomSheet(
 ) {
     var name by remember { mutableStateOf("") }
     var avatarKey by remember { mutableStateOf<String?>(null) }
+    var isManualSelection by remember { mutableStateOf(false) }
+    var isAiSuggested by remember { mutableStateOf(false) }
+    var aiSuggestedKey by remember { mutableStateOf<String?>(null) }
     var showAvatarPicker by remember { mutableStateOf(false) }
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+
+    // Automatically suggest avatar as user types group name
+    LaunchedEffect(name) {
+        val trimmed = name.trim()
+        if (trimmed.isNotBlank()) {
+            // Step 1: Immediate local heuristic suggestion for zero UI latency
+            val localMatch = GeminiGroupIconSuggester.getLocalHeuristicSuggestion(trimmed)
+            if (localMatch != null) {
+                aiSuggestedKey = localMatch
+                if (!isManualSelection) {
+                    avatarKey = localMatch
+                    isAiSuggested = true
+                }
+            }
+
+            // Step 2: Debounced Gemini 2.0 Flash AI suggestion for intelligent contextual matching
+            delay(300)
+            if (name.trim() == trimmed) {
+                val aiMatch = GeminiGroupIconSuggester.suggestAvatarKey(trimmed)
+                if (aiMatch != null) {
+                    aiSuggestedKey = aiMatch
+                    if (!isManualSelection) {
+                        avatarKey = aiMatch
+                        isAiSuggested = true
+                    }
+                }
+            }
+        } else {
+            aiSuggestedKey = null
+            if (!isManualSelection) {
+                avatarKey = null
+                isAiSuggested = false
+            }
+        }
+    }
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
@@ -76,8 +117,69 @@ fun CreateGroupBottomSheet(
                     GroupAvatar(name = name.ifBlank { "?" }, avatarKey = avatarKey, size = 56.dp)
                 }
                 Spacer(modifier = Modifier.width(OpenSplitTokens.SpaceMD))
-                TextButton(onClick = { showAvatarPicker = true }) {
-                    Text(if (avatarKey == null) "Choose an avatar" else "Change avatar")
+                Column {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(OpenSplitTokens.SpaceSM)
+                    ) {
+                        TextButton(
+                            onClick = { showAvatarPicker = true },
+                            contentPadding = PaddingValues(0.dp)
+                        ) {
+                            Text(if (avatarKey == null) "Choose an avatar" else "Change avatar")
+                        }
+                        if (isAiSuggested && avatarKey != null) {
+                            Surface(
+                                shape = CircleShape,
+                                color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.6f)
+                            ) {
+                                Row(
+                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                ) {
+                                    Icon(
+                                        OpenSplitIcons.AutoAwesome,
+                                        contentDescription = "AI Selected",
+                                        tint = MaterialTheme.colorScheme.primary,
+                                        modifier = Modifier.size(12.dp)
+                                    )
+                                    Text(
+                                        text = "AI Selected",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = MaterialTheme.colorScheme.primary,
+                                        fontWeight = FontWeight.SemiBold
+                                    )
+                                }
+                            }
+                        } else if (isManualSelection && aiSuggestedKey != null) {
+                            TextButton(
+                                onClick = {
+                                    isManualSelection = false
+                                    avatarKey = aiSuggestedKey
+                                    isAiSuggested = true
+                                },
+                                contentPadding = PaddingValues(horizontal = 4.dp, vertical = 2.dp)
+                            ) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                ) {
+                                    Icon(
+                                        OpenSplitIcons.AutoAwesome,
+                                        contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.secondary,
+                                        modifier = Modifier.size(12.dp)
+                                    )
+                                    Text(
+                                        "Use AI Pick",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = MaterialTheme.colorScheme.secondary
+                                    )
+                                }
+                            }
+                        }
+                    }
                 }
             }
 
@@ -121,8 +223,13 @@ fun CreateGroupBottomSheet(
     if (showAvatarPicker) {
         GroupAvatarPickerSheet(
             currentKey = avatarKey,
+            aiSuggestedKey = aiSuggestedKey,
             onDismiss = { showAvatarPicker = false },
-            onSelect = { avatarKey = it }
+            onSelect = { selectedKey ->
+                avatarKey = selectedKey
+                isManualSelection = true
+                isAiSuggested = (selectedKey == aiSuggestedKey)
+            }
         )
     }
 }
