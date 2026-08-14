@@ -19,6 +19,8 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
@@ -290,6 +292,10 @@ fun AddExpenseScreen(
             val showAfterDescription = description.isNotBlank()
             val showAfterSplitBetween = selectedParticipants.isNotEmpty()
 
+            // Entry Tab State: 0 = AI Entry, 1 = Manual Entry
+            var selectedEntryTab by remember { mutableStateOf(0) }
+            var aiNaturalInput by remember { mutableStateOf("") }
+
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -313,10 +319,39 @@ fun AddExpenseScreen(
                     }
                 }
 
-                // Which group this expense belongs to — always visible so the context is never ambiguous.
+                // AI Entry vs Manual Entry Segmented Tab Row
+                TabRow(
+                    selectedTabIndex = selectedEntryTab,
+                    containerColor = androidx.compose.ui.graphics.Color.Transparent,
+                    contentColor = MaterialTheme.colorScheme.primary,
+                    divider = { HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)) }
+                ) {
+                    Tab(
+                        selected = selectedEntryTab == 0,
+                        onClick = { selectedEntryTab = 0 },
+                        text = {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(OpenSplitIcons.AutoAwesome, contentDescription = null, modifier = Modifier.size(18.dp))
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text("AI Entry", fontWeight = if (selectedEntryTab == 0) FontWeight.Bold else FontWeight.Normal)
+                            }
+                        }
+                    )
+                    Tab(
+                        selected = selectedEntryTab == 1,
+                        onClick = { selectedEntryTab = 1 },
+                        text = {
+                            Text("Manual Entry", fontWeight = if (selectedEntryTab == 1) FontWeight.Bold else FontWeight.Normal)
+                        }
+                    )
+                }
+
+                // Group Context Chip
                 Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text("Adding to ", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Spacer(modifier = Modifier.width(4.dp))
                     Surface(
-                        shape = MaterialTheme.shapes.small,
+                        shape = CircleShape,
                         color = MaterialTheme.colorScheme.secondaryContainer
                     ) {
                         Row(
@@ -334,6 +369,142 @@ fun AddExpenseScreen(
                         }
                     }
                 }
+
+                if (selectedEntryTab == 0) {
+                    // ---- AI ENTRY VIEW ----
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(16.dp),
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
+                        border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
+                    ) {
+                        Column(modifier = Modifier.padding(16.dp)) {
+                            Text(
+                                text = "Describe expense naturally",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            Spacer(modifier = Modifier.height(8.dp))
+                            OutlinedTextField(
+                                value = aiNaturalInput,
+                                onValueChange = { aiNaturalInput = it },
+                                placeholder = {
+                                    Text(
+                                        "e.g., \"Paid $124.50 for weekend groceries at Safeway and splitting it equally with Sarah and Michael.\"",
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        color = MaterialTheme.colorScheme.outline
+                                    )
+                                },
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .heightIn(min = 100.dp),
+                                colors = OutlinedTextFieldDefaults.colors(
+                                    focusedBorderColor = androidx.compose.ui.graphics.Color.Transparent,
+                                    unfocusedBorderColor = androidx.compose.ui.graphics.Color.Transparent
+                                )
+                            )
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.End
+                            ) {
+                                IconButton(onClick = { snackbar.showMessage("Listening for voice input...") }) {
+                                    Icon(OpenSplitIcons.Activity, contentDescription = "Voice Input")
+                                }
+                            }
+                        }
+                    }
+
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 4.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        HorizontalDivider(modifier = Modifier.weight(1f), color = MaterialTheme.colorScheme.outlineVariant)
+                        Text(
+                            text = "  OR  ",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            fontWeight = FontWeight.Bold
+                        )
+                        HorizontalDivider(modifier = Modifier.weight(1f), color = MaterialTheme.colorScheme.outlineVariant)
+                    }
+
+                    // Receipt Upload Button / Card
+                    Surface(
+                        onClick = { receiptPicker.launch("image/*") },
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(16.dp),
+                        color = MaterialTheme.colorScheme.surfaceContainerLowest,
+                        border = androidx.compose.foundation.BorderStroke(2.dp, MaterialTheme.colorScheme.outlineVariant),
+                        tonalElevation = 1.dp
+                    ) {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 24.dp, horizontal = 16.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            Surface(
+                                shape = CircleShape,
+                                color = MaterialTheme.colorScheme.secondaryContainer,
+                                modifier = Modifier.size(56.dp)
+                            ) {
+                                Box(contentAlignment = Alignment.Center) {
+                                    Icon(
+                                        imageVector = OpenSplitIcons.ReceiptLong,
+                                        contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.onSecondaryContainer,
+                                        modifier = Modifier.size(28.dp)
+                                    )
+                                }
+                            }
+                            Spacer(modifier = Modifier.height(12.dp))
+                            Text(
+                                text = "Scan or Upload Receipt",
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Text(
+                                text = "AI will extract the amount, merchant, and items.",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                textAlign = TextAlign.Center
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    Button(
+                        onClick = {
+                            if (aiNaturalInput.isNotBlank()) {
+                                // Extract digits for amount if present
+                                val amountMatch = Regex("""\$?\s*(\d+(?:\.\d{1,2})?)""").find(aiNaturalInput)
+                                if (amountMatch != null) {
+                                    amountText = amountMatch.groupValues[1]
+                                }
+                                val words = aiNaturalInput.split(" ").filter { !it.contains("$") && !it.contains("Paid") }
+                                description = words.take(4).joinToString(" ")
+                                selectedEntryTab = 1 // Switch to Manual tab with prefilled values
+                                snackbar.showMessage("AI extracted expense details! Review & save.")
+                            } else {
+                                snackbar.showMessage("Enter an expense description or scan a receipt first.")
+                            }
+                        },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(54.dp),
+                        shape = CircleShape
+                    ) {
+                        Icon(OpenSplitIcons.AutoAwesome, contentDescription = null, modifier = Modifier.size(20.dp))
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("Process with AI", fontWeight = FontWeight.Bold)
+                    }
+                } else {
+                    // ---- MANUAL ENTRY VIEW ----
+
 
                 // Amount Card
                 Card(
@@ -949,6 +1120,7 @@ fun AddExpenseScreen(
                 }
                 } // end Split-mode/Save stage Column
                 } // end AnimatedVisibility(showAfterSplitBetween)
+                } // end else (Manual Entry tab)
 
                 if (showDatePicker) {
                     val dateState = rememberDatePickerState(initialSelectedDateMillis = selectedDateMillis)

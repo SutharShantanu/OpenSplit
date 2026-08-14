@@ -21,6 +21,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -112,52 +113,137 @@ fun AccountScreen(
                 item {
                     Card(
                         modifier = Modifier.fillMaxWidth(),
-                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer),
-                        shape = MaterialTheme.shapes.extraLarge
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
+                        shape = RoundedCornerShape(28.dp),
+                        border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.surfaceVariant)
                     ) {
-                        Row(
+                        Column(
                             modifier = Modifier
                                 .padding(OpenSplitTokens.SpaceLG)
                                 .fillMaxWidth(),
-                            verticalAlignment = Alignment.CenterVertically
+                            horizontalAlignment = Alignment.CenterHorizontally
                         ) {
-                            com.opensplit.ui.components.UserAvatar(
-                                photoUrl = accountData.user.photoUrl?.toString(),
-                                displayName = accountData.user.displayName,
-                                size = 64.dp
-                            )
-                            Spacer(modifier = Modifier.width(OpenSplitTokens.SpaceMD))
-                            Column(modifier = Modifier.weight(1f)) {
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Text(
-                                        text = accountData.user.displayName ?: "User",
-                                        style = MaterialTheme.typography.headlineSmall,
-                                        fontWeight = FontWeight.Bold,
-                                        color = MaterialTheme.colorScheme.onPrimaryContainer
-                                    )
-                                    Spacer(modifier = Modifier.width(OpenSplitTokens.SpaceSM))
-                                    IconButton(
-                                        onClick = {
-                                            editName = accountData.user.displayName ?: ""
-                                            showNameDialog = true
-                                        },
-                                        modifier = Modifier.size(28.dp)
-                                    ) {
+                            Box(contentAlignment = Alignment.BottomEnd) {
+                                com.opensplit.ui.components.UserAvatar(
+                                    photoUrl = accountData.user.photoUrl?.toString(),
+                                    displayName = accountData.user.displayName,
+                                    size = 96.dp
+                                )
+                                Surface(
+                                    shape = CircleShape,
+                                    color = MaterialTheme.colorScheme.primaryContainer,
+                                    modifier = Modifier.size(32.dp),
+                                    onClick = {
+                                        editName = accountData.user.displayName ?: ""
+                                        showNameDialog = true
+                                    }
+                                ) {
+                                    Box(contentAlignment = Alignment.Center) {
                                         Icon(
                                             OpenSplitIcons.Edit,
                                             contentDescription = "Edit Name",
-                                            modifier = Modifier.size(18.dp),
+                                            modifier = Modifier.size(16.dp),
                                             tint = MaterialTheme.colorScheme.onPrimaryContainer
                                         )
                                     }
                                 }
-                                Text(
-                                    text = accountData.user.email ?: "",
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.75f),
-                                    maxLines = 1,
-                                    overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
+                            }
+
+                            Spacer(modifier = Modifier.height(16.dp))
+
+                            Text(
+                                text = accountData.user.displayName ?: "User",
+                                style = MaterialTheme.typography.titleLarge,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+
+                            Spacer(modifier = Modifier.height(4.dp))
+
+                            Text(
+                                text = accountData.user.email ?: "",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+
+                            Spacer(modifier = Modifier.height(12.dp))
+
+                            // Verified Account Badge Chip
+                            Surface(
+                                shape = CircleShape,
+                                color = MaterialTheme.colorScheme.secondaryContainer,
+                                contentColor = MaterialTheme.colorScheme.onSecondaryContainer
+                            ) {
+                                Row(
+                                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Icon(
+                                        imageVector = OpenSplitIcons.Success,
+                                        contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.onSecondaryContainer,
+                                        modifier = Modifier.size(14.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Text(
+                                        text = "Verified Account",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // AI Spending Insights Nudge Card
+                item {
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(28.dp),
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer)
+                    ) {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(20.dp)
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(
+                                    imageVector = OpenSplitIcons.AutoAwesome,
+                                    contentDescription = "AI Insights",
+                                    tint = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.size(24.dp)
                                 )
+                                Spacer(modifier = Modifier.width(10.dp))
+                                Text(
+                                    text = "AI Spending Insights",
+                                    style = MaterialTheme.typography.titleMedium,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.onSecondaryContainer
+                                )
+                            }
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Text(
+                                text = "Your AI assistant noticed you've saved 15% on dining out this month. Want to review your recent split habits?",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.9f)
+                            )
+                            Spacer(modifier = Modifier.height(12.dp))
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.End
+                            ) {
+                                Button(
+                                    onClick = { snackbar.showMessage("Reviewing AI Insights...") },
+                                    shape = CircleShape,
+                                    colors = ButtonDefaults.buttonColors(
+                                        containerColor = MaterialTheme.colorScheme.surface,
+                                        contentColor = MaterialTheme.colorScheme.primary
+                                    )
+                                ) {
+                                    Text("Review Insights", fontWeight = FontWeight.Bold)
+                                }
                             }
                         }
                     }

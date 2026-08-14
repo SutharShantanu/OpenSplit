@@ -187,12 +187,38 @@ fun CreateGroupBottomSheet(
                 value = name,
                 onValueChange = { name = it },
                 label = { Text("Group Name") },
-                placeholder = { Text("e.g. Goa Trip, Apartment 4B, Friday Dinner") },
+                placeholder = { Text("e.g. Summer Trip 2024, Apartment 4B") },
                 singleLine = true,
                 keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Words),
                 shape = MaterialTheme.shapes.medium,
                 modifier = Modifier.fillMaxWidth()
             )
+
+            // Group Type Filter Chips
+            var selectedType by remember { mutableStateOf("Apartment") }
+            Text(
+                text = "Group Type",
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                listOf(
+                    "Apartment" to OpenSplitIcons.Home,
+                    "Trip" to OpenSplitIcons.CategoryTravel,
+                    "Couple" to OpenSplitIcons.Person,
+                    "Other" to OpenSplitIcons.CategoryOther
+                ).forEach { (type, icon) ->
+                    FilterChip(
+                        selected = selectedType == type,
+                        onClick = { selectedType = type },
+                        label = { Text(type) },
+                        leadingIcon = { Icon(icon, contentDescription = null, modifier = Modifier.size(16.dp)) }
+                    )
+                }
+            }
 
             Spacer(modifier = Modifier.height(OpenSplitTokens.SpaceXS))
 
@@ -212,8 +238,10 @@ fun CreateGroupBottomSheet(
                         }
                     },
                     enabled = name.isNotBlank(),
-                    shape = MaterialTheme.shapes.medium
+                    shape = CircleShape
                 ) {
+                    Icon(OpenSplitIcons.Check, contentDescription = null, modifier = Modifier.size(18.dp))
+                    Spacer(modifier = Modifier.width(6.dp))
                     Text("Create Group", fontWeight = FontWeight.Bold)
                 }
             }

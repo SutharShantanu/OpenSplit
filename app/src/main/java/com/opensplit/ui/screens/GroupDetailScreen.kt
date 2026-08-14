@@ -8,6 +8,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -141,27 +142,88 @@ fun GroupDetailScreen(
                     ) { tab ->
                     when (tab) {
                         0 -> { // Expenses Tab
-                            Column(
-                                modifier = Modifier
-                                    .fillMaxSize()
-                                    .padding(horizontal = OpenSplitTokens.SpaceLG, vertical = OpenSplitTokens.SpaceMD)
-                            ) {
-                                if (data.expenses.isNotEmpty()) {
-                                    AppSearchBar(
-                                        query = searchQuery,
-                                        onQueryChange = { searchQuery = it },
-                                        placeholderText = "Search expenses..."
-                                    )
+                                Column(
+                                    modifier = Modifier
+                                        .fillMaxSize()
+                                        .padding(horizontal = OpenSplitTokens.SpaceLG, vertical = OpenSplitTokens.SpaceMD)
+                                ) {
+                                    // AI Suggestion Nudge Card
+                                    Card(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(bottom = OpenSplitTokens.SpaceMD),
+                                        shape = RoundedCornerShape(24.dp),
+                                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
+                                        border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.surfaceVariant)
+                                    ) {
+                                        Row(
+                                            modifier = Modifier.padding(16.dp),
+                                            verticalAlignment = Alignment.Top
+                                        ) {
+                                            Surface(
+                                                shape = CircleShape,
+                                                color = MaterialTheme.colorScheme.surface,
+                                                border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.surfaceVariant),
+                                                modifier = Modifier.size(40.dp)
+                                            ) {
+                                                Box(contentAlignment = Alignment.Center) {
+                                                    Icon(
+                                                        imageVector = OpenSplitIcons.AutoAwesome,
+                                                        contentDescription = null,
+                                                        tint = MaterialTheme.colorScheme.secondary,
+                                                        modifier = Modifier.size(20.dp)
+                                                    )
+                                                }
+                                            }
+                                            Spacer(modifier = Modifier.width(12.dp))
+                                            Column(modifier = Modifier.weight(1f)) {
+                                                Text(
+                                                    text = "AI Suggestion",
+                                                    style = MaterialTheme.typography.titleMedium,
+                                                    fontWeight = FontWeight.Bold,
+                                                    color = MaterialTheme.colorScheme.onSurface
+                                                )
+                                                Spacer(modifier = Modifier.height(2.dp))
+                                                Text(
+                                                    text = "Looks like someone hasn't paid for recent shared expenses. Want to send a gentle nudge?",
+                                                    style = MaterialTheme.typography.bodySmall,
+                                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                                )
+                                                Spacer(modifier = Modifier.height(10.dp))
+                                                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                                    Button(
+                                                        onClick = { snackbar.showMessage("Reminder nudge sent to group members!") },
+                                                        contentPadding = PaddingValues(horizontal = 14.dp, vertical = 4.dp),
+                                                        shape = CircleShape,
+                                                        colors = ButtonDefaults.buttonColors(
+                                                            containerColor = MaterialTheme.colorScheme.surface,
+                                                            contentColor = MaterialTheme.colorScheme.secondary
+                                                        ),
+                                                        border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
+                                                    ) {
+                                                        Text("Send Nudge", style = MaterialTheme.typography.labelMedium)
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
 
-                                    Spacer(modifier = Modifier.height(OpenSplitTokens.SpaceMD))
+                                    if (data.expenses.isNotEmpty()) {
+                                        AppSearchBar(
+                                            query = searchQuery,
+                                            onQueryChange = { searchQuery = it },
+                                            placeholderText = "Search expenses..."
+                                        )
 
-                                    CategoryChipRow(
-                                        selectedCategory = selectedCategory,
-                                        onCategorySelected = { selectedCategory = it }
-                                    )
+                                        Spacer(modifier = Modifier.height(OpenSplitTokens.SpaceMD))
 
-                                    Spacer(modifier = Modifier.height(OpenSplitTokens.SpaceMD))
-                                }
+                                        CategoryChipRow(
+                                            selectedCategory = selectedCategory,
+                                            onCategorySelected = { selectedCategory = it }
+                                        )
+
+                                        Spacer(modifier = Modifier.height(OpenSplitTokens.SpaceMD))
+                                    }
 
                                 if (filteredExpenses.isEmpty()) {
                                     Box(

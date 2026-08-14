@@ -155,7 +155,12 @@ fun SettleUpScreen(
         Scaffold(
             topBar = {
                 TopAppBar(
-                    title = { Text("Settle Up", fontWeight = FontWeight.Bold) },
+                    title = {
+                        Column {
+                            Text("Record Payment", fontWeight = FontWeight.Bold)
+                            Text("Settle your balances instantly.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
+                    },
                     navigationIcon = {
                         IconButton(onClick = onNavigateBack) {
                             Icon(OpenSplitIcons.Close, contentDescription = "Close")
@@ -172,14 +177,15 @@ fun SettleUpScreen(
                     .padding(OpenSplitTokens.SpaceLG),
                 verticalArrangement = Arrangement.spacedBy(OpenSplitTokens.SpaceLG)
             ) {
-                // 1. Top Card: Fixed Payer & Recipient Details + Amount + Description
+                // 1. Transaction Direction Card (Tonal Layering Level 1)
                 Card(
                     modifier = Modifier.fillMaxWidth(),
-                    shape = MaterialTheme.shapes.extraLarge,
+                    shape = RoundedCornerShape(28.dp),
                     colors = CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
+                        containerColor = MaterialTheme.colorScheme.surfaceContainerLow
                     ),
-                    elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+                    border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.surfaceVariant),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
                 ) {
                     Column(
                         modifier = Modifier
@@ -187,13 +193,13 @@ fun SettleUpScreen(
                             .padding(OpenSplitTokens.SpaceLG),
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
-                        // Transfer Flow Header (Fixed Member Settle - No Recipient Switching)
+                        // Payer -> Paying Arrow -> Payee
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.SpaceEvenly,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            // Payer Block (Fixed)
+                            // Payer Block
                             Column(
                                 horizontalAlignment = Alignment.CenterHorizontally,
                                 modifier = Modifier.padding(8.dp)
@@ -201,7 +207,7 @@ fun SettleUpScreen(
                                 UserAvatar(
                                     name = fromUser?.displayName ?: "Payer",
                                     photoUrl = fromUser?.photoUrl,
-                                    size = 52
+                                    size = 56
                                 )
                                 Spacer(modifier = Modifier.height(6.dp))
                                 Text(
@@ -211,30 +217,34 @@ fun SettleUpScreen(
                                     color = MaterialTheme.colorScheme.onSurface,
                                     textAlign = TextAlign.Center
                                 )
-                                Text(
-                                    text = "Payer",
-                                    style = MaterialTheme.typography.labelMedium,
-                                    fontWeight = FontWeight.SemiBold,
-                                    color = MaterialTheme.colorScheme.primary
-                                )
                             }
 
-                            // Directional Arrow Icon
+                            // Direction Indicator Pill ("Paying")
                             Surface(
                                 shape = CircleShape,
-                                color = MaterialTheme.colorScheme.primaryContainer
+                                color = MaterialTheme.colorScheme.secondaryContainer
                             ) {
-                                Icon(
-                                    imageVector = Icons.Rounded.ArrowForward,
-                                    contentDescription = "Paid to",
-                                    tint = MaterialTheme.colorScheme.onPrimaryContainer,
-                                    modifier = Modifier
-                                        .padding(10.dp)
-                                        .size(24.dp)
-                                )
+                                Row(
+                                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Rounded.ArrowForward,
+                                        contentDescription = "Paying",
+                                        tint = MaterialTheme.colorScheme.onSecondaryContainer,
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(4.dp))
+                                    Text(
+                                        text = "Paying",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        fontWeight = FontWeight.Bold,
+                                        color = MaterialTheme.colorScheme.onSecondaryContainer
+                                    )
+                                }
                             }
 
-                            // Recipient Block (Fixed to target member)
+                            // Payee Block
                             Column(
                                 horizontalAlignment = Alignment.CenterHorizontally,
                                 modifier = Modifier.padding(8.dp)
@@ -242,7 +252,7 @@ fun SettleUpScreen(
                                 UserAvatar(
                                     name = toUser?.displayName ?: "Recipient",
                                     photoUrl = toUser?.photoUrl,
-                                    size = 52
+                                    size = 56
                                 )
                                 Spacer(modifier = Modifier.height(6.dp))
                                 Text(
@@ -252,12 +262,6 @@ fun SettleUpScreen(
                                     color = MaterialTheme.colorScheme.onSurface,
                                     textAlign = TextAlign.Center
                                 )
-                                Text(
-                                    text = "Recipient",
-                                    style = MaterialTheme.typography.labelMedium,
-                                    fontWeight = FontWeight.SemiBold,
-                                    color = MaterialTheme.colorScheme.secondary
-                                )
                             }
                         }
 
@@ -265,12 +269,11 @@ fun SettleUpScreen(
                         HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
                         Spacer(modifier = Modifier.height(OpenSplitTokens.SpaceMD))
 
-                        // Amount Input Section (Single '0' placeholder, no rupee symbol or /- in placeholder)
+                        // Amount Input Section
                         Text(
-                            text = "SETTLEMENT AMOUNT",
+                            text = "AMOUNT TO SETTLE",
                             style = MaterialTheme.typography.labelSmall,
                             fontWeight = FontWeight.Bold,
-                            letterSpacing = androidx.compose.ui.unit.TextUnit.Unspecified,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
 
@@ -306,7 +309,7 @@ fun SettleUpScreen(
                                     ) {
                                         if (amountText.isEmpty()) {
                                             Text(
-                                                text = "0",
+                                                text = "0.00",
                                                 style = MaterialTheme.typography.displayMedium.copy(
                                                     fontSize = dynamicFontSize,
                                                     color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f),
@@ -354,35 +357,56 @@ fun SettleUpScreen(
                     }
                 }
 
-                // Show Pay Button ONLY when user fills the amount to pay
-                AnimatedVisibility(
-                    visible = canSubmit,
-                    enter = fadeIn() + expandVertically(),
-                    exit = fadeOut() + shrinkVertically()
+                // Info Warning Banner
+                Surface(
+                    shape = RoundedCornerShape(16.dp),
+                    color = MaterialTheme.colorScheme.surfaceContainerLow,
+                    border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.surfaceVariant),
+                    modifier = Modifier.fillMaxWidth()
                 ) {
-                    Button(
-                        onClick = handleRecordSettlement,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(52.dp),
-                        shape = MaterialTheme.shapes.medium,
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = MaterialTheme.colorScheme.primary,
-                            contentColor = MaterialTheme.colorScheme.onPrimary
-                        )
+                    Row(
+                        modifier = Modifier.padding(14.dp),
+                        verticalAlignment = Alignment.Top
                     ) {
                         Icon(
-                            imageVector = OpenSplitIcons.Check,
-                            contentDescription = null,
+                            imageVector = OpenSplitIcons.Info,
+                            contentDescription = "Info",
+                            tint = MaterialTheme.colorScheme.primary,
                             modifier = Modifier.size(20.dp)
                         )
-                        Spacer(modifier = Modifier.width(8.dp))
+                        Spacer(modifier = Modifier.width(10.dp))
                         Text(
-                            text = "Pay",
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Bold
+                            text = "Marking as settled doesn't transfer money. Please ensure you've paid via your banking or UPI app first.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
+                }
+
+                // Save Settlement Button
+                Button(
+                    onClick = handleRecordSettlement,
+                    enabled = canSubmit,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(56.dp),
+                    shape = CircleShape,
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.primary,
+                        contentColor = MaterialTheme.colorScheme.onPrimary
+                    )
+                ) {
+                    Icon(
+                        imageVector = OpenSplitIcons.Check,
+                        contentDescription = null,
+                        modifier = Modifier.size(22.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = "Save Settlement",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold
+                    )
                 }
             }
         }
