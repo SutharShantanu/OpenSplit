@@ -1,5 +1,8 @@
 package com.opensplit.ui.components
 
+import android.content.ClipData
+import android.content.ClipboardManager
+import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import android.provider.ContactsContract
@@ -8,6 +11,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -15,6 +19,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.opensplit.ui.theme.OpenSplitIcons
 import com.opensplit.ui.theme.OpenSplitTokens
@@ -23,11 +28,6 @@ import kotlinx.coroutines.launch
 /**
  * The one "add / invite a person" dialog used everywhere in the app — group members, expense
  * split-between, and friends — so the flow is identical wherever you invite someone.
- *
- * Invites go out through channels only (contacts, WhatsApp, SMS); there is deliberately no
- * free-text email field. Picking a contact resolves their email and routes it to
- * [onSubmitEmail], which is what creates a real, group-scoped invite. WhatsApp and SMS share a
- * generic join message, since those channels can't carry an invite record.
  */
 @Composable
 fun InviteMemberDialog(
@@ -35,11 +35,27 @@ fun InviteMemberDialog(
     description: String,
     onDismiss: () -> Unit,
     onSubmitEmail: (String) -> Unit,
-    shareMessage: String = "Join me on OpenSplit to split expenses easily!"
+    shareMessage: String = "Join me on OpenSplit to split expenses easily!",
+    inviteUrl: String = "https://opensplit.app/invite"
 ) {
     val context = LocalContext.current
     val snackbar = LocalSnackbarController.current
     val scope = rememberCoroutineScope()
+
+    val fullInviteMessage = remember(shareMessage, inviteUrl) {
+        "$shareMessage\n\nJoin link: $inviteUrl"
+    }
+
+    fun copyToClipboard(text: String) {
+        try {
+            val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+            val clip = ClipData.newPlainText("OpenSplit Invite Link", text)
+            clipboard.setPrimaryClip(clip)
+            snackbar.showMessage("✨ Invite link copied to clipboard!")
+        } catch (e: Exception) {
+            snackbar.showMessage("Failed to copy link")
+        }
+    }
 
     val contactPickerLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.PickContact()
@@ -65,8 +81,21 @@ fun InviteMemberDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        icon = { Icon(OpenSplitIcons.AddMember, contentDescription = null) },
-        title = { Text(title) },
+        icon = {
+            Icon(
+                imageVector = OpenSplitIcons.AddMember,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.size(28.dp)
+            )
+        },
+        title = {
+            Text(
+                text = title,
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.Bold
+            )
+        },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(OpenSplitTokens.SpaceSM)) {
                 Text(
@@ -74,6 +103,67 @@ fun InviteMemberDialog(
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
+
+                Spacer(modifier = Modifier.height(4.dp))
+
+                // Default Invite Link Box with Copy Button
+                Surface(
+                    shape = RoundedCornerShape(16.dp),
+                    color = MaterialTheme.colorScheme.surfaceContainerLow,
+                    border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(start = 14.dp, end = 6.dp, top = 6.dp, bottom = 6.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Icon(
+                                imageVector = OpenSplitIcons.Link,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(18.dp)
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                text = inviteUrl,
+                                style = MaterialTheme.typography.bodyMedium,
+                                fontWeight = FontWeight.SemiBold,
+                                color = MaterialTheme.colorScheme.onSurface,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        }
+
+                        IconButton(
+                            onClick = { copyToClipboard(inviteUrl) }
+                        ) {
+                            Icon(
+                                imageVector = OpenSplitIcons.Copy,
+                                contentDescription = "Copy Invite Link",
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(4.dp))
+
+                InviteChannelRow(
+                    icon = OpenSplitIcons.Copy,
+                    label = "Copy Link",
+                    subtitle = "Copy invite link to clipboard"
+                ) {
+                    copyToClipboard(inviteUrl)
+                }
+
                 InviteChannelRow(
                     icon = OpenSplitIcons.Contacts,
                     label = "Contacts",
@@ -81,33 +171,42 @@ fun InviteMemberDialog(
                 ) {
                     contactsPermissionLauncher.launch(android.Manifest.permission.READ_CONTACTS)
                 }
+
                 InviteChannelRow(
                     icon = OpenSplitIcons.Whatsapp,
                     label = "WhatsApp",
-                    subtitle = "Share an invite message"
+                    subtitle = "Share invite message with link"
                 ) {
+                    val whatsappIntent = Intent(Intent.ACTION_SEND).apply {
+                        type = "text/plain"
+                        putExtra(Intent.EXTRA_TEXT, fullInviteMessage)
+                        setPackage("com.whatsapp")
+                    }
                     try {
-                        context.startActivity(
-                            Intent(Intent.ACTION_SEND).apply {
-                                type = "text/plain"
-                                setPackage("com.whatsapp")
-                                putExtra(Intent.EXTRA_TEXT, shareMessage)
-                            }
-                        )
+                        context.startActivity(whatsappIntent)
                     } catch (e: Exception) {
-                        snackbar.showMessage("WhatsApp not installed")
+                        try {
+                            val fallbackIntent = Intent(Intent.ACTION_SEND).apply {
+                                type = "text/plain"
+                                putExtra(Intent.EXTRA_TEXT, fullInviteMessage)
+                            }
+                            context.startActivity(Intent.createChooser(fallbackIntent, "Share invite link via"))
+                        } catch (_: Exception) {
+                            snackbar.showMessage("WhatsApp or messaging app not installed")
+                        }
                     }
                     onDismiss()
                 }
+
                 InviteChannelRow(
                     icon = OpenSplitIcons.Sms,
                     label = "SMS",
-                    subtitle = "Send a text invite"
+                    subtitle = "Send a text invite with link"
                 ) {
                     try {
                         context.startActivity(
                             Intent(Intent.ACTION_SENDTO, Uri.parse("smsto:")).apply {
-                                putExtra("sms_body", shareMessage)
+                                putExtra("sms_body", fullInviteMessage)
                             }
                         )
                     } catch (e: Exception) {

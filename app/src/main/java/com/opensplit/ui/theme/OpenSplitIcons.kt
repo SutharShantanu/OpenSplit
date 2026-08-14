@@ -1,8 +1,9 @@
 package com.opensplit.ui.theme
 
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.outlined.*
 import androidx.compose.material.icons.automirrored.rounded.*
-import androidx.compose.material.icons.outlined.PushPin
+import androidx.compose.material.icons.outlined.*
 import androidx.compose.material.icons.rounded.*
 
 object OpenSplitIcons {
@@ -58,26 +59,28 @@ object OpenSplitIcons {
     val More           = Icons.Rounded.MoreVert
     val Share          = Icons.Rounded.Share
     val Export         = Icons.Rounded.FileDownload
-    val Camera         = Icons.Rounded.CameraAlt
-    val Contacts       = Icons.Rounded.Contacts
+    val Camera         = Icons.Outlined.CameraAlt
+    val Contacts       = Icons.Outlined.Contacts
     val Close          = Icons.Rounded.Close
     val Check          = Icons.Rounded.Check
     val Back           = Icons.AutoMirrored.Rounded.ArrowBack
     val ChevronRight   = Icons.Rounded.ChevronRight
-    val Invite         = Icons.Rounded.PersonAdd
+    val Invite         = Icons.Outlined.PersonAdd
     val Leave          = Icons.AutoMirrored.Rounded.ExitToApp
     val Dropdown       = Icons.Rounded.ArrowDropDown
-    val Security       = Icons.Rounded.Lock
-    val Info           = Icons.Rounded.Info
-    val Theme          = Icons.Rounded.Palette
-    val Help           = Icons.AutoMirrored.Rounded.HelpOutline
-    val Logout         = Icons.AutoMirrored.Rounded.Logout
-    val Person         = Icons.Rounded.Person
-    val Edit           = Icons.Rounded.Edit
-    val Download       = Icons.Rounded.FileDownload
-    val AddMember      = Icons.Rounded.PersonAdd
-    val Whatsapp       = Icons.AutoMirrored.Rounded.Chat
-    val Sms            = Icons.AutoMirrored.Rounded.Comment
+    val Security       = Icons.Outlined.Lock
+    val Info           = Icons.Outlined.Info
+    val Theme          = Icons.Outlined.Palette
+    val Help           = Icons.AutoMirrored.Outlined.HelpOutline
+    val Logout         = Icons.AutoMirrored.Outlined.Logout
+    val Person         = Icons.Outlined.Person
+    val Edit           = Icons.Outlined.Edit
+    val Download       = Icons.Outlined.FileDownload
+    val AddMember      = Icons.Outlined.PersonAdd
+    val Copy           = Icons.Outlined.ContentCopy
+    val Link           = Icons.Outlined.Link
+    val Whatsapp       = Icons.Outlined.Chat
+    val Sms            = Icons.Outlined.Sms
     val PinFilled      = Icons.Rounded.PushPin
     val PinOutline     = Icons.Outlined.PushPin
     val SortFilter     = Icons.Rounded.Tune
