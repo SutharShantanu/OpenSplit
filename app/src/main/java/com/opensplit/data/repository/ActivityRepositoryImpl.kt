@@ -14,6 +14,11 @@ class ActivityRepositoryImpl(
 
     override fun getActivityForGroup(groupId: String): Flow<List<Activity>> {
         val firestoreFlow = callbackFlow<List<Activity>> {
+            if (groupId.isBlank()) {
+                trySend(emptyList())
+                awaitClose {}
+                return@callbackFlow
+            }
             val listener = firestore.collection("groups").document(groupId)
                 .collection("activity")
                 .addSnapshotListener { snapshot, error ->
@@ -42,6 +47,7 @@ class ActivityRepositoryImpl(
     }
 
     override suspend fun logActivity(groupId: String, activity: Activity): Result<String> {
+        if (groupId.isBlank()) return Result.failure(IllegalArgumentException("Group ID cannot be blank"))
         return try {
             val docRef = firestore.collection("groups").document(groupId)
                 .collection("activity")

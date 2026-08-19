@@ -20,10 +20,14 @@ import com.opensplit.R
 class OpenSplitMessagingService : FirebaseMessagingService() {
 
     override fun onNewToken(token: String) {
-        val uid = FirebaseAuth.getInstance().currentUser?.uid ?: return
-        FirebaseFirestore.getInstance()
-            .collection("users").document(uid)
-            .update("fcmToken", token)
+        try {
+            val uid = FirebaseAuth.getInstance().currentUser?.uid ?: return
+            FirebaseFirestore.getInstance()
+                .collection("users").document(uid)
+                .update("fcmToken", token)
+        } catch (e: Exception) {
+            // Broker or firestore disconnected
+        }
     }
 
     override fun onMessageReceived(message: RemoteMessage) {

@@ -73,6 +73,11 @@ class ExpenseRepositoryImpl(
     }
 
     override fun getCommentsForExpense(groupId: String, expenseId: String): Flow<List<com.opensplit.domain.model.Comment>> = callbackFlow {
+        if (expenseId.isBlank()) {
+            trySend(emptyList())
+            awaitClose {}
+            return@callbackFlow
+        }
         val commentsRef = if (groupId.isNotBlank()) {
             getGroupExpensesRef(groupId).document(expenseId).collection("comments")
         } else {
@@ -91,6 +96,7 @@ class ExpenseRepositoryImpl(
     }
 
     override suspend fun addComment(groupId: String, expenseId: String, comment: com.opensplit.domain.model.Comment): Result<String> {
+        if (expenseId.isBlank()) return Result.failure(IllegalArgumentException("Expense ID cannot be blank"))
         return try {
             val commentsRef = if (groupId.isNotBlank()) {
                 getGroupExpensesRef(groupId).document(expenseId).collection("comments")
@@ -185,6 +191,7 @@ class ExpenseRepositoryImpl(
     }
 
     override suspend fun deleteExpense(groupId: String, expenseId: String): Result<Unit> {
+        if (expenseId.isBlank()) return Result.failure(IllegalArgumentException("Expense ID cannot be blank"))
         return try {
             // Group expenses live under groups/{groupId}/expenses; personal ones live at
             // the top level. Soft-delete in the correct collection.

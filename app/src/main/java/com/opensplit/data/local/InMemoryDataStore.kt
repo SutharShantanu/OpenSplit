@@ -39,28 +39,29 @@ object InMemoryDataStore {
         val threeDaysAgo = Timestamp(now.seconds - 259200, 0)
 
         val friendList = listOf(
-            User(uid = "friend_rahul", displayName = "Rahul Sharma", email = "rahul.s@example.com"),
-            User(uid = "friend_priya", displayName = "Priya Patel", email = "priya.p@example.com"),
-            User(uid = "friend_amit", displayName = "Amit Verma", email = "amit.v@example.com"),
-            User(uid = "friend_ananya", displayName = "Ananya Singh", email = "ananya.s@example.com")
+            User(uid = "friend_sarah", displayName = "Sarah Jenkins", email = "sarah.j@example.com"),
+            User(uid = "friend_michael", displayName = "Michael Chen", email = "michael.c@example.com"),
+            User(uid = "friend_david", displayName = "David Rodriguez", email = "david.r@example.com"),
+            User(uid = "friend_alex", displayName = "Alex Miller", email = "alex.m@example.com"),
+            User(uid = "friend_emily", displayName = "Emily Thorne", email = "emily.t@example.com")
         )
         _friends.value = friendList
 
         val group1 = Group(
-            id = "group_goa",
-            name = "Trip to Goa 🌴",
+            id = "group_apt",
+            name = "Apartment 🏠",
             createdBy = currentUid,
-            memberIds = listOf(currentUid, "friend_rahul", "friend_priya", "friend_amit"),
-            currency = "INR",
+            memberIds = listOf(currentUid, "friend_sarah", "friend_david", "friend_alex"),
+            currency = "USD",
             createdAt = threeDaysAgo
         )
 
         val group2 = Group(
-            id = "group_apt302",
-            name = "Apartment 302 🏠",
+            id = "group_tahoe",
+            name = "Tahoe Trip 2024 🌲",
             createdBy = currentUid,
-            memberIds = listOf(currentUid, "friend_priya", "friend_ananya"),
-            currency = "INR",
+            memberIds = listOf(currentUid, "friend_sarah", "friend_michael", "friend_alex"),
+            currency = "USD",
             createdAt = twoDaysAgo
         )
 
@@ -68,134 +69,131 @@ object InMemoryDataStore {
             id = "group_foodies",
             name = "Weekend Foodies 🍕",
             createdBy = currentUid,
-            memberIds = listOf(currentUid, "friend_rahul", "friend_amit"),
-            currency = "INR",
+            memberIds = listOf(currentUid, "friend_michael", "friend_emily"),
+            currency = "USD",
             createdAt = oneDayAgo
         )
 
         _groups.value = listOf(group1, group2, group3)
 
         val exp1 = Expense(
-            id = "exp_villa",
+            id = "exp_electric",
             groupId = group1.id,
-            description = "Beach Villa Stay",
-            amount = 16000.0,
-            currency = "INR",
-            paidBy = currentUid,
+            description = "Electric Bill",
+            amount = 142.00,
+            currency = "USD",
+            paidBy = "friend_sarah",
             splitType = SplitType.EQUAL,
             splits = listOf(
-                ExpenseSplit(uid = currentUid, amount = 4000.0),
-                ExpenseSplit(uid = "friend_rahul", amount = 4000.0),
-                ExpenseSplit(uid = "friend_priya", amount = 4000.0),
-                ExpenseSplit(uid = "friend_amit", amount = 4000.0)
+                ExpenseSplit(uid = currentUid, amount = 47.33),
+                ExpenseSplit(uid = "friend_sarah", amount = 47.34),
+                ExpenseSplit(uid = "friend_david", amount = 47.33)
             ),
-            category = "Rent",
-            date = threeDaysAgo,
-            createdBy = currentUid
+            category = "Utilities",
+            date = now,
+            createdBy = "friend_sarah"
         )
 
         val exp2 = Expense(
-            id = "exp_dinner",
+            id = "exp_groceries_apt",
             groupId = group1.id,
-            description = "Seafood Dinner & Drinks",
-            amount = 4800.0,
-            currency = "INR",
-            paidBy = "friend_rahul",
-            splitType = SplitType.EXACT,
-            splits = listOf(
-                ExpenseSplit(uid = currentUid, amount = 1500.0),
-                ExpenseSplit(uid = "friend_rahul", amount = 1300.0),
-                ExpenseSplit(uid = "friend_priya", amount = 1000.0),
-                ExpenseSplit(uid = "friend_amit", amount = 1000.0)
-            ),
-            category = "Food & Drinks",
-            date = twoDaysAgo,
-            createdBy = "friend_rahul"
-        )
-
-        val exp3 = Expense(
-            id = "exp_scuba",
-            groupId = group1.id,
-            description = "Scuba Diving & Watersports",
-            amount = 6000.0,
-            currency = "INR",
-            paidBy = "friend_priya",
-            splitType = SplitType.PERCENTAGE,
-            splits = listOf(
-                ExpenseSplit(uid = currentUid, amount = 1800.0, percentage = 30.0),
-                ExpenseSplit(uid = "friend_rahul", amount = 1800.0, percentage = 30.0),
-                ExpenseSplit(uid = "friend_priya", amount = 1200.0, percentage = 20.0),
-                ExpenseSplit(uid = "friend_amit", amount = 1200.0, percentage = 20.0)
-            ),
-            category = "Entertainment",
-            date = oneDayAgo,
-            createdBy = "friend_priya"
-        )
-
-        val exp4 = Expense(
-            id = "exp_grocery",
-            groupId = group2.id,
-            description = "Monthly Grocery Stockup",
-            amount = 3600.0,
-            currency = "INR",
+            description = "Trader Joe's Groceries",
+            amount = 85.40,
+            currency = "USD",
             paidBy = currentUid,
             splitType = SplitType.EQUAL,
             splits = listOf(
-                ExpenseSplit(uid = currentUid, amount = 1200.0),
-                ExpenseSplit(uid = "friend_priya", amount = 1200.0),
-                ExpenseSplit(uid = "friend_ananya", amount = 1200.0)
+                ExpenseSplit(uid = currentUid, amount = 28.47),
+                ExpenseSplit(uid = "friend_sarah", amount = 28.47),
+                ExpenseSplit(uid = "friend_david", amount = 28.46)
+            ),
+            category = "Groceries",
+            date = oneDayAgo,
+            createdBy = currentUid
+        )
+
+        val exp3 = Expense(
+            id = "exp_internet",
+            groupId = group1.id,
+            description = "Internet (Comcast)",
+            amount = 60.00,
+            currency = "USD",
+            paidBy = "friend_david",
+            splitType = SplitType.EQUAL,
+            splits = listOf(
+                ExpenseSplit(uid = currentUid, amount = 20.00),
+                ExpenseSplit(uid = "friend_sarah", amount = 20.00),
+                ExpenseSplit(uid = "friend_david", amount = 20.00)
+            ),
+            category = "Utilities",
+            date = twoDaysAgo,
+            createdBy = "friend_david"
+        )
+
+        val exp4 = Expense(
+            id = "exp_tahoe_airbnb",
+            groupId = group2.id,
+            description = "Airbnb Split",
+            amount = 450.00,
+            currency = "USD",
+            paidBy = "friend_sarah",
+            splitType = SplitType.EQUAL,
+            splits = listOf(
+                ExpenseSplit(uid = currentUid, amount = 150.00),
+                ExpenseSplit(uid = "friend_sarah", amount = 150.00),
+                ExpenseSplit(uid = "friend_michael", amount = 150.00)
+            ),
+            category = "Rent",
+            date = threeDaysAgo,
+            createdBy = "friend_sarah"
+        )
+
+        val exp5 = Expense(
+            id = "exp_tahoe_groceries",
+            groupId = group2.id,
+            description = "Weekend Groceries (Safeway)",
+            amount = 124.50,
+            currency = "USD",
+            paidBy = currentUid,
+            splitType = SplitType.EQUAL,
+            splits = listOf(
+                ExpenseSplit(uid = currentUid, amount = 41.50),
+                ExpenseSplit(uid = "friend_sarah", amount = 41.50),
+                ExpenseSplit(uid = "friend_michael", amount = 41.50)
             ),
             category = "Groceries",
             date = twoDaysAgo,
             createdBy = currentUid
         )
 
-        val exp5 = Expense(
-            id = "exp_wifi",
-            groupId = group2.id,
-            description = "High-Speed WiFi Bill",
-            amount = 1500.0,
-            currency = "INR",
-            paidBy = "friend_ananya",
-            splitType = SplitType.EQUAL,
-            splits = listOf(
-                ExpenseSplit(uid = currentUid, amount = 500.0),
-                ExpenseSplit(uid = "friend_priya", amount = 500.0),
-                ExpenseSplit(uid = "friend_ananya", amount = 500.0)
-            ),
-            category = "Utilities",
-            date = oneDayAgo,
-            createdBy = "friend_ananya"
-        )
-
         val exp6 = Expense(
-            id = "exp_pizza",
-            groupId = group3.id,
-            description = "Artisanal Pizza & Desserts",
-            amount = 2200.0,
-            currency = "INR",
-            paidBy = currentUid,
+            id = "exp_dinner_luigi",
+            groupId = group2.id,
+            description = "Dinner at Luigi's",
+            amount = 124.50,
+            currency = "USD",
+            paidBy = "friend_alex",
             splitType = SplitType.EQUAL,
             splits = listOf(
-                ExpenseSplit(uid = currentUid, amount = 733.34),
-                ExpenseSplit(uid = "friend_rahul", amount = 733.33),
-                ExpenseSplit(uid = "friend_amit", amount = 733.33)
+                ExpenseSplit(uid = currentUid, amount = 41.50),
+                ExpenseSplit(uid = "friend_sarah", amount = 41.50),
+                ExpenseSplit(uid = "friend_alex", amount = 41.50)
             ),
             category = "Food & Drinks",
-            date = now,
-            createdBy = currentUid
+            date = oneDayAgo,
+            createdBy = "friend_alex"
         )
 
         _expenses.value = listOf(exp1, exp2, exp3, exp4, exp5, exp6)
 
         val set1 = Settlement(
             id = "set_1",
-            fromUid = "friend_rahul",
-            toUid = currentUid,
-            amount = 2500.0,
-            currency = "INR",
+            fromUid = currentUid,
+            toUid = "friend_alex",
+            amount = 45.00,
+            currency = "USD",
             date = oneDayAgo,
-            note = "Partial settlement for Villa stay"
+            note = "Settled up for dinner"
         )
         _settlements.value = listOf(set1)
 
@@ -204,36 +202,29 @@ object InMemoryDataStore {
                 id = "act_1",
                 type = ActivityType.GROUP_CREATED,
                 actorUid = currentUid,
-                message = "created group 'Trip to Goa 🌴'",
+                message = "created group 'Apartment 🏠'",
                 timestamp = threeDaysAgo
             ),
             Activity(
                 id = "act_2",
                 type = ActivityType.EXPENSE_ADDED,
-                actorUid = currentUid,
-                message = "added 'Beach Villa Stay' (₹16,000.00) in 'Trip to Goa 🌴'",
-                timestamp = threeDaysAgo
+                actorUid = "friend_sarah",
+                message = "added 'Electric Bill' ($142.00) in 'Apartment 🏠'",
+                timestamp = now
             ),
             Activity(
                 id = "act_3",
                 type = ActivityType.EXPENSE_ADDED,
-                actorUid = "friend_rahul",
-                message = "added 'Seafood Dinner & Drinks' (₹4,800.00) in 'Trip to Goa 🌴'",
-                timestamp = twoDaysAgo
+                actorUid = currentUid,
+                message = "added 'Trader Joe's Groceries' ($85.40) in 'Apartment 🏠'",
+                timestamp = oneDayAgo
             ),
             Activity(
                 id = "act_4",
                 type = ActivityType.SETTLEMENT_ADDED,
-                actorUid = "friend_rahul",
-                message = "paid ₹2,500.00 to You",
-                timestamp = oneDayAgo
-            ),
-            Activity(
-                id = "act_5",
-                type = ActivityType.EXPENSE_ADDED,
                 actorUid = currentUid,
-                message = "added 'Artisanal Pizza & Desserts' (₹2,200.00) in 'Weekend Foodies 🍕'",
-                timestamp = now
+                message = "paid $45.00 to Alex M. in 'Apartment 🏠'",
+                timestamp = oneDayAgo
             )
         )
         _activities.value = actList

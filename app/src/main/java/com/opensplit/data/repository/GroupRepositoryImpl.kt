@@ -40,10 +40,11 @@ class GroupRepositoryImpl(
     }
 
     override suspend fun getGroup(groupId: String): Group? {
+        if (groupId.isBlank()) return com.opensplit.data.local.InMemoryDataStore.groups.value.find { it.id == groupId }
         return try {
             groupsCollection.document(groupId).get().await().toObject(Group::class.java)
         } catch (e: Exception) {
-            null
+            com.opensplit.data.local.InMemoryDataStore.groups.value.find { it.id == groupId }
         }
     }
 
@@ -67,6 +68,7 @@ class GroupRepositoryImpl(
     }
 
     override suspend fun updateGroup(group: Group): Result<Unit> {
+        if (group.id.isBlank()) return Result.failure(IllegalArgumentException("Group ID cannot be blank"))
         return try {
             groupsCollection.document(group.id).set(group).await()
             Result.success(Unit)
@@ -76,6 +78,7 @@ class GroupRepositoryImpl(
     }
 
     override suspend fun deleteGroup(groupId: String): Result<Unit> {
+        if (groupId.isBlank()) return Result.failure(IllegalArgumentException("Group ID cannot be blank"))
         return try {
             groupsCollection.document(groupId).delete().await()
             Result.success(Unit)

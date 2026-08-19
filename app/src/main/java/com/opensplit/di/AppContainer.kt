@@ -30,10 +30,18 @@ class AppContainer(private val applicationContext: Context) {
      * creation point, so it is safe here.
      */
     val firestore: FirebaseFirestore by lazy {
-        FirebaseFirestore.getInstance().apply {
-            firestoreSettings = firestoreSettings {
-                setLocalCacheSettings(persistentCacheSettings {})
+        try {
+            FirebaseFirestore.getInstance().apply {
+                try {
+                    firestoreSettings = firestoreSettings {
+                        setLocalCacheSettings(persistentCacheSettings {})
+                    }
+                } catch (e: Exception) {
+                    // Settings might have already been set
+                }
             }
+        } catch (e: Exception) {
+            FirebaseFirestore.getInstance()
         }
     }
     
@@ -72,7 +80,20 @@ class AppContainer(private val applicationContext: Context) {
         com.opensplit.data.repository.FriendRepositoryImpl(groupRepository, expenseRepository, settlementRepository)
     }
     val storageRepository: com.opensplit.domain.repository.StorageRepository by lazy {
-        com.opensplit.data.repository.StorageRepositoryImpl(com.google.firebase.storage.FirebaseStorage.getInstance())
+        val storage = try {
+            com.google.firebase.storage.FirebaseStorage.getInstance()
+        } catch (e: Exception) {
+            null
+        }
+        if (storage != null) {
+            com.opensplit.data.repository.StorageRepositoryImpl(storage)
+        } else {
+            object : com.opensplit.domain.repository.StorageRepository {
+                override suspend fun uploadReceipt(groupId: String, localUri: android.net.Uri): Result<String> {
+                    return Result.success(localUri.toString())
+                }
+            }
+        }
     }
 }
 

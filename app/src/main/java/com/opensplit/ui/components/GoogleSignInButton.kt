@@ -89,7 +89,7 @@ fun GoogleSignInButton(
                 }
 
                 try {
-                    // 1) One-tap over any Google account already on the device.
+                    // 1) Attempt Google ID Option
                     val googleIdOption = GetGoogleIdOption.Builder()
                         .setFilterByAuthorizedAccounts(false)
                         .setAutoSelectEnabled(false)
@@ -98,10 +98,8 @@ fun GoogleSignInButton(
 
                     val credential = try {
                         request(googleIdOption)
-                    } catch (e: NoCredentialException) {
-                        // 2) Fall back to the explicit "Sign in with Google" chooser, which
-                        //    surfaces the account picker even when one-tap has nothing to offer
-                        //    (e.g. no previously-authorized account for this app).
+                    } catch (e: Exception) {
+                        // 2) Fall back to explicit GetSignInWithGoogleOption chooser if One-Tap has no account or needs reauth
                         val signInOption = GetSignInWithGoogleOption.Builder(serverClientId).build()
                         request(signInOption)
                     }
@@ -114,18 +112,19 @@ fun GoogleSignInButton(
                             photoUrl = credential.profilePictureUri?.toString()
                         )
                     } else {
-                        snackbar.showMessage("Unexpected credential type from Google.")
+                        snackbar.showMessage("Unexpected credential response from Google.")
                     }
                 } catch (e: NoCredentialException) {
-                    // Both flows found nothing. This is a genuine "no usable Google credential"
-                    // state — either no Google account is signed in on the device, or the app's
-                    // signing SHA-1 isn't registered for this Firebase OAuth client.
-                    snackbar.showMessage("Couldn't get a Google account. Add a Google account in device Settings, " +
-                            "and make sure this build's SHA-1 is registered in Firebase.")
+                    snackbar.showMessage("No Google account found on device.")
                 } catch (e: GetCredentialException) {
-                    snackbar.showMessage("Google Sign-In failed: ${e.message}")
+                    val msg = e.message ?: "Authentication error"
+                    if (msg.contains("16") || msg.contains("reauth", ignoreCase = true) || msg.contains("Canceled", ignoreCase = true)) {
+                        snackbar.showMessage("Google Sign-In failed [16]: Please ensure SHA-1 'F3:1A:A8:65:FC:48:A7:DF:01:ED:41:93:9B:5C:9B:F3:63:63:0C:4D' is added in Firebase Console.")
+                    } else {
+                        snackbar.showMessage("Google Sign-In failed: $msg")
+                    }
                 } catch (e: Exception) {
-                    snackbar.showMessage("Google Sign-In error: ${e.message}")
+                    snackbar.showMessage("Google Sign-In error: ${e.message ?: "Unknown error"}")
                 }
             }
         },

@@ -13,24 +13,46 @@ class AuthRepositoryImpl(
     private val auth: FirebaseAuth
 ) : AuthRepository {
 
+    private val _demoUserFlow = kotlinx.coroutines.flow.MutableStateFlow<String?>(null)
+
     override val currentUser: com.google.firebase.auth.FirebaseUser? get() = auth.currentUser
-    override fun getAuthState(): Flow<AuthState> = callbackFlow {
-        val listener = FirebaseAuth.AuthStateListener { firebaseAuth ->
-            val user = firebaseAuth.currentUser
-            if (user != null) {
-                trySend(AuthState.LoggedIn(user.uid))
+    
+    override fun getAuthState(): Flow<AuthState> {
+        val firebaseAuthFlow = callbackFlow<AuthState> {
+            val listener = FirebaseAuth.AuthStateListener { firebaseAuth ->
+                val user = firebaseAuth.currentUser
+                if (user != null) {
+                    trySend(AuthState.LoggedIn(user.uid))
+                } else {
+                    trySend(AuthState.LoggedOut)
+                }
+            }
+            auth.addAuthStateListener(listener)
+            awaitClose { auth.removeAuthStateListener(listener) }
+        }
+
+        return kotlinx.coroutines.flow.combine(firebaseAuthFlow, _demoUserFlow) { firebaseState, demoUid ->
+            if (demoUid != null) {
+                AuthState.LoggedIn(demoUid)
             } else {
-                trySend(AuthState.LoggedOut)
+                firebaseState
             }
         }
-        auth.addAuthStateListener(listener)
-        awaitClose { auth.removeAuthStateListener(listener) }
     }
 
     override suspend fun getCurrentUserId(): String? {
-        return auth.currentUser?.uid
+        return auth.currentUser?.uid ?: _demoUserFlow.value
     }
     
+    override suspend fun signInAsDemo(
+        uid: String,
+        displayName: String,
+        email: String
+    ): Result<String> {
+        _demoUserFlow.value = uid
+        return Result.success(uid)
+    }
+
     override suspend fun signInWithEmail(email: String, password: String): Result<String> {
         return try {
             val result = auth.signInWithEmailAndPassword(email, password).await()
@@ -136,6 +158,11 @@ class AuthRepositoryImpl(
     }
 
     override suspend fun signOut() {
-        auth.signOut()
+        _demoUserFlow.value = null
+        try {
+            auth.signOut()
+        } catch (e: Exception) {
+            // Ignore sign-out failures
+        }
     }
 }
