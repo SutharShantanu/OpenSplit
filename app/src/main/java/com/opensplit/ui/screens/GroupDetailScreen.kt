@@ -43,6 +43,10 @@ fun GroupDetailScreen(
     var showAddMember by remember { mutableStateOf(false) }
     var showExportSheet by remember { mutableStateOf(false) }
     var showSettings by remember { mutableStateOf(false) }
+    var showFilterSortSheet by remember { mutableStateOf(false) }
+    var sortOrder by rememberSaveable { mutableStateOf(ExpenseSortOrder.DATE_NEWEST) }
+    var filterPaidByYou by rememberSaveable { mutableStateOf(false) }
+    var filterInvolvedYou by rememberSaveable { mutableStateOf(false) }
     var searchQuery by rememberSaveable { mutableStateOf("") }
     var selectedCategory by rememberSaveable { mutableStateOf("All") }
     var selectedTab by rememberSaveable { mutableStateOf(0) }
@@ -69,6 +73,9 @@ fun GroupDetailScreen(
                     }
                 },
                 actions = {
+                    IconButton(onClick = { showFilterSortSheet = true }) {
+                        Icon(OpenSplitIcons.Filter, contentDescription = "Filter and Sort")
+                    }
                     IconButton(onClick = { showExportSheet = true }) {
                         Icon(OpenSplitIcons.Export, contentDescription = "Export Group Expenses")
                     }
@@ -102,10 +109,19 @@ fun GroupDetailScreen(
                 .padding(top = padding.calculateTopPadding(), bottom = padding.calculateBottomPadding())
         ) {
             StateLayout(state = uiState) { data ->
+                val currentUid = com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.uid ?: ""
                 val filteredExpenses = data.expenses.filter { exp ->
                     val matchesQuery = exp.description.contains(searchQuery, ignoreCase = true) || exp.category.contains(searchQuery, ignoreCase = true)
                     val matchesCategory = selectedCategory == "All" || exp.category.equals(selectedCategory, ignoreCase = true)
-                    matchesQuery && matchesCategory
+                    val matchesPaidBy = !filterPaidByYou || exp.paidBy == currentUid
+                    val matchesInvolved = !filterInvolvedYou || exp.splits.any { it.uid == currentUid } || exp.paidBy == currentUid
+                    matchesQuery && matchesCategory && matchesPaidBy && matchesInvolved
+                }.let { list ->
+                    when (sortOrder) {
+                        ExpenseSortOrder.DATE_NEWEST -> list.sortedByDescending { it.date.seconds }
+                        ExpenseSortOrder.AMOUNT_HIGHEST -> list.sortedByDescending { it.amount }
+                        ExpenseSortOrder.CATEGORY -> list.sortedBy { it.category }
+                    }
                 }
 
                 Column(
@@ -147,6 +163,66 @@ fun GroupDetailScreen(
                                         .fillMaxSize()
                                         .padding(horizontal = OpenSplitTokens.SpaceLG, vertical = OpenSplitTokens.SpaceMD)
                                 ) {
+                                    // Total Spending Banner
+                                    val totalSpending = remember(data.expenses) { data.expenses.sumOf { it.amount } }
+                                    val currencySymbol = remember(data.group.currency) { com.opensplit.util.CurrencyFormatter.getCurrencySymbol(data.group.currency) }
+
+                                    Card(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(bottom = OpenSplitTokens.SpaceMD),
+                                        shape = RoundedCornerShape(28.dp),
+                                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
+                                        border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.surfaceVariant)
+                                    ) {
+                                        Row(
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .padding(OpenSplitTokens.SpaceLG),
+                                            horizontalArrangement = Arrangement.SpaceBetween,
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            Column {
+                                                Text(
+                                                    text = "Group Total Spending",
+                                                    style = MaterialTheme.typography.titleMedium,
+                                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                                )
+                                                Spacer(modifier = Modifier.height(4.dp))
+                                                Text(
+                                                    text = "$currencySymbol${com.opensplit.util.CurrencyFormatter.format(totalSpending, showSymbol = false)}",
+                                                    style = MaterialTheme.typography.headlineLarge,
+                                                    fontWeight = FontWeight.Bold,
+                                                    color = MaterialTheme.colorScheme.onSurface
+                                                )
+                                                Spacer(modifier = Modifier.height(2.dp))
+                                                Text(
+                                                    text = "This month",
+                                                    style = MaterialTheme.typography.bodySmall,
+                                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                                )
+                                            }
+                                            Button(
+                                                onClick = {
+                                                    if (data.members.size > 1) {
+                                                        onNavigateToSettleUp()
+                                                    } else {
+                                                        snackbar.showMessage("Add another member to this group before settling up")
+                                                    }
+                                                },
+                                                shape = CircleShape,
+                                                colors = ButtonDefaults.buttonColors(
+                                                    containerColor = MaterialTheme.colorScheme.primary,
+                                                    contentColor = MaterialTheme.colorScheme.onPrimary
+                                                )
+                                            ) {
+                                                Icon(OpenSplitIcons.Settle, contentDescription = null, modifier = Modifier.size(18.dp))
+                                                Spacer(modifier = Modifier.width(6.dp))
+                                                Text("Settle Up", fontWeight = FontWeight.Bold)
+                                            }
+                                        }
+                                    }
+
                                     // AI Suggestion Nudge Card
                                     Card(
                                         modifier = Modifier
@@ -451,16 +527,68 @@ fun GroupDetailScreen(
                                     .fillMaxSize()
                                     .padding(OpenSplitTokens.SpaceLG)
                             ) {
-                                Button(
-                                    onClick = { showAddMember = true },
-                                    modifier = Modifier.fillMaxWidth()
+                                // Simplify Debts Toggle Card
+                                Card(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(bottom = OpenSplitTokens.SpaceMD),
+                                    shape = RoundedCornerShape(20.dp),
+                                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
+                                    border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.surfaceVariant)
                                 ) {
-                                    Icon(OpenSplitIcons.Invite, contentDescription = null)
-                                    Spacer(modifier = Modifier.width(OpenSplitTokens.SpaceSM))
-                                    Text("Add Member to Group")
+                                    Row(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(16.dp),
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Row(
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            modifier = Modifier.weight(1f)
+                                        ) {
+                                            Surface(
+                                                shape = CircleShape,
+                                                color = MaterialTheme.colorScheme.primaryContainer,
+                                                modifier = Modifier.size(40.dp)
+                                            ) {
+                                                Box(contentAlignment = Alignment.Center) {
+                                                    Icon(
+                                                        imageVector = OpenSplitIcons.AutoAwesome,
+                                                        contentDescription = "Simplify Debts",
+                                                        tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                                                        modifier = Modifier.size(20.dp)
+                                                    )
+                                                }
+                                            }
+                                            Spacer(modifier = Modifier.width(12.dp))
+                                            Column {
+                                                Text(
+                                                    text = "Simplify Debts",
+                                                    style = MaterialTheme.typography.titleMedium,
+                                                    fontWeight = FontWeight.Bold,
+                                                    color = MaterialTheme.colorScheme.onSurface
+                                                )
+                                                Text(
+                                                    text = "Minimize total number of transactions",
+                                                    style = MaterialTheme.typography.bodySmall,
+                                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                                )
+                                            }
+                                        }
+                                        Switch(
+                                            checked = data.group.simplifyDebts,
+                                            onCheckedChange = {
+                                                viewModel.setSimplifyDebts(it)
+                                                snackbar.showMessage(if (it) "Debt simplification enabled" else "Debt simplification disabled")
+                                            },
+                                            colors = SwitchDefaults.colors(
+                                                checkedThumbColor = MaterialTheme.colorScheme.surface,
+                                                checkedTrackColor = MaterialTheme.colorScheme.primary
+                                            )
+                                        )
+                                    }
                                 }
-
-                                Spacer(modifier = Modifier.height(OpenSplitTokens.SpaceMD))
 
                                 if (data.members.isEmpty()) {
                                     Box(
@@ -482,7 +610,7 @@ fun GroupDetailScreen(
                                             )
                                             Spacer(modifier = Modifier.height(OpenSplitTokens.SpaceSM))
                                             Text(
-                                                text = "Use \"Add Member to Group\" above to bring people into this group.",
+                                                text = "Use \"Add New Member\" below to bring people into this group.",
                                                 style = MaterialTheme.typography.bodyMedium,
                                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                                                 textAlign = androidx.compose.ui.text.style.TextAlign.Center
@@ -490,107 +618,147 @@ fun GroupDetailScreen(
                                         }
                                     }
                                 } else {
-                                LazyColumn(
-                                    verticalArrangement = Arrangement.spacedBy(OpenSplitTokens.SpaceXS)
-                                ) {
-                                    item {
-                                        Text(
-                                            text = "Active Members (${data.members.size})",
-                                            style = MaterialTheme.typography.titleSmall,
-                                            fontWeight = FontWeight.Bold,
-                                            color = MaterialTheme.colorScheme.primary,
-                                            modifier = Modifier.padding(vertical = OpenSplitTokens.SpaceXS)
-                                        )
-                                    }
-
-                                    items(data.members, key = { it.uid }) { user ->
-                                        ListItem(
-                                            headlineContent = { Text(user.displayName, fontWeight = FontWeight.SemiBold) },
-                                            supportingContent = { Text(user.email, style = MaterialTheme.typography.bodySmall) },
-                                            leadingContent = {
-                                                Surface(
-                                                    shape = CircleShape,
-                                                    color = MaterialTheme.colorScheme.primaryContainer,
-                                                    modifier = Modifier.size(40.dp)
-                                                ) {
-                                                    Box(contentAlignment = Alignment.Center) {
-                                                        Text(
-                                                            text = user.displayName.take(1).uppercase(),
-                                                            fontWeight = FontWeight.Bold,
-                                                            color = MaterialTheme.colorScheme.onPrimaryContainer
-                                                        )
-                                                    }
-                                                }
-                                            }
-                                        )
-                                        HorizontalDivider(color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
-                                    }
-
-                                    if (data.pendingInvites.isNotEmpty()) {
+                                    LazyColumn(
+                                        modifier = Modifier.weight(1f),
+                                        verticalArrangement = Arrangement.spacedBy(OpenSplitTokens.SpaceXS)
+                                    ) {
                                         item {
-                                            Spacer(modifier = Modifier.height(OpenSplitTokens.SpaceMD))
                                             Text(
-                                                text = "Pending Invites (${data.pendingInvites.size})",
-                                                style = MaterialTheme.typography.titleSmall,
+                                                text = "${data.members.size} Members",
+                                                style = MaterialTheme.typography.labelLarge,
                                                 fontWeight = FontWeight.Bold,
-                                                color = MaterialTheme.colorScheme.secondary,
+                                                color = MaterialTheme.colorScheme.primary,
                                                 modifier = Modifier.padding(vertical = OpenSplitTokens.SpaceXS)
                                             )
                                         }
 
-                                        items(data.pendingInvites, key = { it.id }) { invite ->
-                                            val expiryStr = remember(invite.expiresAt) {
-                                                try {
-                                                    SimpleDateFormat("MMM d, yyyy", Locale.getDefault()).format(invite.expiresAt.toDate())
-                                                } catch (e: Exception) { "7 days" }
-                                            }
+                                        items(data.members, key = { it.uid }) { user ->
                                             ListItem(
-                                                headlineContent = { Text(invite.email, fontWeight = FontWeight.Medium) },
-                                                supportingContent = {
-                                                    Text(
-                                                        text = "Invite expires $expiryStr",
-                                                        style = MaterialTheme.typography.bodySmall,
-                                                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                                                    )
-                                                },
+                                                headlineContent = { Text(user.displayName, fontWeight = FontWeight.SemiBold) },
+                                                supportingContent = { Text(user.email, style = MaterialTheme.typography.bodySmall) },
                                                 leadingContent = {
                                                     Surface(
                                                         shape = CircleShape,
-                                                        color = MaterialTheme.colorScheme.secondaryContainer,
-                                                        modifier = Modifier.size(40.dp)
+                                                        color = MaterialTheme.colorScheme.primaryContainer,
+                                                        modifier = Modifier.size(44.dp)
                                                     ) {
                                                         Box(contentAlignment = Alignment.Center) {
-                                                            Icon(
-                                                                OpenSplitIcons.Invite,
-                                                                contentDescription = "Pending",
-                                                                tint = MaterialTheme.colorScheme.onSecondaryContainer,
-                                                                modifier = Modifier.size(20.dp)
+                                                            Text(
+                                                                text = user.displayName.take(1).uppercase(),
+                                                                fontWeight = FontWeight.Bold,
+                                                                color = MaterialTheme.colorScheme.onPrimaryContainer
                                                             )
                                                         }
-                                                    }
-                                                },
-                                                trailingContent = {
-                                                    TextButton(
-                                                        onClick = {
-                                                            viewModel.revokeInvite(invite.id)
-                                                            snackbar.showUndo("Invite revoked for ${invite.email}") {
-                                                                viewModel.addMemberByEmail(invite.email)
-                                                            }
-                                                        }
-                                                    ) {
-                                                        Text("Revoke", color = MaterialTheme.colorScheme.error)
                                                     }
                                                 }
                                             )
                                             HorizontalDivider(color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
                                         }
+
+                                        if (data.pendingInvites.isNotEmpty()) {
+                                            item {
+                                                Spacer(modifier = Modifier.height(OpenSplitTokens.SpaceMD))
+                                                Text(
+                                                    text = "Pending Invites (${data.pendingInvites.size})",
+                                                    style = MaterialTheme.typography.titleSmall,
+                                                    fontWeight = FontWeight.Bold,
+                                                    color = MaterialTheme.colorScheme.secondary,
+                                                    modifier = Modifier.padding(vertical = OpenSplitTokens.SpaceXS)
+                                                )
+                                            }
+
+                                            items(data.pendingInvites, key = { it.id }) { invite ->
+                                                val expiryStr = remember(invite.expiresAt) {
+                                                    try {
+                                                        SimpleDateFormat("MMM d, yyyy", Locale.getDefault()).format(invite.expiresAt.toDate())
+                                                    } catch (e: Exception) { "7 days" }
+                                                }
+                                                ListItem(
+                                                    headlineContent = { Text(invite.email, fontWeight = FontWeight.Medium) },
+                                                    supportingContent = {
+                                                        Text(
+                                                            text = "Invite expires $expiryStr",
+                                                            style = MaterialTheme.typography.bodySmall,
+                                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                                        )
+                                                    },
+                                                    leadingContent = {
+                                                        Surface(
+                                                            shape = CircleShape,
+                                                            color = MaterialTheme.colorScheme.secondaryContainer,
+                                                            modifier = Modifier.size(40.dp)
+                                                        ) {
+                                                            Box(contentAlignment = Alignment.Center) {
+                                                                Icon(
+                                                                    OpenSplitIcons.Invite,
+                                                                    contentDescription = "Pending",
+                                                                    tint = MaterialTheme.colorScheme.onSecondaryContainer,
+                                                                    modifier = Modifier.size(20.dp)
+                                                                )
+                                                            }
+                                                        }
+                                                    },
+                                                    trailingContent = {
+                                                        TextButton(
+                                                            onClick = {
+                                                                viewModel.revokeInvite(invite.id)
+                                                                snackbar.showUndo("Invite revoked for ${invite.email}") {
+                                                                    viewModel.addMemberByEmail(invite.email)
+                                                                }
+                                                            }
+                                                        ) {
+                                                            Text("Revoke", color = MaterialTheme.colorScheme.error)
+                                                        }
+                                                    }
+                                                )
+                                                HorizontalDivider(color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+                                            }
+                                        }
                                     }
-                                }
+
+                                    Spacer(modifier = Modifier.height(OpenSplitTokens.SpaceMD))
+
+                                    // Add New Member Button
+                                    Button(
+                                        onClick = { showAddMember = true },
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .height(52.dp),
+                                        shape = CircleShape,
+                                        colors = ButtonDefaults.buttonColors(
+                                            containerColor = MaterialTheme.colorScheme.primary,
+                                            contentColor = MaterialTheme.colorScheme.onPrimary
+                                        )
+                                    ) {
+                                        Icon(OpenSplitIcons.Invite, contentDescription = null, modifier = Modifier.size(20.dp))
+                                        Spacer(modifier = Modifier.width(OpenSplitTokens.SpaceSM))
+                                        Text("Add New Member", fontWeight = FontWeight.Bold)
+                                    }
                                 }
                             }
                         }
                     }
                     }
+                }
+
+                if (showFilterSortSheet) {
+                    FilterAndSortBottomSheet(
+                        currentSort = sortOrder,
+                        filterPaidByYou = filterPaidByYou,
+                        filterInvolvedYou = filterInvolvedYou,
+                        resultCount = filteredExpenses.size,
+                        onApply = { sort, paid, involved ->
+                            sortOrder = sort
+                            filterPaidByYou = paid
+                            filterInvolvedYou = involved
+                        },
+                        onReset = {
+                            sortOrder = ExpenseSortOrder.DATE_NEWEST
+                            filterPaidByYou = false
+                            filterInvolvedYou = false
+                        },
+                        onDismiss = { showFilterSortSheet = false }
+                    )
                 }
 
                 if (showExportSheet) {

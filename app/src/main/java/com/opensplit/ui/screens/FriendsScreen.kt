@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -48,11 +49,12 @@ fun FriendsScreen(
     val context = LocalContext.current
     val snackbar = LocalSnackbarController.current
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(horizontal = OpenSplitTokens.SpaceLG, vertical = OpenSplitTokens.SpaceMD)
-    ) {
+    Box(modifier = Modifier.fillMaxSize()) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(horizontal = OpenSplitTokens.SpaceLG, vertical = OpenSplitTokens.SpaceMD)
+        ) {
         // Pending invites
         if (friendInvites.isNotEmpty()) {
             Spacer(modifier = Modifier.height(OpenSplitTokens.SpaceMD))
@@ -120,7 +122,52 @@ fun FriendsScreen(
                         placeholderText = "Search friends..."
                     )
 
-                    Spacer(modifier = Modifier.height(OpenSplitTokens.SpaceMD))
+                    // Overall Balance Summary Card
+                    val netTotal = remember(balances) {
+                        balances.sumOf { fb ->
+                            fb.nonZeroBalances.sumOf { it.second }
+                        }
+                    }
+                    val formattedNet = remember(netTotal) {
+                        val sign = if (netTotal > 0.01) "+" else if (netTotal < -0.01) "-" else ""
+                        val absVal = com.opensplit.util.CurrencyFormatter.format(abs(netTotal), showSymbol = true)
+                        "$sign$absVal"
+                    }
+
+                    Card(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(bottom = OpenSplitTokens.SpaceMD),
+                        shape = RoundedCornerShape(28.dp),
+                        colors = CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.secondaryContainer
+                        )
+                    ) {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(OpenSplitTokens.SpaceLG)
+                        ) {
+                            Text(
+                                text = "Total Balance",
+                                style = MaterialTheme.typography.titleMedium,
+                                color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.8f)
+                            )
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Text(
+                                text = formattedNet,
+                                style = MaterialTheme.typography.displayMedium,
+                                fontWeight = FontWeight.Bold,
+                                color = if (netTotal > 0.01) OpenSplitTokens.OwedPositive else if (netTotal < -0.01) OpenSplitTokens.OwedNegative else MaterialTheme.colorScheme.primary
+                            )
+                            Spacer(modifier = Modifier.height(2.dp))
+                            Text(
+                                text = if (netTotal > 0.01) "You are owed in total" else if (netTotal < -0.01) "You owe in total" else "All settled up",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.9f)
+                            )
+                        }
+                    }
 
                     Row(
                         horizontalArrangement = Arrangement.spacedBy(OpenSplitTokens.SpaceSM),
@@ -136,7 +183,17 @@ fun FriendsScreen(
                         }
                     }
 
-                    Spacer(modifier = Modifier.height(OpenSplitTokens.SpaceSM))
+                    Spacer(modifier = Modifier.height(OpenSplitTokens.SpaceMD))
+
+                    Text(
+                        text = "Your Friends",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurface,
+                        modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp)
+                    )
+
+                    Spacer(modifier = Modifier.height(OpenSplitTokens.SpaceXS))
 
                     val processedBalances = remember(balances, searchQuery, selectedFilter) {
                         balances.filter { fb ->
@@ -228,6 +285,19 @@ fun FriendsScreen(
                     }
                 }
             }
+        }
+    }
+
+        FloatingActionButton(
+            onClick = { showInviteDialog = true },
+            modifier = Modifier
+                .align(Alignment.BottomEnd)
+                .padding(24.dp),
+            containerColor = MaterialTheme.colorScheme.primaryContainer,
+            contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+            shape = RoundedCornerShape(16.dp)
+        ) {
+            Icon(OpenSplitIcons.Invite, contentDescription = "Add Friend")
         }
     }
 
