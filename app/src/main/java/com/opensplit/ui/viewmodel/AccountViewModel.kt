@@ -34,10 +34,17 @@ class AccountViewModel(
     val openAiApiKeyFlow = userPreferencesRepository.openAiApiKeyFlow
     val geminiApiKeyFlow = userPreferencesRepository.geminiApiKeyFlow
     val aiProviderFlow = userPreferencesRepository.aiProviderFlow
+    val dynamicColorFlow = userPreferencesRepository.dynamicColorFlow
 
     fun setTheme(theme: String) {
         viewModelScope.launch {
             userPreferencesRepository.setTheme(theme)
+        }
+    }
+
+    fun setDynamicColor(enabled: Boolean) {
+        viewModelScope.launch {
+            userPreferencesRepository.setDynamicColor(enabled)
         }
     }
 
@@ -59,9 +66,31 @@ class AccountViewModel(
         }
     }
 
+    val providerApiKeysFlow = userPreferencesRepository.providerApiKeysFlow
+    val customEndpointFlow = userPreferencesRepository.customEndpointFlow
+    val customModelFlow = userPreferencesRepository.customModelFlow
+
     fun setAiProvider(provider: String) {
         viewModelScope.launch {
             userPreferencesRepository.setAiProvider(provider)
+        }
+    }
+
+    fun setProviderApiKey(providerId: String, key: String) {
+        viewModelScope.launch {
+            userPreferencesRepository.setProviderApiKey(providerId, key)
+        }
+    }
+
+    fun setCustomEndpoint(endpoint: String) {
+        viewModelScope.launch {
+            userPreferencesRepository.setCustomEndpoint(endpoint)
+        }
+    }
+
+    fun setCustomModel(model: String) {
+        viewModelScope.launch {
+            userPreferencesRepository.setCustomModel(model)
         }
     }
 

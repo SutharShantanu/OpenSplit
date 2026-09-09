@@ -52,13 +52,14 @@ class MainActivity : ComponentActivity() {
 
         setContent {
             val themeMode by appContainer.userPreferencesRepository.themeFlow.collectAsState(initial = "system")
+            val dynamicColor by appContainer.userPreferencesRepository.dynamicColorFlow.collectAsState(initial = (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S))
             val isDark = when (themeMode) {
                 "light" -> false
                 "dark" -> true
                 else -> isSystemInDarkTheme()
             }
 
-            OpenSplitTheme(darkTheme = isDark, dynamicColor = true) {
+            OpenSplitTheme(darkTheme = isDark, dynamicColor = dynamicColor) {
                 // One snackbar host for the whole app, overlaid above every screen so any
                 // composable can confirm an action via LocalSnackbarController.
                 val snackbarHostState = remember { SnackbarHostState() }

@@ -26,6 +26,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.opensplit.ui.components.CreateGroupDialog
 import com.opensplit.ui.components.HeroBalanceCard
 import com.opensplit.ui.components.StateLayout
@@ -139,34 +140,15 @@ fun HomeScreen(
             }
         } else {
             val scrollState = rememberScrollState()
-            val rawName = homeState.user.displayName.takeIf { it.isNotBlank() && !it.equals("User", ignoreCase = true) }
-                ?: com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.displayName?.takeIf { it.isNotBlank() }
-                ?: homeState.user.email.substringBefore("@").replaceFirstChar { it.uppercase() }
-            val firstName = rawName.split(" ").firstOrNull()?.ifBlank { "Friend" } ?: "Friend"
-            val currentDate = remember { SimpleDateFormat("EEEE, MMM d", Locale.getDefault()).format(Date()) }
 
             Column(
                 modifier = Modifier
                     .fillMaxSize()
                     .verticalScroll(scrollState)
-                    .padding(16.dp),
+                    .padding(horizontal = 16.dp, vertical = 12.dp),
                 verticalArrangement = Arrangement.spacedBy(20.dp)
             ) {
-                // 1. Greeting & Date
-                Column {
-                    Text(
-                        text = "Hi, $firstName",
-                        style = MaterialTheme.typography.headlineMedium,
-                        fontWeight = FontWeight.Bold
-                    )
-                    Text(
-                        text = currentDate,
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-
-                // 2. Hero Net Balance (per currency — never summed across currencies)
+                // 1. Hero Net Balance Card (Dark purple with ratio bar)
                 val nonZeroNet = homeState.netByCurrency.filterValues { kotlin.math.abs(it) > 0.001 }
                 val primaryCurrency = nonZeroNet.maxByOrNull { kotlin.math.abs(it.value) }?.key
                     ?: homeState.nudgeCurrency
@@ -175,44 +157,51 @@ fun HomeScreen(
                     currency = primaryCurrency,
                     youAreOwed = homeState.youAreOwedByCurrency[primaryCurrency] ?: 0.0,
                     youOwe = homeState.youOweByCurrency[primaryCurrency] ?: 0.0,
-                    title = "TOTAL NET BALANCE",
                     onOwedToYouClick = { breakdownType = "OWED_TO_YOU" },
                     onYouOweClick = { breakdownType = "YOU_OWE" }
                 )
-                if (nonZeroNet.size > 1) {
-                    Text(
-                        text = nonZeroNet.filterKeys { it != primaryCurrency }
-                            .entries.joinToString("   ·   ") { (c, amt) ->
-                                com.opensplit.util.CurrencyFormatter.format(amt, c, showSign = true)
-                            },
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
 
-                // 3. Quick Actions Row (scrollable LazyRow for small resolution screens)
+                // 2. Quick Actions Row (3 Stadium Pills matching mockup)
                 LazyRow(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
                     verticalAlignment = Alignment.CenterVertically,
                     contentPadding = PaddingValues(horizontal = 2.dp)
                 ) {
+                    // + Add Expense (Primary Pill)
                     item {
-                        AssistChip(
+                        Surface(
                             onClick = { showGroupPickerForAddExpense = true },
-                            label = { Text("Add expense", maxLines = 1) },
-                            leadingIcon = { Icon(OpenSplitIcons.AddExpense, contentDescription = null, modifier = Modifier.size(18.dp)) },
-                            colors = AssistChipDefaults.assistChipColors(
-                                containerColor = MaterialTheme.colorScheme.primaryContainer,
-                                labelColor = MaterialTheme.colorScheme.onPrimaryContainer
-                            ),
-                            modifier = Modifier.height(36.dp)
-                        )
+                            shape = CircleShape,
+                            color = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.height(44.dp)
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier.padding(horizontal = 18.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Rounded.Add,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.onPrimary,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text(
+                                    text = "Add Expense",
+                                    style = MaterialTheme.typography.labelLarge.copy(
+                                        fontWeight = FontWeight.SemiBold,
+                                        color = MaterialTheme.colorScheme.onPrimary
+                                    )
+                                )
+                            }
+                        }
                     }
 
+                    // Settle Up (Secondary Container Pill)
                     item {
                         val settleableGroups = homeState.allGroups.filter { it.memberIds.size > 1 }
-                        AssistChip(
+                        Surface(
                             onClick = {
                                 when {
                                     settleableGroups.isEmpty() -> snackbar.showMessage("Add another member to a group before settling up")
@@ -220,78 +209,70 @@ fun HomeScreen(
                                     else -> showGroupPickerForSettleUp = true
                                 }
                             },
-                            label = { Text("Settle up", maxLines = 1) },
-                            leadingIcon = { Icon(OpenSplitIcons.Settle, contentDescription = null, modifier = Modifier.size(18.dp)) },
-                            colors = AssistChipDefaults.assistChipColors(
-                                containerColor = MaterialTheme.colorScheme.secondaryContainer,
-                                labelColor = MaterialTheme.colorScheme.onSecondaryContainer
-                            ),
-                            modifier = Modifier.height(36.dp)
-                        )
-                    }
-
-                    item {
-                        AssistChip(
-                            onClick = { showCreateGroupDialog = true },
-                            label = { Text("New group", maxLines = 1) },
-                            leadingIcon = { Icon(OpenSplitIcons.Invite, contentDescription = null, modifier = Modifier.size(18.dp)) },
-                            modifier = Modifier.height(36.dp)
-                        )
-                    }
-                }
-
-                // 4. Smart Settle-up Nudge
-                if (homeState.smartNudge != null) {
-                    val nudge = homeState.smartNudge
-                    val otherUser = homeState.nudgeOtherUser
-                    val otherName = otherUser?.displayName ?: "a friend"
-
-                    Card(
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = MaterialTheme.shapes.large,
-                        colors = CardDefaults.cardColors(
-                            containerColor = MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.5f)
-                        )
-                    ) {
-                        Column(modifier = Modifier.padding(OpenSplitTokens.SpaceLG)) {
+                            shape = CircleShape,
+                            color = MaterialTheme.colorScheme.secondaryContainer,
+                            modifier = Modifier.height(44.dp)
+                        ) {
                             Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier.padding(horizontal = 18.dp)
                             ) {
-                                Text(
-                                    text = "Smart Settle-Up Nudge",
-                                    style = MaterialTheme.typography.labelLarge,
-                                    color = MaterialTheme.colorScheme.onTertiaryContainer,
-                                    fontWeight = FontWeight.Bold
+                                Icon(
+                                    imageVector = OpenSplitIcons.Settle,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.onSecondaryContainer,
+                                    modifier = Modifier.size(18.dp)
                                 )
-                                IconButton(
-                                    onClick = { viewModel.dismissNudge(nudge) },
-                                    modifier = Modifier.size(24.dp)
-                                ) {
-                                    Icon(OpenSplitIcons.Close, contentDescription = "Dismiss", modifier = Modifier.size(16.dp))
-                                }
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text(
+                                    text = "Settle Up",
+                                    style = MaterialTheme.typography.labelLarge.copy(
+                                        fontWeight = FontWeight.SemiBold,
+                                        color = MaterialTheme.colorScheme.onSecondaryContainer
+                                    )
+                                )
                             }
-                            Spacer(modifier = Modifier.height(OpenSplitTokens.SpaceXS))
-                            Text(
-                                text = "Settle up with $otherName for ${com.opensplit.util.CurrencyFormatter.format(nudge.amount, homeState.nudgeCurrency)}?",
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onTertiaryContainer
-                            )
-                            Spacer(modifier = Modifier.height(OpenSplitTokens.SpaceSM))
-                            SuggestionChip(
-                                onClick = {
-                                    val firstGroupId = homeState.allGroups.firstOrNull()?.id ?: ""
-                                    if (firstGroupId.isNotEmpty()) onNavigateToSettleUp(firstGroupId)
-                                },
-                                label = { Text("Settle up with $otherName") },
-                                icon = { Icon(OpenSplitIcons.Settle, contentDescription = null, modifier = Modifier.size(18.dp)) }
-                            )
+                        }
+                    }
+
+                    // Scan Receipt (Surface Container High Pill)
+                    item {
+                        Surface(
+                            onClick = {
+                                if (homeState.allGroups.isEmpty()) {
+                                    snackbar.showMessage("Create a group first")
+                                } else {
+                                    showGroupPickerForAddExpense = true
+                                }
+                            },
+                            shape = CircleShape,
+                            color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                            modifier = Modifier.height(44.dp)
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier.padding(horizontal = 18.dp)
+                            ) {
+                                Icon(
+                                    imageVector = OpenSplitIcons.ReceiptScan,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.onSurface,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text(
+                                    text = "Scan Receipt",
+                                    style = MaterialTheme.typography.labelLarge.copy(
+                                        fontWeight = FontWeight.SemiBold,
+                                        color = MaterialTheme.colorScheme.onSurface
+                                    )
+                                )
+                            }
                         }
                     }
                 }
 
-                // 5. Active Groups Section
+                // 3. Active Groups Section
                 Column {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
@@ -300,14 +281,19 @@ fun HomeScreen(
                     ) {
                         Text(
                             text = "Active Groups",
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Bold
+                            style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold)
                         )
                         TextButton(onClick = onNavigateToGroupsTab) {
-                            Text("See all")
+                            Text(
+                                text = "See All",
+                                style = MaterialTheme.typography.labelLarge.copy(
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.primary
+                                )
+                            )
                         }
                     }
-                    Spacer(modifier = Modifier.height(OpenSplitTokens.SpaceSM))
+                    Spacer(modifier = Modifier.height(8.dp))
                     if (homeState.recentGroups.isEmpty()) {
                         Text(
                             text = "No active groups yet.",
@@ -316,158 +302,64 @@ fun HomeScreen(
                         )
                     } else {
                         LazyRow(
-                            horizontalArrangement = Arrangement.spacedBy(OpenSplitTokens.SpaceMD),
-                            contentPadding = PaddingValues(vertical = OpenSplitTokens.SpaceXS)
+                            horizontalArrangement = Arrangement.spacedBy(12.dp),
+                            contentPadding = PaddingValues(vertical = 4.dp)
                         ) {
                             items(homeState.recentGroups, key = { it.group.id }) { groupWithBal ->
-                                var menuExpanded by remember { mutableStateOf(false) }
                                 val bal = groupWithBal.balance
                                 val formattedAmount = com.opensplit.util.CurrencyFormatter.format(
-                                    amount = bal,
+                                    amount = kotlin.math.abs(bal),
                                     currencyCode = groupWithBal.group.currency,
                                     showSymbol = true
                                 )
 
-                                ElevatedCard(
+                                Surface(
                                     modifier = Modifier
-                                        .width(220.dp)
+                                        .width(200.dp)
                                         .clickable { onNavigateToGroupDetail(groupWithBal.group.id) },
-                                    shape = MaterialTheme.shapes.large,
-                                    colors = CardDefaults.elevatedCardColors(
-                                        containerColor = MaterialTheme.colorScheme.surfaceContainerLow
-                                    )
+                                    shape = androidx.compose.foundation.shape.RoundedCornerShape(20.dp),
+                                    color = MaterialTheme.colorScheme.surfaceContainer
                                 ) {
-                                    Column(modifier = Modifier.padding(OpenSplitTokens.SpaceMD)) {
-                                        Row(
-                                            modifier = Modifier.fillMaxWidth(),
-                                            horizontalArrangement = Arrangement.SpaceBetween,
-                                            verticalAlignment = Alignment.CenterVertically
-                                        ) {
-                                            com.opensplit.ui.components.GroupAvatar(
-                                                name = groupWithBal.group.name,
-                                                avatarKey = groupWithBal.group.avatarKey,
-                                                size = 40.dp
-                                            )
-
-                                            Box {
-                                                IconButton(
-                                                    onClick = { menuExpanded = true },
-                                                    modifier = Modifier.size(28.dp)
-                                                ) {
-                                                    Icon(
-                                                        imageVector = OpenSplitIcons.More,
-                                                        contentDescription = "Quick Actions",
-                                                        tint = MaterialTheme.colorScheme.onSurfaceVariant
-                                                    )
-                                                }
-
-                                                DropdownMenu(
-                                                    expanded = menuExpanded,
-                                                    onDismissRequest = { menuExpanded = false },
-                                                    shape = MaterialTheme.shapes.large
-                                                ) {
-                                                    DropdownMenuItem(
-                                                        text = { Text("Add Expense") },
-                                                        leadingIcon = { Icon(OpenSplitIcons.AddExpense, contentDescription = null) },
-                                                        onClick = {
-                                                            menuExpanded = false
-                                                            onNavigateToAddExpense(groupWithBal.group.id)
-                                                        }
-                                                    )
-                                                    DropdownMenuItem(
-                                                        text = { Text("Settle Up") },
-                                                        leadingIcon = { Icon(OpenSplitIcons.Settle, contentDescription = null) },
-                                                        onClick = {
-                                                            menuExpanded = false
-                                                            onNavigateToSettleUp(groupWithBal.group.id)
-                                                        }
-                                                    )
-                                                    DropdownMenuItem(
-                                                        text = { Text("View Group") },
-                                                        leadingIcon = { Icon(OpenSplitIcons.Groups, contentDescription = null) },
-                                                        onClick = {
-                                                            menuExpanded = false
-                                                            onNavigateToGroupDetail(groupWithBal.group.id)
-                                                        }
-                                                    )
-                                                }
-                                            }
-                                        }
-
-                                        Spacer(modifier = Modifier.height(OpenSplitTokens.SpaceSM))
-
-                                        Text(
-                                            text = groupWithBal.group.name,
-                                            style = MaterialTheme.typography.titleSmall,
-                                            fontWeight = FontWeight.SemiBold,
-                                            maxLines = 1
+                                    Row(
+                                        modifier = Modifier.padding(12.dp),
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        com.opensplit.ui.components.GroupAvatar(
+                                            name = groupWithBal.group.name,
+                                            avatarKey = groupWithBal.group.avatarKey,
+                                            size = 44.dp
                                         )
 
-                                        Spacer(modifier = Modifier.height(2.dp))
+                                        Spacer(modifier = Modifier.width(10.dp))
 
-                                        Row(verticalAlignment = Alignment.CenterVertically) {
-                                            Icon(
-                                                imageVector = OpenSplitIcons.Friends,
-                                                contentDescription = null,
-                                                modifier = Modifier.size(12.dp),
-                                                tint = MaterialTheme.colorScheme.onSurfaceVariant
-                                            )
-                                            Spacer(modifier = Modifier.width(4.dp))
-                                            val memberCount = groupWithBal.group.memberIds.size
+                                        Column(modifier = Modifier.weight(1f)) {
                                             Text(
-                                                text = if (memberCount == 1) "1 member" else "$memberCount members",
-                                                style = MaterialTheme.typography.labelSmall,
-                                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                                text = groupWithBal.group.name,
+                                                style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold),
+                                                color = MaterialTheme.colorScheme.onSurface,
+                                                maxLines = 1,
+                                                overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
                                             )
-                                        }
-
-                                        Spacer(modifier = Modifier.height(OpenSplitTokens.SpaceSM))
-
-                                        // Status badge
-                                        val (badgeBg, badgeFg, badgeIcon, statusLabel) = when {
-                                            bal > 0.01 -> BadgeSpec(
-                                                OpenSplitTokens.OwedPositive.copy(alpha = 0.15f),
-                                                OpenSplitTokens.OwedPositive,
-                                                OpenSplitIcons.OwedToYou,
-                                                "Owed $formattedAmount"
-                                            )
-                                            bal < -0.01 -> BadgeSpec(
-                                                OpenSplitTokens.OwedNegative.copy(alpha = 0.15f),
-                                                OpenSplitTokens.OwedNegative,
-                                                OpenSplitIcons.YouOwe,
-                                                "You owe ${com.opensplit.util.CurrencyFormatter.format(-bal, groupWithBal.group.currency)}"
-                                            )
-                                            else -> BadgeSpec(
-                                                MaterialTheme.colorScheme.surfaceContainerHigh,
-                                                MaterialTheme.colorScheme.onSurfaceVariant,
-                                                OpenSplitIcons.Check,
-                                                "Settled up"
-                                            )
-                                        }
-
-                                        Surface(
-                                            shape = MaterialTheme.shapes.extraLarge,
-                                            color = badgeBg
-                                        ) {
-                                            Row(
-                                                verticalAlignment = Alignment.CenterVertically,
-                                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
-                                            ) {
-                                                Icon(
-                                                    imageVector = badgeIcon,
-                                                    contentDescription = null,
-                                                    modifier = Modifier.size(12.dp),
-                                                    tint = badgeFg
-                                                )
-                                                Spacer(modifier = Modifier.width(4.dp))
-                                                Text(
-                                                    text = statusLabel,
-                                                    style = MaterialTheme.typography.labelMedium,
-                                                    color = badgeFg,
-                                                    fontWeight = FontWeight.Bold,
-                                                    maxLines = 1
-                                                )
+                                            Spacer(modifier = Modifier.height(2.dp))
+                                            val debtText = when {
+                                                bal < -0.01 -> "You owe $formattedAmount"
+                                                bal > 0.01 -> "You are owed $formattedAmount"
+                                                else -> "Settled up"
                                             }
+                                            val debtColor = when {
+                                                bal < -0.01 -> MaterialTheme.colorScheme.error
+                                                bal > 0.01 -> OpenSplitTokens.OwedPositive
+                                                else -> MaterialTheme.colorScheme.onSurfaceVariant
+                                            }
+                                            Text(
+                                                text = debtText,
+                                                style = MaterialTheme.typography.labelSmall.copy(
+                                                    fontWeight = FontWeight.SemiBold,
+                                                    color = debtColor
+                                                ),
+                                                maxLines = 1,
+                                                overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
+                                            )
                                         }
                                     }
                                 }
@@ -476,7 +368,7 @@ fun HomeScreen(
                     }
                 }
 
-                // 6. Recent Activity Preview (3 items max using ListItem)
+                // 4. Recent Activity Section (Mockup Container Card)
                 Column {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
@@ -485,39 +377,118 @@ fun HomeScreen(
                     ) {
                         Text(
                             text = "Recent Activity",
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Bold
+                            style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold)
                         )
-                        TextButton(onClick = onNavigateToActivity) {
-                            Text("See all")
+                        IconButton(onClick = onNavigateToActivity) {
+                            Icon(
+                                imageVector = OpenSplitIcons.Filter,
+                                contentDescription = "Filter Activity",
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
                         }
                     }
-                    Spacer(modifier = Modifier.height(OpenSplitTokens.SpaceXS))
+                    Spacer(modifier = Modifier.height(8.dp))
                     if (homeState.recentActivities.isEmpty()) {
-                        Text(
-                            text = "No recent activity.",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
+                        Card(
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = androidx.compose.foundation.shape.RoundedCornerShape(24.dp),
+                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer)
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(24.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = "No recent activity yet.",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
                     } else {
-                        Column {
-                            homeState.recentActivities.take(3).forEach { activity ->
-                                val timeStr = remember(activity.timestamp) {
-                                    SimpleDateFormat("MMM d, h:mm a", Locale.getDefault())
-                                        .format(activity.timestamp.toDate())
-                                }
-                                ListItem(
-                                    headlineContent = { Text(activity.message, style = MaterialTheme.typography.bodyMedium) },
-                                    supportingContent = { Text(timeStr, style = MaterialTheme.typography.labelSmall) },
-                                    leadingContent = {
-                                        Icon(
-                                            OpenSplitIcons.Activity,
-                                            contentDescription = null,
-                                            tint = MaterialTheme.colorScheme.primary,
-                                            modifier = Modifier.size(20.dp)
+                        Card(
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = androidx.compose.foundation.shape.RoundedCornerShape(24.dp),
+                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer),
+                            elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+                        ) {
+                            Column(modifier = Modifier.padding(vertical = 4.dp)) {
+                                homeState.recentActivities.take(5).forEachIndexed { index, activity ->
+                                    val timeStr = remember(activity.timestamp) {
+                                        val diff = System.currentTimeMillis() - activity.timestamp.toDate().time
+                                        when {
+                                            diff < 3600_000 -> "Just now"
+                                            diff < 86400_000 -> "Today"
+                                            diff < 172800_000 -> "Yesterday"
+                                            else -> SimpleDateFormat("MMM d", Locale.getDefault()).format(activity.timestamp.toDate())
+                                        }
+                                    }
+
+                                    val (icon, iconBg, iconFg) = when (activity.type) {
+                                        com.opensplit.domain.model.ActivityType.SETTLEMENT_ADDED ->
+                                            Triple(OpenSplitIcons.Settle, MaterialTheme.colorScheme.secondaryContainer, MaterialTheme.colorScheme.onSecondaryContainer)
+                                        com.opensplit.domain.model.ActivityType.EXPENSE_ADDED,
+                                        com.opensplit.domain.model.ActivityType.EXPENSE_EDITED ->
+                                            Triple(OpenSplitIcons.CategoryFood, MaterialTheme.colorScheme.primaryContainer, MaterialTheme.colorScheme.onPrimaryContainer)
+                                        else ->
+                                            Triple(OpenSplitIcons.Groups, MaterialTheme.colorScheme.surfaceContainerHighest, MaterialTheme.colorScheme.onSurfaceVariant)
+                                    }
+
+                                    Row(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .clickable { onNavigateToActivity() }
+                                            .padding(horizontal = 16.dp, vertical = 12.dp),
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        // Circular avatar / category icon
+                                        Box(
+                                            modifier = Modifier
+                                                .size(42.dp)
+                                                .clip(CircleShape)
+                                                .background(iconBg),
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            Icon(
+                                                imageVector = icon,
+                                                contentDescription = null,
+                                                modifier = Modifier.size(20.dp),
+                                                tint = iconFg
+                                            )
+                                        }
+
+                                        Spacer(modifier = Modifier.width(14.dp))
+
+                                        Column(modifier = Modifier.weight(1f)) {
+                                            Text(
+                                                text = activity.message,
+                                                style = MaterialTheme.typography.bodyMedium.copy(
+                                                    fontWeight = FontWeight.SemiBold,
+                                                    fontSize = 14.sp
+                                                ),
+                                                color = MaterialTheme.colorScheme.onSurface,
+                                                maxLines = 2,
+                                                overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
+                                            )
+                                            Spacer(modifier = Modifier.height(2.dp))
+                                            Text(
+                                                text = timeStr,
+                                                style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp),
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                            )
+                                        }
+                                    }
+
+                                    if (index < homeState.recentActivities.take(5).size - 1) {
+                                        HorizontalDivider(
+                                            modifier = Modifier.padding(horizontal = 16.dp),
+                                            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f),
+                                            thickness = 0.5.dp
                                         )
                                     }
-                                )
+                                }
                             }
                         }
                     }

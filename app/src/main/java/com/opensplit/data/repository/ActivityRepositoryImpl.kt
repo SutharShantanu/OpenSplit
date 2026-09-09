@@ -3,8 +3,7 @@ package com.opensplit.data.repository
 import com.opensplit.domain.model.Activity
 import com.opensplit.domain.repository.ActivityRepository
 import com.google.firebase.firestore.FirebaseFirestore
-import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.callbackFlow
+import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.tasks.await
 
@@ -30,9 +29,9 @@ class ActivityRepositoryImpl(
                     trySend(activities)
                 }
             awaitClose { listener.remove() }
-        }
+        }.onStart { emit(emptyList<Activity>()) }
 
-        return kotlinx.coroutines.flow.combine(firestoreFlow, com.opensplit.data.local.InMemoryDataStore.activities) { remote, local ->
+        return combine(firestoreFlow, com.opensplit.data.local.InMemoryDataStore.activities) { remote, local ->
             (remote + local).distinctBy { it.id }.sortedByDescending { it.timestamp.seconds }
         }
     }

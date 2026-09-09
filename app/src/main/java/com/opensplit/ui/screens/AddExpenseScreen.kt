@@ -529,10 +529,11 @@ fun AddExpenseScreen(
                         OutlinedTextField(
                             value = amountText,
                             onValueChange = { new -> amountText = new.filter { it.isDigit() || it == '.' } },
-                            placeholder = { Text("0.00", style = MaterialTheme.typography.displayMedium, textAlign = TextAlign.Center) },
+                            placeholder = { Text("0.00", style = MaterialTheme.typography.displayMedium.copy(fontFamily = com.opensplit.ui.theme.MoneyFontFamily), textAlign = TextAlign.Center) },
                             textStyle = MaterialTheme.typography.displayMedium.copy(
                                 textAlign = TextAlign.Center,
                                 fontWeight = FontWeight.Bold,
+                                fontFamily = com.opensplit.ui.theme.MoneyFontFamily,
                                 color = MaterialTheme.colorScheme.primary
                             ),
                             singleLine = true,

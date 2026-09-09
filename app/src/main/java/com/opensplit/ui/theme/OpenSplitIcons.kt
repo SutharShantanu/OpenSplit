@@ -96,6 +96,34 @@ object OpenSplitIcons {
     val Refresh        = Icons.Rounded.Refresh
     val ReceiptLong    = Icons.AutoMirrored.Rounded.ReceiptLong
     val AutoAwesome    = Icons.Rounded.AutoAwesome
+    val SmartToy       = Icons.Rounded.SmartToy
+    val Lightbulb      = Icons.Rounded.Lightbulb
+    val Insights       = Icons.Rounded.Insights
+    val Autorenew      = Icons.Rounded.Autorenew
+    val Payments       = Icons.Rounded.Payments
+    val CallSplit      = Icons.Rounded.CallSplit
+    val WifiOff        = Icons.Rounded.WifiOff
+    val Verified       = Icons.Rounded.Verified
+    val Key            = Icons.Rounded.Key
+    val Archive        = Icons.Rounded.Inventory2
+    val Unarchive      = Icons.Rounded.Unarchive
+    val DeleteForever  = Icons.Rounded.DeleteForever
+    val PersonRemove   = Icons.Rounded.PersonRemove
+    val PieChart       = Icons.Rounded.PieChart
+    val DonutLarge     = Icons.Rounded.DonutLarge
+    val TableChart     = Icons.Rounded.TableChart
+    val PhotoLibrary   = Icons.Rounded.PhotoLibrary
+    val FlashOn        = Icons.Rounded.FlashOn
+    val FlashOff       = Icons.Rounded.FlashOff
+    val Straighten     = Icons.Rounded.Straighten
+    val Percent        = Icons.Rounded.Percent
+    val Mic            = Icons.Rounded.Mic
+    val QrCode         = Icons.Rounded.QrCodeScanner
+    val PersonAdd      = Icons.Rounded.PersonAdd
+    val Notification   = Icons.Rounded.Notifications
+    val Delete         = Icons.Rounded.Delete
+    val ArrowBack      = Icons.AutoMirrored.Rounded.ArrowBack
+    val History        = Icons.Rounded.History
 }
 
 

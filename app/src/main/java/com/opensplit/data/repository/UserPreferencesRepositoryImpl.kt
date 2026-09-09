@@ -28,6 +28,10 @@ class UserPreferencesRepositoryImpl(private val context: Context) : UserPreferen
     private val OPENAI_API_KEY = stringPreferencesKey("openai_api_key")
     private val GEMINI_API_KEY = stringPreferencesKey("gemini_api_key")
     private val AI_PROVIDER_KEY = stringPreferencesKey("ai_provider")
+    private val DYNAMIC_COLOR_KEY = booleanPreferencesKey("dynamic_color")
+
+    private val CUSTOM_ENDPOINT_KEY = stringPreferencesKey("custom_ai_endpoint")
+    private val CUSTOM_MODEL_KEY = stringPreferencesKey("custom_ai_model")
 
     override val themeFlow: Flow<String> = context.dataStore.data
         .map { preferences ->
@@ -76,24 +80,20 @@ class UserPreferencesRepositoryImpl(private val context: Context) : UserPreferen
 
     override val openAiApiKeyFlow: Flow<String> = context.dataStore.data
         .map { preferences ->
-            preferences[OPENAI_API_KEY] ?: DEFAULT_OPENAI_KEY
+            preferences[stringPreferencesKey("api_key_openai")] ?: preferences[OPENAI_API_KEY] ?: DEFAULT_OPENAI_KEY
         }
 
     override suspend fun setOpenAiApiKey(key: String) {
-        context.dataStore.edit { preferences ->
-            preferences[OPENAI_API_KEY] = key
-        }
+        setProviderApiKey("openai", key)
     }
 
     override val geminiApiKeyFlow: Flow<String> = context.dataStore.data
         .map { preferences ->
-            preferences[GEMINI_API_KEY] ?: DEFAULT_GEMINI_KEY
+            preferences[stringPreferencesKey("api_key_gemini")] ?: preferences[GEMINI_API_KEY] ?: DEFAULT_GEMINI_KEY
         }
 
     override suspend fun setGeminiApiKey(key: String) {
-        context.dataStore.edit { preferences ->
-            preferences[GEMINI_API_KEY] = key
-        }
+        setProviderApiKey("gemini", key)
     }
 
     override val aiProviderFlow: Flow<String> = context.dataStore.data
@@ -104,6 +104,69 @@ class UserPreferencesRepositoryImpl(private val context: Context) : UserPreferen
     override suspend fun setAiProvider(provider: String) {
         context.dataStore.edit { preferences ->
             preferences[AI_PROVIDER_KEY] = provider
+        }
+    }
+
+    override val dynamicColorFlow: Flow<Boolean> = context.dataStore.data
+        .map { preferences ->
+            preferences[DYNAMIC_COLOR_KEY] ?: (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S)
+        }
+
+    override suspend fun setDynamicColor(enabled: Boolean) {
+        context.dataStore.edit { preferences ->
+            preferences[DYNAMIC_COLOR_KEY] = enabled
+        }
+    }
+
+    override val providerApiKeysFlow: Flow<Map<String, String>> = context.dataStore.data
+        .map { preferences ->
+            val result = mutableMapOf<String, String>()
+            val knownProviders = listOf("openai", "gemini", "anthropic", "groq", "mistral", "deepseek", "custom")
+            for (provider in knownProviders) {
+                val key = preferences[stringPreferencesKey("api_key_$provider")]
+                    ?: (if (provider == "openai") preferences[OPENAI_API_KEY] else if (provider == "gemini") preferences[GEMINI_API_KEY] else null)
+                if (!key.isNullOrBlank()) {
+                    result[provider] = key
+                }
+            }
+            result
+        }
+
+    override suspend fun setProviderApiKey(providerId: String, key: String) {
+        context.dataStore.edit { preferences ->
+            val prefKey = stringPreferencesKey("api_key_$providerId")
+            if (key.isBlank()) {
+                preferences.remove(prefKey)
+            } else {
+                preferences[prefKey] = key
+            }
+            if (providerId == "openai") {
+                preferences[OPENAI_API_KEY] = key
+            } else if (providerId == "gemini") {
+                preferences[GEMINI_API_KEY] = key
+            }
+        }
+    }
+
+    override val customEndpointFlow: Flow<String> = context.dataStore.data
+        .map { preferences ->
+            preferences[CUSTOM_ENDPOINT_KEY] ?: "http://localhost:11434/v1"
+        }
+
+    override suspend fun setCustomEndpoint(endpoint: String) {
+        context.dataStore.edit { preferences ->
+            preferences[CUSTOM_ENDPOINT_KEY] = endpoint
+        }
+    }
+
+    override val customModelFlow: Flow<String> = context.dataStore.data
+        .map { preferences ->
+            preferences[CUSTOM_MODEL_KEY] ?: "llama3:latest"
+        }
+
+    override suspend fun setCustomModel(model: String) {
+        context.dataStore.edit { preferences ->
+            preferences[CUSTOM_MODEL_KEY] = model
         }
     }
 }

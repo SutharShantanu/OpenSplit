@@ -164,15 +164,8 @@ class AnalyticsViewModel(private val appContainer: AppContainer) : ViewModel() {
         }.flatMapLatest { it }
             .collect { emit(it) }
     }
-        // If Firestore listeners never emit, fail with a message instead of spinning forever.
-        .timeout(15.seconds)
         .catch { e ->
-            val message = if (e is TimeoutCancellationException) {
-                "Taking too long to load — check your connection and try again."
-            } else {
-                e.message ?: "Failed to load analytics"
-            }
-            emit(ScreenState.Error(message))
+            emit(ScreenState.Error(e.message ?: "Failed to load analytics"))
         }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), ScreenState.Loading)
 

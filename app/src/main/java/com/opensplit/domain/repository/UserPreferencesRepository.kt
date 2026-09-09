@@ -23,4 +23,16 @@ interface UserPreferencesRepository {
 
     val aiProviderFlow: Flow<String>
     suspend fun setAiProvider(provider: String)
+
+    val dynamicColorFlow: Flow<Boolean>
+    suspend fun setDynamicColor(enabled: Boolean)
+
+    val providerApiKeysFlow: Flow<Map<String, String>>
+    suspend fun setProviderApiKey(providerId: String, key: String)
+
+    val customEndpointFlow: Flow<String>
+    suspend fun setCustomEndpoint(endpoint: String)
+
+    val customModelFlow: Flow<String>
+    suspend fun setCustomModel(model: String)
 }

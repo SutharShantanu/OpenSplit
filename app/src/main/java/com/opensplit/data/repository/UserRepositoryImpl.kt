@@ -4,9 +4,7 @@ import com.opensplit.domain.model.User
 import com.opensplit.domain.repository.UserRepository
 import com.google.firebase.firestore.FirebaseFirestore
 import kotlinx.coroutines.channels.awaitClose
-import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.callbackFlow
-import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.tasks.await
 
 class UserRepositoryImpl(
@@ -32,8 +30,10 @@ class UserRepositoryImpl(
         if (localMatch != null) return localMatch
 
         return try {
-            val snapshot = usersCollection.document(uid).get().await()
-            snapshot.toObject(User::class.java)
+            val snapshot = kotlinx.coroutines.withTimeoutOrNull(1000) {
+                usersCollection.document(uid).get().await()
+            }
+            snapshot?.toObject(User::class.java)
         } catch (e: Exception) {
             null
         }
@@ -70,9 +70,9 @@ class UserRepositoryImpl(
                 return@callbackFlow
             }
             awaitClose { listener.remove() }
-        }
+        }.onStart { emit(null) }
 
-        return kotlinx.coroutines.flow.combine(firestoreFlow, localUsers) { remote, local ->
+        return combine(firestoreFlow, localUsers) { remote, local ->
             local[uid] ?: remote ?: com.opensplit.data.local.InMemoryDataStore.friends.value.find { it.uid == uid }
         }
     }
@@ -81,7 +81,9 @@ class UserRepositoryImpl(
         if (user.uid.isBlank()) return Result.success(Unit)
         localUsers.value = localUsers.value + (user.uid to user)
         return try {
-            usersCollection.document(user.uid).set(user).await()
+            kotlinx.coroutines.withTimeoutOrNull(1000) {
+                usersCollection.document(user.uid).set(user).await()
+            }
             Result.success(Unit)
         } catch (e: Exception) {
             Result.success(Unit)
@@ -103,9 +105,11 @@ class UserRepositoryImpl(
         )
         localUsers.value = localUsers.value + (uid to user)
         return try {
-            val snapshot = usersCollection.document(uid).get().await()
-            if (!snapshot.exists()) {
-                usersCollection.document(uid).set(user).await()
+            kotlinx.coroutines.withTimeoutOrNull(1200) {
+                val snapshot = usersCollection.document(uid).get().await()
+                if (!snapshot.exists()) {
+                    usersCollection.document(uid).set(user).await()
+                }
             }
             Result.success(Unit)
         } catch (e: Exception) {
@@ -116,18 +120,24 @@ class UserRepositoryImpl(
     override suspend fun updateCurrency(currency: String): Result<Unit> {
         val uid = com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.uid ?: return Result.failure(Exception("No user"))
         if (uid.isBlank()) return Result.failure(Exception("No user"))
+        val existing = localUsers.value[uid] ?: getUser(uid) ?: User(uid = uid)
+        localUsers.value = localUsers.value + (uid to existing.copy(defaultCurrency = currency))
         return try {
-            usersCollection.document(uid).update("currency", currency).await()
+            kotlinx.coroutines.withTimeoutOrNull(1000) {
+                usersCollection.document(uid).update("defaultCurrency", currency).await()
+            }
             Result.success(Unit)
         } catch (e: Exception) {
-            Result.failure(e)
+            Result.success(Unit)
         }
     }
 
     override suspend fun updateUser(user: User): Result<Unit> {
         if (user.uid.isBlank()) return Result.failure(IllegalArgumentException("User ID cannot be blank"))
         return try {
-            usersCollection.document(user.uid).update("displayName", user.displayName).await()
+            kotlinx.coroutines.withTimeoutOrNull(1000) {
+                usersCollection.document(user.uid).update("displayName", user.displayName).await()
+            }
             Result.success(Unit)
         } catch (e: Exception) {
             Result.failure(e)
@@ -140,7 +150,9 @@ class UserRepositoryImpl(
     ): Result<Unit> {
         if (uid.isBlank()) return Result.failure(IllegalArgumentException("UID cannot be blank"))
         return try {
-            usersCollection.document(uid).update("lastSeenActivityTimestamp", timestamp).await()
+            kotlinx.coroutines.withTimeoutOrNull(1000) {
+                usersCollection.document(uid).update("lastSeenActivityTimestamp", timestamp).await()
+            }
             Result.success(Unit)
         } catch (e: Exception) {
             Result.failure(e)

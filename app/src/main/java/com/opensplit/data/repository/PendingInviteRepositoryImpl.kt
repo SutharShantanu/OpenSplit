@@ -4,8 +4,7 @@ import com.opensplit.domain.model.PendingInvite
 import com.opensplit.domain.repository.PendingInviteRepository
 import com.google.firebase.firestore.FirebaseFirestore
 import kotlinx.coroutines.channels.awaitClose
-import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.callbackFlow
+import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.tasks.await
 
 class PendingInviteRepositoryImpl(
@@ -32,7 +31,7 @@ class PendingInviteRepositoryImpl(
             trySend(invites.sortedByDescending { it.createdAt })
         }
         awaitClose { listener.remove() }
-    }
+    }.onStart { emit(emptyList<PendingInvite>()) }
 
     override suspend fun addInvite(invite: PendingInvite): Result<String> {
         return try {

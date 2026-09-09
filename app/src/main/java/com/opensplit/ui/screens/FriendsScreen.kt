@@ -91,27 +91,43 @@ fun FriendsScreen(
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
-                        .padding(OpenSplitTokens.SpaceXL),
+                        .padding(24.dp),
                     contentAlignment = Alignment.Center
                 ) {
                     Column(
                         horizontalAlignment = Alignment.CenterHorizontally,
                         verticalArrangement = Arrangement.Center
                     ) {
-                        HandshakeIllustration(size = 120.dp)
-                        Spacer(modifier = Modifier.height(OpenSplitTokens.SpaceLG))
+                        HandshakeIllustration(size = 140.dp)
+                        Spacer(modifier = Modifier.height(24.dp))
                         Text(
-                            text = "You're all settled up!",
-                            style = MaterialTheme.typography.titleLarge,
+                            text = "No friends yet",
+                            style = MaterialTheme.typography.headlineSmall,
                             fontWeight = FontWeight.Bold
                         )
-                        Spacer(modifier = Modifier.height(OpenSplitTokens.SpaceSM))
+                        Spacer(modifier = Modifier.height(8.dp))
                         Text(
-                            text = "Invite a friend, or add an expense in a group to start tracking balances.",
+                            text = "Add friends to split one-on-one expenses without creating a group.",
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             textAlign = TextAlign.Center
                         )
+                        Spacer(modifier = Modifier.height(24.dp))
+                        Button(
+                            onClick = { showInviteDialog = true },
+                            modifier = Modifier
+                                .fillMaxWidth(0.7f)
+                                .height(56.dp),
+                            shape = CircleShape,
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = MaterialTheme.colorScheme.primary,
+                                contentColor = MaterialTheme.colorScheme.onPrimary
+                            )
+                        ) {
+                            Icon(OpenSplitIcons.PersonAdd, contentDescription = null, modifier = Modifier.size(20.dp))
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text("Add a Friend", fontWeight = FontWeight.Bold)
+                        }
                     }
                 }
             } else {

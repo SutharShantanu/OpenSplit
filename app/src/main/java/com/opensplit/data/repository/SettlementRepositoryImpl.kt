@@ -3,8 +3,7 @@ package com.opensplit.data.repository
 import com.opensplit.domain.model.Settlement
 import com.opensplit.domain.repository.SettlementRepository
 import com.google.firebase.firestore.FirebaseFirestore
-import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.callbackFlow
+import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.tasks.await
 
@@ -31,9 +30,9 @@ class SettlementRepositoryImpl(
                     trySend(settlements)
                 }
             awaitClose { listener.remove() }
-        }
+        }.onStart { emit(emptyList<Settlement>()) }
 
-        return kotlinx.coroutines.flow.combine(firestoreFlow, com.opensplit.data.local.InMemoryDataStore.settlements) { remote, local ->
+        return combine(firestoreFlow, com.opensplit.data.local.InMemoryDataStore.settlements) { remote, local ->
             val groupLocal = local.filter { it.fromUid.isNotBlank() }
             (remote + groupLocal).distinctBy { it.id }.sortedByDescending { it.date }
         }

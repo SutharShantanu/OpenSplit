@@ -7,8 +7,7 @@ import com.opensplit.domain.repository.ActivityRepository
 import com.opensplit.domain.repository.GroupRepository
 import com.google.firebase.firestore.FirebaseFirestore
 import kotlinx.coroutines.channels.awaitClose
-import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.callbackFlow
+import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.tasks.await
 
 class GroupRepositoryImpl(
@@ -31,20 +30,23 @@ class GroupRepositoryImpl(
                     trySend(groups)
                 }
             awaitClose { listener.remove() }
-        }
+        }.onStart { emit(emptyList<Group>()) }
 
-        return kotlinx.coroutines.flow.combine(firestoreFlow, com.opensplit.data.local.InMemoryDataStore.groups) { remote, local ->
+        return combine(firestoreFlow, com.opensplit.data.local.InMemoryDataStore.groups) { remote, local ->
             val userLocal = local.filter { it.memberIds.contains(userId) }
             (remote + userLocal).distinctBy { it.id }
         }
     }
 
     override suspend fun getGroup(groupId: String): Group? {
-        if (groupId.isBlank()) return com.opensplit.data.local.InMemoryDataStore.groups.value.find { it.id == groupId }
+        val local = com.opensplit.data.local.InMemoryDataStore.groups.value.find { it.id == groupId }
+        if (local != null) return local
         return try {
-            groupsCollection.document(groupId).get().await().toObject(Group::class.java)
+            kotlinx.coroutines.withTimeoutOrNull(1000) {
+                groupsCollection.document(groupId).get().await().toObject(Group::class.java)
+            } ?: local
         } catch (e: Exception) {
-            com.opensplit.data.local.InMemoryDataStore.groups.value.find { it.id == groupId }
+            local
         }
     }
 

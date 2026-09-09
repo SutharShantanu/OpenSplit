@@ -16,11 +16,16 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.AccountCircle
+import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.Analytics
 import androidx.compose.material.icons.rounded.Group
 import androidx.compose.material.icons.rounded.Home
 import androidx.compose.material.icons.rounded.Notifications
+import androidx.compose.material.icons.rounded.NotificationsNone
 import androidx.compose.material.icons.rounded.People
+import androidx.compose.material.icons.rounded.PersonOutline
+import androidx.compose.material.icons.rounded.Settings
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -62,14 +67,15 @@ fun MainDashboard(
     rootNavController: NavHostController
 ) {
     var selectedTab by rememberSaveable { mutableStateOf(0) }
-    val tabTitles = listOf("OpenSplit", "Groups", "Friends", "Analytics")
+    val tabTitles = listOf("OpenSplit", "Groups", "Friends", "Spending Insights", "Account & Settings")
     val tabIcons = listOf(
-        OpenSplitIcons.Home,
+        Icons.Rounded.Home,
         OpenSplitIcons.Groups,
-        OpenSplitIcons.Friends,
-        OpenSplitIcons.Analytics
+        Icons.Rounded.PersonOutline,
+        Icons.Rounded.Analytics,
+        Icons.Rounded.AccountCircle
     )
-    val tabLabels = listOf("Home", "Groups", "Friends", "Analytics")
+    val tabLabels = listOf("Home", "Groups", "Friends", "Insights", "Account")
     val hazeState = remember { HazeState() }
     val coroutineScope = rememberCoroutineScope()
 
@@ -117,6 +123,8 @@ fun MainDashboard(
 
     val quickActions: List<QuickAction> = when (selectedTab) {
         0 -> listOfNotNull(
+            QuickAction("Add Friend", OpenSplitIcons.Invite) { showFabInviteFriend = true },
+            QuickAction("Create Group", OpenSplitIcons.Groups) { showFabCreateGroup = true },
             QuickAction("Add Expense", OpenSplitIcons.AddExpense) {
                 if (allGroups.isEmpty()) {
                     snackbar.showMessage("Create a group first")
@@ -124,20 +132,6 @@ fun MainDashboard(
                     rootNavController.navigate("add_expense/${allGroups.first().id}")
                 } else {
                     showFabAddExpensePicker = true
-                }
-            },
-            QuickAction("Settle Up", OpenSplitIcons.Settle) {
-                when {
-                    settleableGroups.isEmpty() -> snackbar.showMessage("Add another member to a group before settling up")
-                    settleableGroups.size == 1 -> rootNavController.navigate("settle_up/${settleableGroups.first().id}")
-                    else -> showFabSettleUpPicker = true
-                }
-            },
-            QuickAction("New Group", OpenSplitIcons.Groups) { showFabCreateGroup = true },
-            QuickAction("Invite a Friend", OpenSplitIcons.Invite) { showFabInviteFriend = true },
-            QuickAction("Load Demo Data", OpenSplitIcons.Refresh) {
-                mainViewModel.seedMockData { success ->
-                    snackbar.showMessage(if (success) "Sample data loaded! Check Home & Analytics!" else "Failed to load sample data.")
                 }
             }
         )
@@ -158,50 +152,17 @@ fun MainDashboard(
                     settleableGroups.size == 1 -> rootNavController.navigate("settle_up/${settleableGroups.first().id}")
                     else -> showFabSettleUpPicker = true
                 }
-            },
-            QuickAction("Load Demo Data", OpenSplitIcons.Refresh) {
-                mainViewModel.seedMockData { success ->
-                    snackbar.showMessage(if (success) "Sample data loaded! Check Home & Analytics!" else "Failed to load sample data.")
-                }
             }
         )
         2 -> listOfNotNull(
-            QuickAction("Invite a Friend", OpenSplitIcons.Invite) { showFabInviteFriend = true },
+            QuickAction("Invite Friend", OpenSplitIcons.Invite) { showFabInviteFriend = true },
             QuickAction("Settle Up", OpenSplitIcons.Settle) {
                 when {
                     settleableGroups.isEmpty() -> snackbar.showMessage("Add another member to a group before settling up")
                     settleableGroups.size == 1 -> rootNavController.navigate("settle_up/${settleableGroups.first().id}")
                     else -> showFabSettleUpPicker = true
-                }
-            },
-            QuickAction("Add Expense", OpenSplitIcons.AddExpense) {
-                if (allGroups.isEmpty()) {
-                    snackbar.showMessage("Create a group first")
-                } else if (allGroups.size == 1) {
-                    rootNavController.navigate("add_expense/${allGroups.first().id}")
-                } else {
-                    showFabAddExpensePicker = true
                 }
             }
-        )
-        3 -> listOfNotNull(
-            QuickAction("Add Expense", OpenSplitIcons.AddExpense) {
-                if (allGroups.isEmpty()) {
-                    snackbar.showMessage("Create a group first")
-                } else if (allGroups.size == 1) {
-                    rootNavController.navigate("add_expense/${allGroups.first().id}")
-                } else {
-                    showFabAddExpensePicker = true
-                }
-            },
-            QuickAction("Settle Up", OpenSplitIcons.Settle) {
-                when {
-                    settleableGroups.isEmpty() -> snackbar.showMessage("Add another member to a group before settling up")
-                    settleableGroups.size == 1 -> rootNavController.navigate("settle_up/${settleableGroups.first().id}")
-                    else -> showFabSettleUpPicker = true
-                }
-            },
-            QuickAction("New Group", OpenSplitIcons.Groups) { showFabCreateGroup = true }
         )
         else -> emptyList()
     }
@@ -209,66 +170,145 @@ fun MainDashboard(
 
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = {
-                    Text(
-                        text = if (selectedTab == 0) "OpenSplit" else tabTitles[selectedTab],
-                        fontWeight = FontWeight.Bold,
-                        style = MaterialTheme.typography.titleLarge
-                    )
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.75f)
-                ),
-                modifier = Modifier.appHazeHeader(hazeState),
-                actions = {
-                    // Global Search Button
-                    IconButton(onClick = { showGlobalSearchSheet = true }) {
-                        Icon(
-                            imageVector = OpenSplitIcons.Search,
-                            contentDescription = "Search"
-                        )
-                    }
-
-                    // Activity bell with badge
-                    IconButton(onClick = { rootNavController.navigate("activity") }) {
-                        BadgedBox(
-                            badge = {
-                                if (unreadCount > 0) {
-                                    Badge(
-                                        containerColor = MaterialTheme.colorScheme.errorContainer,
-                                        contentColor = MaterialTheme.colorScheme.onErrorContainer,
-                                        modifier = Modifier.offset(x = (-6).dp, y = 3.dp)
-                                    ) {
-                                        Text(
-                                            text = if (unreadCount > 10) "10+" else "$unreadCount",
-                                            style = MaterialTheme.typography.labelSmall.copy(
-                                                fontSize = 10.sp,
-                                                fontWeight = FontWeight.Bold,
-                                                lineHeight = 10.sp
-                                            ),
-                                            modifier = Modifier.padding(horizontal = 3.dp)
-                                        )
-                                    }
+            if (selectedTab == 0) {
+                TopAppBar(
+                    title = {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
+                            // User Avatar
+                            Box(
+                                modifier = Modifier
+                                    .size(36.dp)
+                                    .clip(CircleShape)
+                                    .background(MaterialTheme.colorScheme.primaryContainer)
+                                    .clickable { selectedTab = 4 },
+                                contentAlignment = Alignment.Center
+                            ) {
+                                if (!currentUserState?.photoUrl.isNullOrEmpty()) {
+                                    AsyncImage(
+                                        model = currentUserState?.photoUrl,
+                                        contentDescription = "Profile",
+                                        modifier = Modifier.fillMaxSize(),
+                                        contentScale = ContentScale.Crop
+                                    )
+                                } else {
+                                    val initial = currentUserState?.displayName?.firstOrNull()?.uppercase() ?: "U"
+                                    Text(
+                                        text = initial,
+                                        style = MaterialTheme.typography.titleMedium,
+                                        fontWeight = FontWeight.Bold,
+                                        color = MaterialTheme.colorScheme.onPrimaryContainer
+                                    )
                                 }
                             }
-                        ) {
-                            Icon(
-                                imageVector = OpenSplitIcons.Activity,
-                                contentDescription = "Activity Feed"
+
+                            Text(
+                                text = "OpenSplit",
+                                fontWeight = FontWeight.Bold,
+                                style = MaterialTheme.typography.titleLarge
                             )
                         }
-                    }
+                    },
+                    colors = TopAppBarDefaults.topAppBarColors(
+                        containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.85f)
+                    ),
+                    modifier = Modifier.appHazeHeader(hazeState),
+                    actions = {
+                        // Settlement History button
+                        IconButton(onClick = { rootNavController.navigate("settlement_history") }) {
+                            Icon(
+                                imageVector = OpenSplitIcons.History,
+                                contentDescription = "Settlement History"
+                            )
+                        }
 
-                    // Direct Account & Settings Button
-                    IconButton(onClick = { rootNavController.navigate("account") }) {
-                        Icon(
-                            imageVector = OpenSplitIcons.Account,
-                            contentDescription = "Account & Settings"
-                        )
+                        // Activity Bell with Badge
+                        IconButton(onClick = { rootNavController.navigate("activity") }) {
+                            BadgedBox(
+                                badge = {
+                                    if (unreadCount > 0) {
+                                        Badge(
+                                            containerColor = MaterialTheme.colorScheme.error,
+                                            contentColor = MaterialTheme.colorScheme.onError,
+                                            modifier = Modifier.offset(x = (-4).dp, y = 4.dp)
+                                        ) {
+                                            Text(
+                                                text = if (unreadCount > 9) "9+" else "$unreadCount",
+                                                style = MaterialTheme.typography.labelSmall.copy(
+                                                    fontSize = 9.sp,
+                                                    fontWeight = FontWeight.Bold,
+                                                    lineHeight = 9.sp
+                                                ),
+                                                modifier = Modifier.padding(horizontal = 2.dp)
+                                            )
+                                        }
+                                    }
+                                }
+                            ) {
+                                Icon(
+                                    imageVector = OpenSplitIcons.Activity,
+                                    contentDescription = "Activity Feed"
+                                )
+                            }
+                        }
                     }
-                }
-            )
+                )
+            } else if (selectedTab in 1..3) {
+                TopAppBar(
+                    title = {
+                        Text(
+                            text = tabTitles[selectedTab],
+                            fontWeight = FontWeight.Bold,
+                            style = MaterialTheme.typography.titleLarge
+                        )
+                    },
+                    colors = TopAppBarDefaults.topAppBarColors(
+                        containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.75f)
+                    ),
+                    modifier = Modifier.appHazeHeader(hazeState),
+                    actions = {
+                        // Global Search Button
+                        IconButton(onClick = { showGlobalSearchSheet = true }) {
+                            Icon(
+                                imageVector = OpenSplitIcons.Search,
+                                contentDescription = "Search"
+                            )
+                        }
+
+                        // Activity bell with badge
+                        IconButton(onClick = { rootNavController.navigate("activity") }) {
+                            BadgedBox(
+                                badge = {
+                                    if (unreadCount > 0) {
+                                        Badge(
+                                            containerColor = MaterialTheme.colorScheme.errorContainer,
+                                            contentColor = MaterialTheme.colorScheme.onErrorContainer,
+                                            modifier = Modifier.offset(x = (-6).dp, y = 3.dp)
+                                        ) {
+                                            Text(
+                                                text = if (unreadCount > 10) "10+" else "$unreadCount",
+                                                style = MaterialTheme.typography.labelSmall.copy(
+                                                    fontSize = 10.sp,
+                                                    fontWeight = FontWeight.Bold,
+                                                    lineHeight = 10.sp
+                                                ),
+                                                modifier = Modifier.padding(horizontal = 3.dp)
+                                            )
+                                        }
+                                    }
+                                }
+                            ) {
+                                Icon(
+                                    imageVector = OpenSplitIcons.Activity,
+                                    contentDescription = "Activity Feed"
+                                )
+                            }
+                        }
+                    }
+                )
+            }
         },
         floatingActionButton = {
             if (quickActions.isNotEmpty()) {
@@ -326,50 +366,74 @@ fun MainDashboard(
                         }
                     }
 
-                    val fabMainIcon = when (selectedTab) {
-                        2 -> OpenSplitIcons.Invite
-                        1 -> OpenSplitIcons.Groups
-                        else -> OpenSplitIcons.AddExpense
-                    }
-
                     FloatingActionButton(
                         onClick = {
-                            if (quickActions.size == 1) {
-                                quickActions.first().onClick()
-                            } else {
-                                fabExpanded = !fabExpanded
-                            }
+                            fabExpanded = !fabExpanded
                         },
-                        containerColor = MaterialTheme.colorScheme.primaryContainer,
-                        contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
-                        shape = CircleShape
+                        containerColor = MaterialTheme.colorScheme.primary,
+                        contentColor = MaterialTheme.colorScheme.onPrimary,
+                        shape = RoundedCornerShape(16.dp),
+                        elevation = FloatingActionButtonDefaults.elevation(defaultElevation = 4.dp)
                     ) {
                         Icon(
-                            imageVector = if (fabExpanded) OpenSplitIcons.Close else fabMainIcon,
-                            contentDescription = if (fabExpanded) "Close quick actions" else "Quick actions"
+                            imageVector = if (fabExpanded) OpenSplitIcons.Close else Icons.Rounded.Add,
+                            contentDescription = if (fabExpanded) "Close quick actions" else "Quick actions",
+                            modifier = Modifier.size(24.dp)
                         )
                     }
                 }
             }
         },
         bottomBar = {
-            NavigationBar {
-                tabLabels.forEachIndexed { index, label ->
-                    val showGroupBadge = index == 1 && (userGroupsState as? ScreenState.Success)?.data?.isNotEmpty() == true
-                    NavigationBarItem(
-                        selected = selectedTab == index,
-                        onClick = { selectedTab = index },
-                        icon = {
-                            if (showGroupBadge) {
-                                BadgedBox(badge = { Badge() }) {
-                                    Icon(tabIcons[index], contentDescription = label)
-                                }
-                            } else {
-                                Icon(tabIcons[index], contentDescription = label)
+            Surface(
+                color = MaterialTheme.colorScheme.surfaceContainer,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .navigationBarsPadding()
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(68.dp)
+                        .padding(horizontal = 8.dp, vertical = 6.dp),
+                    horizontalArrangement = Arrangement.SpaceAround,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    tabLabels.forEachIndexed { index, label ->
+                        val isSelected = selectedTab == index
+                        Surface(
+                            onClick = { selectedTab = index },
+                            shape = RoundedCornerShape(24.dp),
+                            color = if (isSelected) MaterialTheme.colorScheme.secondaryContainer else Color.Transparent,
+                            modifier = Modifier
+                                .weight(1f)
+                                .fillMaxHeight()
+                                .padding(horizontal = 2.dp)
+                        ) {
+                            Column(
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                verticalArrangement = Arrangement.Center,
+                                modifier = Modifier.fillMaxSize()
+                            ) {
+                                Icon(
+                                    imageVector = tabIcons[index],
+                                    contentDescription = label,
+                                    modifier = Modifier.size(22.dp),
+                                    tint = if (isSelected) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                                Spacer(modifier = Modifier.height(2.dp))
+                                Text(
+                                    text = label,
+                                    style = MaterialTheme.typography.labelSmall.copy(
+                                        fontSize = 11.sp,
+                                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
+                                    ),
+                                    color = if (isSelected) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onSurfaceVariant,
+                                    maxLines = 1
+                                )
                             }
-                        },
-                        label = { Text(label) }
-                    )
+                        }
+                    }
                 }
             }
         }
@@ -409,11 +473,16 @@ fun MainDashboard(
                         onFriendClick = { friendId -> rootNavController.navigate("person_balance/$friendId") }
                     )
                     3 -> AnalyticsScreen(
-                        viewModel = analyticsViewModel,
-                        onNavigateToExpenseDetail = { groupId, expenseId ->
-                            rootNavController.navigate("expense_detail/$groupId/$expenseId")
-                        }
+                        viewModel = analyticsViewModel
                     )
+                    4 -> {
+                        val accountViewModel: com.opensplit.ui.viewmodel.AccountViewModel = viewModel(factory = ViewModelFactory(appContainer))
+                        AccountScreen(
+                            appContainer = appContainer,
+                            rootNavController = rootNavController,
+                            viewModel = accountViewModel
+                        )
+                    }
                 }
             }
 

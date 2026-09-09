@@ -15,43 +15,84 @@ import androidx.compose.ui.platform.LocalContext
 
 private val DarkColorScheme =
   darkColorScheme(
-    primary = SoftLavender,
-    background = ExpressiveDarkBg,
-    surface = ExpressiveDarkSurface,
-    onPrimary = Color(0xFF2D1673),
-    onBackground = Color(0xFFE6E1E5),
-    onSurface = Color(0xFFE6E1E5),
-    primaryContainer = Color(0xFF422E8A),
-    onPrimaryContainer = Color(0xFFEADDFF),
-    secondaryContainer = Color(0xFF2C2C35),
-    onSecondaryContainer = Color(0xFFE6E1E5),
-    secondary = GraySecondaryDark,
-    tertiary = MintGreenDark,
-    error = CoralRedDark,
-    outline = Color(0xFF938F99)
+    primary = PrimaryDark,
+    onPrimary = OnPrimaryDark,
+    primaryContainer = PrimaryContainerDark,
+    onPrimaryContainer = OnPrimaryContainerDark,
+    secondary = SecondaryDark,
+    onSecondary = OnSecondaryDark,
+    secondaryContainer = SecondaryContainerDark,
+    onSecondaryContainer = OnSecondaryContainerDark,
+    tertiary = TertiaryDark,
+    onTertiary = OnTertiaryDark,
+    tertiaryContainer = TertiaryContainerDark,
+    onTertiaryContainer = OnTertiaryContainerDark,
+    surface = SurfaceDark,
+    onSurface = OnSurfaceDark,
+    surfaceVariant = SurfaceVariantDark,
+    onSurfaceVariant = OnSurfaceVariantDark,
+    surfaceContainerLowest = SurfaceContainerLowestDark,
+    surfaceContainerLow = SurfaceContainerLowDark,
+    surfaceContainer = SurfaceContainerDark,
+    surfaceContainerHigh = SurfaceContainerHighDark,
+    surfaceContainerHighest = SurfaceContainerHighestDark,
+    surfaceBright = SurfaceBrightDark,
+    surfaceDim = SurfaceDimDark,
+    background = SurfaceDark,
+    onBackground = OnSurfaceDark,
+    error = ErrorDark,
+    onError = OnErrorDark,
+    errorContainer = ErrorContainerDark,
+    onErrorContainer = OnErrorContainerDark,
+    outline = OutlineDark,
+    outlineVariant = OutlineVariantDark,
+    inverseSurface = InverseSurfaceDark,
+    inverseOnSurface = InverseOnSurfaceDark,
+    inversePrimary = InversePrimaryDark
   )
 
 private val LightColorScheme =
   lightColorScheme(
-    primary = EmeraldPrimary,
-    background = SoftGrayBg,
-    surface = Color.White,
-    onPrimary = Color.White,
-    onBackground = Color(0xFF1D1B1E),
-    onSurface = Color(0xFF1D1B1E),
-    primaryContainer = EmeraldLight,
-    onPrimaryContainer = Color(0xFF21005D),
-    secondary = GraySecondaryLight,
-    tertiary = MintGreenLight,
-    error = CoralRedLight,
-    outline = Color(0xFF79747E)
+    primary = PrimaryLight,
+    onPrimary = OnPrimaryLight,
+    primaryContainer = PrimaryContainerLight,
+    onPrimaryContainer = OnPrimaryContainerLight,
+    secondary = SecondaryLight,
+    onSecondary = OnSecondaryLight,
+    secondaryContainer = SecondaryContainerLight,
+    onSecondaryContainer = OnSecondaryContainerLight,
+    tertiary = TertiaryLight,
+    onTertiary = OnTertiaryLight,
+    tertiaryContainer = TertiaryContainerLight,
+    onTertiaryContainer = OnTertiaryContainerLight,
+    surface = SurfaceLight,
+    onSurface = OnSurfaceLight,
+    surfaceVariant = SurfaceVariantLight,
+    onSurfaceVariant = OnSurfaceVariantLight,
+    surfaceContainerLowest = SurfaceContainerLowestLight,
+    surfaceContainerLow = SurfaceContainerLowLight,
+    surfaceContainer = SurfaceContainerLight,
+    surfaceContainerHigh = SurfaceContainerHighLight,
+    surfaceContainerHighest = SurfaceContainerHighestLight,
+    surfaceBright = SurfaceBrightLight,
+    surfaceDim = SurfaceDimLight,
+    background = SurfaceLight,
+    onBackground = OnSurfaceLight,
+    error = ErrorLight,
+    onError = OnErrorLight,
+    errorContainer = ErrorContainerLight,
+    onErrorContainer = OnErrorContainerLight,
+    outline = OutlineLight,
+    outlineVariant = OutlineVariantLight,
+    inverseSurface = InverseSurfaceLight,
+    inverseOnSurface = InverseOnSurfaceLight,
+    inversePrimary = InversePrimaryLight
   )
 
 @Composable
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 fun OpenSplitTheme(
   darkTheme: Boolean = isSystemInDarkTheme(),
-  // Enable dynamic color for Material You system wallpaper color syncing
   dynamicColor: Boolean = true,
   content: @Composable () -> Unit,
 ) {
@@ -66,9 +107,6 @@ fun OpenSplitTheme(
       else -> LightColorScheme
     }
 
-  // MaterialExpressiveTheme (M3 Expressive) rather than MaterialTheme: it supplies the
-  // expressive MotionScheme and shape defaults that the newer components — LoadingIndicator,
-  // FloatingActionButtonMenu — are designed against, so they animate as specified.
   MaterialExpressiveTheme(
     colorScheme = colorScheme,
     motionScheme = MotionScheme.expressive(),
@@ -76,3 +114,4 @@ fun OpenSplitTheme(
     content = content
   )
 }
+

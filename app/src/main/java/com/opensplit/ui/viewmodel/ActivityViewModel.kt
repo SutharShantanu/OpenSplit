@@ -102,20 +102,12 @@ class ActivityViewModel(private val appContainer: AppContainer) : ViewModel() {
 
                     // Resolve every group member's display name so the feed can say *who* did
                     // what — activity from other members is the whole point of a shared feed.
-                    val memberUids = groups.flatMap { it.memberIds }.distinct()
-                    val nameByUid: Map<String, String> = kotlinx.coroutines.withTimeoutOrNull(5000) {
-                        kotlinx.coroutines.coroutineScope {
-                            memberUids.map { memberUid ->
-                                async {
-                                    memberUid to (appContainer.userRepository.getUser(memberUid)?.displayName ?: "")
-                                }
-                            }.awaitAll()
-                        }.filter { it.second.isNotBlank() }.toMap()
-                    } ?: emptyMap()
+                    val friendsMap = com.opensplit.data.local.InMemoryDataStore.friends.value.associate { it.uid to it.displayName }
 
                     fun actorName(actorUid: String): String = when {
                         actorUid == uid -> "You"
-                        else -> nameByUid[actorUid] ?: "Someone"
+                        friendsMap.containsKey(actorUid) && !friendsMap[actorUid].isNullOrBlank() -> friendsMap[actorUid] ?: "Someone"
+                        else -> "Someone"
                     }
 
                     val expensesFlows = groupIds.map { appContainer.expenseRepository.getExpensesForGroup(it) }

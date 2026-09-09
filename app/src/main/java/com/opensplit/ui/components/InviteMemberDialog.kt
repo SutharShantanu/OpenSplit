@@ -81,34 +81,66 @@ fun InviteMemberDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
+        shape = RoundedCornerShape(28.dp),
+        containerColor = MaterialTheme.colorScheme.surfaceContainerHighest,
         icon = {
             Icon(
-                imageVector = OpenSplitIcons.AddMember,
+                imageVector = OpenSplitIcons.Invite,
                 contentDescription = null,
                 tint = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.size(28.dp)
+                modifier = Modifier.size(32.dp)
             )
         },
         title = {
             Text(
                 text = title,
-                style = MaterialTheme.typography.titleLarge,
+                style = MaterialTheme.typography.headlineSmall,
                 fontWeight = FontWeight.Bold
             )
         },
         text = {
-            Column(verticalArrangement = Arrangement.spacedBy(OpenSplitTokens.SpaceSM)) {
+            Column(
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
                 Text(
                     text = description,
                     style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    textAlign = androidx.compose.ui.text.style.TextAlign.Center
                 )
 
-                Spacer(modifier = Modifier.height(4.dp))
+                // QR Code Card (SCREEN 09)
+                Surface(
+                    shape = RoundedCornerShape(20.dp),
+                    color = MaterialTheme.colorScheme.surface,
+                    border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+                    modifier = Modifier.size(160.dp)
+                ) {
+                    Box(contentAlignment = Alignment.Center) {
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.Center
+                        ) {
+                            Icon(
+                                imageVector = OpenSplitIcons.QrCode,
+                                contentDescription = "QR Code",
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(100.dp)
+                            )
+                            Text(
+                                text = "Scan to Join",
+                                style = MaterialTheme.typography.labelSmall,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+                }
 
                 // Default Invite Link Box with Copy Button
                 Surface(
-                    shape = RoundedCornerShape(16.dp),
+                    shape = CircleShape,
                     color = MaterialTheme.colorScheme.surfaceContainerLow,
                     border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)),
                     modifier = Modifier.fillMaxWidth()
@@ -116,7 +148,7 @@ fun InviteMemberDialog(
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(start = 14.dp, end = 6.dp, top = 6.dp, bottom = 6.dp),
+                            .padding(start = 16.dp, end = 6.dp, top = 4.dp, bottom = 4.dp),
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
@@ -133,8 +165,8 @@ fun InviteMemberDialog(
                             Spacer(modifier = Modifier.width(8.dp))
                             Text(
                                 text = inviteUrl,
-                                style = MaterialTheme.typography.bodyMedium,
-                                fontWeight = FontWeight.SemiBold,
+                                style = MaterialTheme.typography.bodySmall,
+                                fontWeight = FontWeight.Medium,
                                 color = MaterialTheme.colorScheme.onSurface,
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis
@@ -154,71 +186,98 @@ fun InviteMemberDialog(
                     }
                 }
 
-                Spacer(modifier = Modifier.height(4.dp))
-
-                InviteChannelRow(
-                    icon = OpenSplitIcons.Copy,
-                    label = "Copy Link",
-                    subtitle = "Copy invite link to clipboard"
+                // Quick Share Channels
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceEvenly
                 ) {
-                    copyToClipboard(inviteUrl)
-                }
-
-                InviteChannelRow(
-                    icon = OpenSplitIcons.Contacts,
-                    label = "Contacts",
-                    subtitle = "Pick a person from your contacts"
-                ) {
-                    contactsPermissionLauncher.launch(android.Manifest.permission.READ_CONTACTS)
-                }
-
-                InviteChannelRow(
-                    icon = OpenSplitIcons.Whatsapp,
-                    label = "WhatsApp",
-                    subtitle = "Share invite message with link"
-                ) {
-                    val whatsappIntent = Intent(Intent.ACTION_SEND).apply {
-                        type = "text/plain"
-                        putExtra(Intent.EXTRA_TEXT, fullInviteMessage)
-                        setPackage("com.whatsapp")
+                    // WhatsApp
+                    IconButton(
+                        onClick = {
+                            val whatsappIntent = Intent(Intent.ACTION_SEND).apply {
+                                type = "text/plain"
+                                putExtra(Intent.EXTRA_TEXT, fullInviteMessage)
+                                setPackage("com.whatsapp")
+                            }
+                            try {
+                                context.startActivity(whatsappIntent)
+                            } catch (e: Exception) {
+                                try {
+                                    val fallbackIntent = Intent(Intent.ACTION_SEND).apply {
+                                        type = "text/plain"
+                                        putExtra(Intent.EXTRA_TEXT, fullInviteMessage)
+                                    }
+                                    context.startActivity(Intent.createChooser(fallbackIntent, "Share invite link via"))
+                                } catch (_: Exception) {
+                                    snackbar.showMessage("WhatsApp or messaging app not installed")
+                                }
+                            }
+                            onDismiss()
+                        }
+                    ) {
+                        Surface(shape = CircleShape, color = MaterialTheme.colorScheme.secondaryContainer, modifier = Modifier.size(44.dp)) {
+                            Box(contentAlignment = Alignment.Center) {
+                                Icon(OpenSplitIcons.Whatsapp, contentDescription = "WhatsApp", modifier = Modifier.size(22.dp), tint = MaterialTheme.colorScheme.onSecondaryContainer)
+                            }
+                        }
                     }
-                    try {
-                        context.startActivity(whatsappIntent)
-                    } catch (e: Exception) {
-                        try {
-                            val fallbackIntent = Intent(Intent.ACTION_SEND).apply {
+
+                    // SMS
+                    IconButton(
+                        onClick = {
+                            try {
+                                context.startActivity(
+                                    Intent(Intent.ACTION_SENDTO, Uri.parse("smsto:")).apply {
+                                        putExtra("sms_body", fullInviteMessage)
+                                    }
+                                )
+                            } catch (e: Exception) {
+                                snackbar.showMessage("No messaging app found")
+                            }
+                            onDismiss()
+                        }
+                    ) {
+                        Surface(shape = CircleShape, color = MaterialTheme.colorScheme.secondaryContainer, modifier = Modifier.size(44.dp)) {
+                            Box(contentAlignment = Alignment.Center) {
+                                Icon(OpenSplitIcons.Sms, contentDescription = "SMS", modifier = Modifier.size(22.dp), tint = MaterialTheme.colorScheme.onSecondaryContainer)
+                            }
+                        }
+                    }
+
+                    // Contacts
+                    IconButton(
+                        onClick = { contactsPermissionLauncher.launch(android.Manifest.permission.READ_CONTACTS) }
+                    ) {
+                        Surface(shape = CircleShape, color = MaterialTheme.colorScheme.secondaryContainer, modifier = Modifier.size(44.dp)) {
+                            Box(contentAlignment = Alignment.Center) {
+                                Icon(OpenSplitIcons.Contacts, contentDescription = "Contacts", modifier = Modifier.size(22.dp), tint = MaterialTheme.colorScheme.onSecondaryContainer)
+                            }
+                        }
+                    }
+
+                    // System Share
+                    IconButton(
+                        onClick = {
+                            val shareIntent = Intent(Intent.ACTION_SEND).apply {
                                 type = "text/plain"
                                 putExtra(Intent.EXTRA_TEXT, fullInviteMessage)
                             }
-                            context.startActivity(Intent.createChooser(fallbackIntent, "Share invite link via"))
-                        } catch (_: Exception) {
-                            snackbar.showMessage("WhatsApp or messaging app not installed")
+                            context.startActivity(Intent.createChooser(shareIntent, "Share invite link"))
+                            onDismiss()
+                        }
+                    ) {
+                        Surface(shape = CircleShape, color = MaterialTheme.colorScheme.secondaryContainer, modifier = Modifier.size(44.dp)) {
+                            Box(contentAlignment = Alignment.Center) {
+                                Icon(OpenSplitIcons.Share, contentDescription = "Share", modifier = Modifier.size(22.dp), tint = MaterialTheme.colorScheme.onSecondaryContainer)
+                            }
                         }
                     }
-                    onDismiss()
-                }
-
-                InviteChannelRow(
-                    icon = OpenSplitIcons.Sms,
-                    label = "SMS",
-                    subtitle = "Send a text invite with link"
-                ) {
-                    try {
-                        context.startActivity(
-                            Intent(Intent.ACTION_SENDTO, Uri.parse("smsto:")).apply {
-                                putExtra("sms_body", fullInviteMessage)
-                            }
-                        )
-                    } catch (e: Exception) {
-                        snackbar.showMessage("No messaging app found")
-                    }
-                    onDismiss()
                 }
             }
         },
         confirmButton = {},
         dismissButton = {
-            TextButton(onClick = onDismiss) { Text("Cancel") }
+            TextButton(onClick = onDismiss) { Text("Close") }
         }
     )
 }

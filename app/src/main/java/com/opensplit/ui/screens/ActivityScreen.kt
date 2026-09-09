@@ -57,25 +57,28 @@ private fun dayLabel(date: Date): String {
 @Composable
 fun ActivityScreen(
     viewModel: ActivityViewModel,
-    onNavigateBack: () -> Unit
+    onNavigateBack: () -> Unit,
+    showTopBar: Boolean = false
 ) {
     val state by viewModel.uiState.collectAsState()
     val hazeState = remember { HazeState() }
 
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = { Text("Activity Feed", fontWeight = FontWeight.Bold) },
-                navigationIcon = {
-                    IconButton(onClick = onNavigateBack) {
-                        Icon(OpenSplitIcons.Back, contentDescription = "Back")
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.75f)
-                ),
-                modifier = Modifier.appHazeHeader(hazeState)
-            )
+            if (showTopBar) {
+                TopAppBar(
+                    title = { Text("Activity Feed", fontWeight = FontWeight.Bold) },
+                    navigationIcon = {
+                        IconButton(onClick = onNavigateBack) {
+                            Icon(OpenSplitIcons.Back, contentDescription = "Back")
+                        }
+                    },
+                    colors = TopAppBarDefaults.topAppBarColors(
+                        containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.75f)
+                    ),
+                    modifier = Modifier.appHazeHeader(hazeState)
+                )
+            }
         }
     ) { padding ->
         Box(

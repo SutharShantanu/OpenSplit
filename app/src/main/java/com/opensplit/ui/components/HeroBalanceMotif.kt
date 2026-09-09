@@ -28,6 +28,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.opensplit.ui.theme.OpenSplitIcons
 import com.opensplit.ui.theme.OpenSplitTokens
+import com.opensplit.ui.theme.MoneyFontFamily
 import kotlin.math.abs
 
 @Composable
@@ -75,7 +76,7 @@ fun AnimatedAmountText(
         ""
     }
 
-    val textToDisplay = "$sign$formattedNumber/-"
+    val textToDisplay = "$sign$formattedNumber"
     var fontSizeMultiplier by androidx.compose.runtime.remember(textToDisplay) { androidx.compose.runtime.mutableStateOf(1.0f) }
 
     Row(
@@ -87,6 +88,7 @@ fun AnimatedAmountText(
             text = symbol,
             style = MaterialTheme.typography.titleLarge.copy(
                 fontWeight = FontWeight.Bold,
+                fontFamily = MoneyFontFamily,
                 color = color
             ),
             modifier = Modifier.padding(end = 4.dp)
@@ -97,6 +99,7 @@ fun AnimatedAmountText(
             style = textStyle.copy(
                 fontSize = (textStyle.fontSize.value * fontSizeMultiplier).sp,
                 fontWeight = FontWeight.Bold,
+                fontFamily = MoneyFontFamily,
                 color = color
             ),
             maxLines = 1,
@@ -114,226 +117,165 @@ fun AnimatedAmountText(
 @Composable
 fun HeroBalanceCard(
     amount: Double,
-    currency: String = "₹",
+    currency: String = "$",
     youAreOwed: Double = 0.0,
     youOwe: Double = 0.0,
-    title: String = "TOTAL NET BALANCE",
+    title: String? = null,
     subtitle: String? = null,
     isSpendTotal: Boolean = false,
     onOwedToYouClick: (() -> Unit)? = null,
     onYouOweClick: (() -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
-    val (icon, badgeBg, badgeFg, statusLabel) = when {
-        isSpendTotal -> Quadruple(
-            Icons.AutoMirrored.Rounded.TrendingUp,
-            MaterialTheme.colorScheme.primaryContainer,
-            MaterialTheme.colorScheme.onPrimaryContainer,
-            "Total Expenditure"
-        )
-        amount > 0.01 -> Quadruple(
-            Icons.Rounded.Add,
-            OpenSplitTokens.OwedPositive.copy(alpha = 0.15f),
-            OpenSplitTokens.OwedPositive,
-            "You are owed money"
-        )
-        amount < -0.01 -> Quadruple(
-            Icons.Rounded.Remove,
-            OpenSplitTokens.OwedNegative.copy(alpha = 0.15f),
-            OpenSplitTokens.OwedNegative,
-            "You owe money"
-        )
-        else -> Quadruple(
-            Icons.Rounded.CheckCircle,
-            MaterialTheme.colorScheme.secondaryContainer,
-            MaterialTheme.colorScheme.onSecondaryContainer,
-            "You are all settled up!"
-        )
+    val cardTitle = title ?: when {
+        isSpendTotal -> "TOTAL EXPENDITURE"
+        amount > 0.01 -> "YOU ARE OWED IN TOTAL"
+        amount < -0.01 -> "YOU OWE IN TOTAL"
+        else -> "ALL SETTLED UP"
     }
+
+    val displayAmount = if (isSpendTotal) amount else abs(amount)
+    val symbol = com.opensplit.util.CurrencyFormatter.getCurrencySymbol(currency)
+    val formattedNumber = com.opensplit.util.CurrencyFormatter.format(displayAmount, currencyCode = currency, showSymbol = false)
 
     Card(
         modifier = modifier.fillMaxWidth(),
-        shape = MaterialTheme.shapes.extraLarge,
+        shape = RoundedCornerShape(28.dp),
         colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
+            containerColor = Color(0xFF482D7B)
         ),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
     ) {
         Column(
-            modifier = Modifier.padding(18.dp),
-            horizontalAlignment = Alignment.Start
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(22.dp)
         ) {
-            // Header Row with Title and Dynamic Plus/Minus Badge (Responsive layout)
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = title.uppercase(),
-                    style = MaterialTheme.typography.labelMedium,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    letterSpacing = androidx.compose.ui.unit.TextUnit(1.0f, androidx.compose.ui.unit.TextUnitType.Sp),
-                    maxLines = 1,
-                    overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
-                    modifier = Modifier.weight(1f, fill = false).padding(end = 6.dp)
+            // Label
+            Text(
+                text = cardTitle.uppercase(),
+                style = MaterialTheme.typography.labelMedium.copy(
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    letterSpacing = 1.sp,
+                    color = Color(0xFFC8B6FF)
                 )
-
-                Surface(
-                    shape = RoundedCornerShape(20.dp),
-                    color = badgeBg
-                ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
-                    ) {
-                        Icon(
-                            imageVector = icon,
-                            contentDescription = null,
-                            modifier = Modifier.size(12.dp),
-                            tint = badgeFg
-                        )
-                        Spacer(modifier = Modifier.width(3.dp))
-                        Text(
-                            text = statusLabel,
-                            style = MaterialTheme.typography.labelSmall,
-                            fontWeight = FontWeight.Bold,
-                            color = badgeFg,
-                            maxLines = 1,
-                            overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
-                        )
-                    }
-                }
-            }
+            )
 
             Spacer(modifier = Modifier.height(8.dp))
 
-            // Main Big Net Amount — Justified to End / Right-Aligned
-            Box(
-                modifier = Modifier.fillMaxWidth(),
-                contentAlignment = Alignment.CenterEnd
-            ) {
-                AnimatedAmountText(
-                    amount = amount,
-                    currency = currency,
-                    isSpendTotal = isSpendTotal,
-                    textStyle = MaterialTheme.typography.displayLarge
+            // Large Hero Amount
+            Text(
+                text = "$symbol$formattedNumber",
+                style = MaterialTheme.typography.displayMedium.copy(
+                    fontSize = 38.sp,
+                    fontWeight = FontWeight.Bold,
+                    fontFamily = MoneyFontFamily,
+                    color = Color(0xFFEDE0FD)
                 )
-            }
+            )
 
-            // Owed vs You Owe Breakdown Row (Clean & Minimal)
             if (!isSpendTotal && (youAreOwed > 0.01 || youOwe > 0.01)) {
-                Spacer(modifier = Modifier.height(16.dp))
+                Spacer(modifier = Modifier.height(18.dp))
 
-                HorizontalDivider(
-                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f),
-                    thickness = 1.dp
-                )
-
-                Spacer(modifier = Modifier.height(12.dp))
-
+                // Row 1: You are owed
                 Row(
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(8.dp))
+                        .clickable(enabled = onOwedToYouClick != null) { onOwedToYouClick?.invoke() },
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    // Left Column: Owed to you (Justified Center)
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally),
-                        modifier = Modifier
-                            .weight(1f)
-                            .clip(MaterialTheme.shapes.small)
-                            .clickable(enabled = onOwedToYouClick != null) { onOwedToYouClick?.invoke() }
-                            .padding(vertical = 4.dp, horizontal = 4.dp)
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .size(28.dp)
-                                .clip(CircleShape)
-                                .background(OpenSplitTokens.OwedPositive.copy(alpha = 0.12f)),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(
-                                imageVector = Icons.Rounded.ArrowUpward,
-                                contentDescription = null,
-                                modifier = Modifier.size(16.dp),
-                                tint = OpenSplitTokens.OwedPositive
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            imageVector = Icons.Rounded.ArrowDownward,
+                            contentDescription = null,
+                            modifier = Modifier.size(16.dp),
+                            tint = Color(0xFFC8B6FF)
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(
+                            text = "You are owed",
+                            style = MaterialTheme.typography.bodyMedium.copy(
+                                color = Color(0xFFC8B6FF),
+                                fontWeight = FontWeight.Normal
                             )
-                        }
-                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            Text(
-                                text = "Owed to you",
-                                style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                textAlign = androidx.compose.ui.text.style.TextAlign.Center
-                            )
-                            Text(
-                                text = com.opensplit.util.CurrencyFormatter.format(youAreOwed, currency),
-                                style = MaterialTheme.typography.bodyMedium,
-                                fontWeight = FontWeight.Bold,
-                                color = OpenSplitTokens.OwedPositive,
-                                textAlign = androidx.compose.ui.text.style.TextAlign.Center
-                            )
-                        }
+                        )
                     }
+                    Text(
+                        text = com.opensplit.util.CurrencyFormatter.format(youAreOwed, currency),
+                        style = MaterialTheme.typography.bodyMedium.copy(
+                            fontWeight = FontWeight.Bold,
+                            fontFamily = MoneyFontFamily,
+                            color = Color(0xFFEDE0FD)
+                        )
+                    )
+                }
 
-                    // Vertical Divider
+                Spacer(modifier = Modifier.height(10.dp))
+
+                // Row 2: You owe
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(8.dp))
+                        .clickable(enabled = onYouOweClick != null) { onYouOweClick?.invoke() },
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            imageVector = Icons.Rounded.ArrowUpward,
+                            contentDescription = null,
+                            modifier = Modifier.size(16.dp),
+                            tint = Color(0xFFC8B6FF)
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(
+                            text = "You owe",
+                            style = MaterialTheme.typography.bodyMedium.copy(
+                                color = Color(0xFFC8B6FF),
+                                fontWeight = FontWeight.Normal
+                            )
+                        )
+                    }
+                    Text(
+                        text = com.opensplit.util.CurrencyFormatter.format(youOwe, currency),
+                        style = MaterialTheme.typography.bodyMedium.copy(
+                            fontWeight = FontWeight.Bold,
+                            fontFamily = MoneyFontFamily,
+                            color = Color(0xFFFFD8CC)
+                        )
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(14.dp))
+
+                // Ratio Progress Bar
+                val totalSum = (youAreOwed + youOwe).toFloat()
+                val owedRatio = if (totalSum > 0.001f) (youAreOwed.toFloat() / totalSum).coerceIn(0.04f, 0.96f) else 0.5f
+
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(8.dp)
+                        .clip(CircleShape)
+                        .background(Color(0xFFFFD8CC))
+                ) {
                     Box(
                         modifier = Modifier
-                            .height(26.dp)
-                            .width(1.dp)
-                            .background(MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
+                            .fillMaxHeight()
+                            .fillMaxWidth(fraction = owedRatio)
+                            .clip(CircleShape)
+                            .background(Color(0xFFA580FF))
                     )
-
-                    // Right Column: You owe (Justified Center)
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally),
-                        modifier = Modifier
-                            .weight(1f)
-                            .clip(MaterialTheme.shapes.small)
-                            .clickable(enabled = onYouOweClick != null) { onYouOweClick?.invoke() }
-                            .padding(vertical = 4.dp, horizontal = 4.dp)
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .size(28.dp)
-                                .clip(CircleShape)
-                                .background(OpenSplitTokens.OwedNegative.copy(alpha = 0.12f)),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(
-                                imageVector = Icons.Rounded.ArrowDownward,
-                                contentDescription = null,
-                                modifier = Modifier.size(16.dp),
-                                tint = OpenSplitTokens.OwedNegative
-                            )
-                        }
-                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            Text(
-                                text = "You owe",
-                                style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                textAlign = androidx.compose.ui.text.style.TextAlign.Center
-                            )
-                            Text(
-                                text = com.opensplit.util.CurrencyFormatter.format(youOwe, currency),
-                                style = MaterialTheme.typography.bodyMedium,
-                                fontWeight = FontWeight.Bold,
-                                color = OpenSplitTokens.OwedNegative,
-                                textAlign = androidx.compose.ui.text.style.TextAlign.Center
-                            )
-                        }
-                    }
                 }
             } else if (!subtitle.isNullOrEmpty()) {
-                Spacer(modifier = Modifier.height(4.dp))
+                Spacer(modifier = Modifier.height(8.dp))
                 Text(
                     text = subtitle,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    style = MaterialTheme.typography.bodySmall.copy(color = Color(0xFFC8B6FF))
                 )
             }
         }

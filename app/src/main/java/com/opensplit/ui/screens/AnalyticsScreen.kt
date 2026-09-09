@@ -48,6 +48,7 @@ import java.util.Locale
 @Composable
 fun AnalyticsScreen(
     viewModel: AnalyticsViewModel,
+    onNavigateBack: (() -> Unit)? = null,
     onNavigateToExpenseDetail: (String, String) -> Unit = { _, _ -> }
 ) {
     val state by viewModel.uiState.collectAsState()
@@ -57,59 +58,80 @@ fun AnalyticsScreen(
     }
     var chartMode by remember { mutableStateOf("Weekly") } // "Weekly" or "Monthly"
 
-    StateLayout(state = state) { analyticsState ->
-        if (analyticsState.groupCount == 0 && analyticsState.totalExpenseCount == 0) {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(OpenSplitTokens.SpaceXL),
-                contentAlignment = Alignment.Center
-            ) {
-                Column(
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.Center
-                ) {
-                    ChartBarsIllustration(size = 140.dp)
-                    Spacer(modifier = Modifier.height(OpenSplitTokens.SpaceXL))
-                    Text(
-                        text = "No Analytics Yet",
-                        style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.Bold
+    Scaffold(
+        topBar = {
+            if (onNavigateBack != null) {
+                TopAppBar(
+                    title = { Text("Spending Analytics", fontWeight = FontWeight.Bold) },
+                    navigationIcon = {
+                        IconButton(onClick = onNavigateBack) {
+                            Icon(OpenSplitIcons.ArrowBack, contentDescription = "Back")
+                        }
+                    },
+                    colors = TopAppBarDefaults.topAppBarColors(
+                        containerColor = MaterialTheme.colorScheme.surface
                     )
-                    Spacer(modifier = Modifier.height(OpenSplitTokens.SpaceSM))
-                    Text(
-                        text = "Analytics will show up once you've added expenses to your groups.",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        textAlign = androidx.compose.ui.text.style.TextAlign.Center
-                    )
-                }
+                )
             }
-        } else {
-            val scrollState = rememberScrollState()
+        },
+        containerColor = MaterialTheme.colorScheme.surface
+    ) { paddingValues ->
+        Box(modifier = Modifier.padding(paddingValues)) {
+            StateLayout(state = state) { analyticsState ->
+                if (analyticsState.groupCount == 0 && analyticsState.totalExpenseCount == 0) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(OpenSplitTokens.SpaceXL),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.Center
+                        ) {
+                            ChartBarsIllustration(size = 140.dp)
+                            Spacer(modifier = Modifier.height(OpenSplitTokens.SpaceXL))
+                            Text(
+                                text = "No Analytics Yet",
+                                style = MaterialTheme.typography.titleLarge,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Spacer(modifier = Modifier.height(OpenSplitTokens.SpaceSM))
+                            Text(
+                                text = "Analytics will show up once you've added expenses to your groups.",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                            )
+                        }
+                    }
+                } else {
+                    val scrollState = rememberScrollState()
 
-            Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .verticalScroll(scrollState)
-                    .padding(horizontal = OpenSplitTokens.SpaceLG, vertical = OpenSplitTokens.SpaceMD),
-                verticalArrangement = Arrangement.spacedBy(OpenSplitTokens.SpaceMD)
-            ) {
-                // Header: Title & Subtitle
-                Column(modifier = Modifier.fillMaxWidth()) {
-                    Text(
-                        text = "Analytics",
-                        style = MaterialTheme.typography.headlineLarge,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onSurface
-                    )
-                    Spacer(modifier = Modifier.height(2.dp))
-                    Text(
-                        text = "Your spending insights this month.",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
+                    Column(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .verticalScroll(scrollState)
+                            .padding(horizontal = OpenSplitTokens.SpaceLG, vertical = OpenSplitTokens.SpaceMD),
+                        verticalArrangement = Arrangement.spacedBy(OpenSplitTokens.SpaceMD)
+                    ) {
+                        if (onNavigateBack == null) {
+                            // Header: Title & Subtitle
+                            Column(modifier = Modifier.fillMaxWidth()) {
+                                Text(
+                                    text = "Analytics",
+                                    style = MaterialTheme.typography.headlineLarge,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.onSurface
+                                )
+                                Spacer(modifier = Modifier.height(2.dp))
+                                Text(
+                                    text = "Your spending insights this month.",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
 
                 // Scope tabs: "All Groups" followed by one tab per group
                 val scopeIds: List<String?> = listOf(null) + analyticsState.groups.map { it.id }
@@ -180,6 +202,7 @@ fun AnalyticsScreen(
                                     text = "$currencySymbol${CurrencyFormatter.format(analyticsState.monthlySpendTotal, showSymbol = false)}",
                                     style = MaterialTheme.typography.displayMedium,
                                     fontWeight = FontWeight.Bold,
+                                    fontFamily = com.opensplit.ui.theme.MoneyFontFamily,
                                     color = MaterialTheme.colorScheme.onPrimaryContainer
                                 )
 
@@ -351,6 +374,7 @@ fun AnalyticsScreen(
                                             text = "${(cat.percentage * 100).toInt()}%",
                                             style = MaterialTheme.typography.bodyMedium,
                                             fontWeight = FontWeight.SemiBold,
+                                            fontFamily = com.opensplit.ui.theme.MoneyFontFamily,
                                             color = MaterialTheme.colorScheme.onSurfaceVariant
                                         )
                                     }
@@ -473,6 +497,8 @@ fun AnalyticsScreen(
             }
         }
     }
+}
+}
 }
 
 @Composable
@@ -661,6 +687,7 @@ private fun AnalyticsStatCard(
                 text = value,
                 style = MaterialTheme.typography.titleLarge,
                 fontWeight = FontWeight.Bold,
+                fontFamily = com.opensplit.ui.theme.MoneyFontFamily,
                 maxLines = 1
             )
         }

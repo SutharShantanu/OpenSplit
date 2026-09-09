@@ -189,7 +189,9 @@ fun MainNavHost(navController: NavHostController, appContainer: AppContainer, au
             )
             com.opensplit.ui.screens.PersonBalanceScreen(
                 viewModel = vm,
-                onNavigateBack = { navController.popBackStack() }
+                onNavigateBack = { navController.popBackStack() },
+                onNavigateToSettleUp = { groupId -> navController.navigate("settle_up/$groupId") },
+                onNavigateToGroup = { groupId -> navController.navigate("group_detail/$groupId") }
             )
         }
 
@@ -219,6 +221,71 @@ fun MainNavHost(navController: NavHostController, appContainer: AppContainer, au
                 suggestedToUid = null,
                 suggestedAmount = null,
                 onNavigateBack = { navController.popBackStack() }
+            )
+        }
+
+        composable("recurring_expenses") {
+            com.opensplit.ui.screens.RecurringExpensesScreen(
+                onNavigateBack = { navController.popBackStack() }
+            )
+        }
+
+        composable("notification_settings") {
+            com.opensplit.ui.screens.NotificationSettingsScreen(
+                onNavigateBack = { navController.popBackStack() }
+            )
+        }
+
+        composable("analytics") {
+            val analyticsViewModel: com.opensplit.ui.viewmodel.AnalyticsViewModel = androidx.lifecycle.viewmodel.compose.viewModel(
+                factory = ViewModelFactory(appContainer)
+            )
+            com.opensplit.ui.screens.AnalyticsScreen(
+                viewModel = analyticsViewModel,
+                onNavigateBack = { navController.popBackStack() }
+            )
+        }
+
+        composable("settlement_history") {
+            val mainViewModel: com.opensplit.ui.viewmodel.MainViewModel = androidx.lifecycle.viewmodel.compose.viewModel(
+                factory = ViewModelFactory(appContainer)
+            )
+            val currentUid = appContainer.authRepository.currentUser?.uid ?: ""
+            com.opensplit.ui.screens.SettlementHistoryScreen(
+                currentUid = currentUid,
+                onNavigateBack = { navController.popBackStack() }
+            )
+        }
+
+        composable("profile_setup") {
+            val user = appContainer.authRepository.currentUser
+            val scope = androidx.compose.runtime.rememberCoroutineScope()
+            val snackbar = com.opensplit.ui.components.LocalSnackbarController.current
+
+            com.opensplit.ui.screens.auth.ProfileSetupScreen(
+                initialName = user?.displayName ?: "",
+                initialPhone = user?.phoneNumber ?: "",
+                initialPhotoUrl = user?.photoUrl?.toString(),
+                onSaveProfile = { name, phone, photoUri ->
+                    scope.launch {
+                        try {
+                            if (user != null) {
+                                val updatedUser = com.opensplit.domain.model.User(
+                                    uid = user.uid,
+                                    email = user.email ?: "",
+                                    displayName = name,
+                                    photoUrl = photoUri?.toString() ?: user.photoUrl?.toString()
+                                )
+                                appContainer.userRepository.saveUser(updatedUser)
+                                snackbar.showMessage("Profile updated successfully")
+                            }
+                            navController.popBackStack()
+                        } catch (e: Exception) {
+                            snackbar.showMessage("Failed to update profile")
+                        }
+                    }
+                },
+                onDismiss = { navController.popBackStack() }
             )
         }
     }

@@ -296,6 +296,7 @@ fun SettleUpScreen(
                                 textStyle = MaterialTheme.typography.displayMedium.copy(
                                     fontSize = dynamicFontSize,
                                     fontWeight = FontWeight.Bold,
+                                    fontFamily = com.opensplit.ui.theme.MoneyFontFamily,
                                     color = MaterialTheme.colorScheme.primary,
                                     textAlign = TextAlign.Center
                                 ),
@@ -312,6 +313,7 @@ fun SettleUpScreen(
                                                 text = "0.00",
                                                 style = MaterialTheme.typography.displayMedium.copy(
                                                     fontSize = dynamicFontSize,
+                                                    fontFamily = com.opensplit.ui.theme.MoneyFontFamily,
                                                     color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f),
                                                     textAlign = TextAlign.Center
                                                 )
@@ -551,6 +553,131 @@ private fun SettlementSuccessOverlay(
                         fontWeight = FontWeight.SemiBold
                     )
                 }
+            }
+        }
+    }
+}
+
+/**
+ * SCREEN 22 — Settlement Failed Overlay
+ * Faithfully implemented from Stitch design `Settlement_Failed.html`.
+ */
+@Composable
+fun SettlementFailedOverlay(
+    amount: Double,
+    currencySymbol: String,
+    toName: String,
+    errorMessage: String = "Something went wrong while recording the settlement. Please try again.",
+    onRetry: () -> Unit,
+    onCancel: () -> Unit
+) {
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(MaterialTheme.colorScheme.surface)
+            .padding(24.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center,
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Surface(
+                shape = CircleShape,
+                color = MaterialTheme.colorScheme.errorContainer,
+                modifier = Modifier.size(96.dp)
+            ) {
+                Box(contentAlignment = Alignment.Center) {
+                    Icon(
+                        imageVector = OpenSplitIcons.ErrorIcon,
+                        contentDescription = "Settlement Failed",
+                        tint = MaterialTheme.colorScheme.onErrorContainer,
+                        modifier = Modifier.size(52.dp)
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(24.dp))
+
+            Text(
+                text = "Settlement Failed",
+                style = MaterialTheme.typography.headlineMedium,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onSurface,
+                textAlign = TextAlign.Center
+            )
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            Text(
+                text = errorMessage,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.padding(horizontal = 16.dp)
+            )
+
+            Spacer(modifier = Modifier.height(28.dp))
+
+            // Summary Card
+            Card(
+                shape = RoundedCornerShape(20.dp),
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.surfaceContainerLow
+                ),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(20.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Text(
+                        text = "ATTEMPTED PAYMENT",
+                        style = MaterialTheme.typography.labelSmall,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Spacer(modifier = Modifier.height(6.dp))
+                    Text(
+                        text = "$currencySymbol${CurrencyFormatter.format(amount, showSymbol = false)} to $toName",
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.error
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(32.dp))
+
+            Button(
+                onClick = onRetry,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(56.dp),
+                shape = CircleShape,
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = MaterialTheme.colorScheme.primary,
+                    contentColor = MaterialTheme.colorScheme.onPrimary
+                )
+            ) {
+                Icon(OpenSplitIcons.Refresh, contentDescription = null, modifier = Modifier.size(20.dp))
+                Spacer(modifier = Modifier.width(8.dp))
+                Text("Try Again", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium)
+            }
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            OutlinedButton(
+                onClick = onCancel,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(56.dp),
+                shape = CircleShape
+            ) {
+                Text("Cancel", fontWeight = FontWeight.SemiBold, style = MaterialTheme.typography.titleMedium)
             }
         }
     }

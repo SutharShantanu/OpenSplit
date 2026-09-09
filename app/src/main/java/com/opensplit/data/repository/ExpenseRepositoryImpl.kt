@@ -7,8 +7,7 @@ import com.opensplit.domain.repository.ActivityRepository
 import com.opensplit.domain.repository.ExpenseRepository
 import com.google.firebase.firestore.FirebaseFirestore
 import kotlinx.coroutines.channels.awaitClose
-import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.callbackFlow
+import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.tasks.await
 
 class ExpenseRepositoryImpl(
@@ -41,9 +40,9 @@ class ExpenseRepositoryImpl(
                     trySend(expenses)
                 }
             awaitClose { listener.remove() }
-        }
+        }.onStart { emit(emptyList<Expense>()) }
 
-        return kotlinx.coroutines.flow.combine(firestoreFlow, com.opensplit.data.local.InMemoryDataStore.expenses) { remote, local ->
+        return combine(firestoreFlow, com.opensplit.data.local.InMemoryDataStore.expenses) { remote, local ->
             val groupLocal = local.filter { it.groupId == groupId && !it.isDeleted }
             (remote + groupLocal).distinctBy { it.id }.sortedByDescending { it.date }
         }
@@ -64,7 +63,7 @@ class ExpenseRepositoryImpl(
                     trySend(expenses)
                 }
             awaitClose { listener.remove() }
-        }
+        }.onStart { emit(emptyList<Expense>()) }
 
         return kotlinx.coroutines.flow.combine(firestoreFlow, com.opensplit.data.local.InMemoryDataStore.expenses) { remote, local ->
             val userLocal = local.filter { (it.paidBy == userId || it.splits.any { s -> s.uid == userId }) && !it.isDeleted }
@@ -86,14 +85,14 @@ class ExpenseRepositoryImpl(
 
         val listener = commentsRef.addSnapshotListener { snapshot, e ->
             if (e != null) {
-                close(e)
+                trySend(emptyList())
                 return@addSnapshotListener
             }
             val comments = snapshot?.documents?.mapNotNull { it.toObject(com.opensplit.domain.model.Comment::class.java) } ?: emptyList()
             trySend(comments.sortedBy { it.timestamp })
         }
         awaitClose { listener.remove() }
-    }
+    }.onStart { emit(emptyList<com.opensplit.domain.model.Comment>()) }
 
     override suspend fun addComment(groupId: String, expenseId: String, comment: com.opensplit.domain.model.Comment): Result<String> {
         if (expenseId.isBlank()) return Result.failure(IllegalArgumentException("Expense ID cannot be blank"))

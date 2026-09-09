@@ -15,6 +15,7 @@ data class PersonBalanceUiState(
     /** Net balance with this friend per currency; positive = friend owes the user. */
     val balancesByCurrency: Map<String, Double> = emptyMap(),
     val sharedExpenses: List<Expense> = emptyList(),
+    val sharedGroups: List<com.opensplit.domain.model.Group> = emptyList(),
     val primaryCurrency: String = "INR"
 )
 
@@ -46,6 +47,7 @@ class PersonBalanceViewModel(
                             friend = friendUser,
                             balancesByCurrency = emptyMap(),
                             sharedExpenses = emptyList(),
+                            sharedGroups = emptyList(),
                             primaryCurrency = friendUser?.defaultCurrency ?: "INR"
                         )
                     )
@@ -94,6 +96,7 @@ class PersonBalanceViewModel(
                             friend = friendUser,
                             balancesByCurrency = balancesByCurrency.filterValues { kotlin.math.abs(it) > 0.001 },
                             sharedExpenses = sharedExp.sortedByDescending { it.date },
+                            sharedGroups = sharedGroups,
                             primaryCurrency = sharedGroups.firstOrNull()?.currency ?: "INR"
                         )
                     )

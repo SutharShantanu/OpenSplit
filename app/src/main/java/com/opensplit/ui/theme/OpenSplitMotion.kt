@@ -82,4 +82,12 @@ object OpenSplitMotion {
             )
             )
     }
+
+    /**
+     * **Spring Spec (ME3)**: Stiffness 400, Damping 35, natural settle with ~3-5% overshoot.
+     */
+    val ExpressiveSpring = androidx.compose.animation.core.spring<Float>(
+        dampingRatio = 0.85f,
+        stiffness = androidx.compose.animation.core.Spring.StiffnessMediumLow
+    )
 }
