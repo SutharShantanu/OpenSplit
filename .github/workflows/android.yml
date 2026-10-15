@@ -39,12 +39,16 @@ jobs:
             echo "No GOOGLE_SERVICES_JSON secret set — using placeholder (UI-testable, Firebase disabled)."
           fi
 
-      - name: Provide .env
+      - name: Provide .env and GEMINI_API_KEY
         run: |
           if [ -n "${{ secrets.GEMINI_API_KEY }}" ]; then
+            echo "GEMINI_API_KEY=${{ secrets.GEMINI_API_KEY }}" >> $GITHUB_ENV
             echo "GEMINI_API_KEY=\"${{ secrets.GEMINI_API_KEY }}\"" > .env
+            echo "Using GEMINI_API_KEY secret."
           else
+            echo "GEMINI_API_KEY=" >> $GITHUB_ENV
             echo 'GEMINI_API_KEY=""' > .env
+            echo "No GEMINI_API_KEY secret set — using empty string."
           fi
 
       - name: Generate debug keystore

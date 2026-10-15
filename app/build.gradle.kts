@@ -26,6 +26,17 @@ android {
     manifestPlaceholders["firebaseAuthActionHost"] = firebaseAuthActionHost
     buildConfigField("String", "FIREBASE_AUTH_ACTION_HOST", "\"$firebaseAuthActionHost\"")
 
+    val envFile = rootProject.file(".env")
+    val envProps = java.util.Properties().apply {
+      if (envFile.exists()) {
+        envFile.inputStream().use(::load)
+      }
+    }
+    val geminiApiKey = System.getenv("GEMINI_API_KEY")
+      ?: envProps.getProperty("GEMINI_API_KEY")?.removeSurrounding("\"")
+      ?: ""
+    buildConfigField("String", "GEMINI_API_KEY", "\"$geminiApiKey\"")
+
     testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
   }
 
@@ -72,6 +83,8 @@ android {
 secrets {
   propertiesFileName = ".env"
   defaultPropertiesFileName = ".env.example"
+  // GEMINI_API_KEY is handled manually above with safe fallback quoting to avoid invalid syntax in BuildConfig
+  ignoreList.add("GEMINI_API_KEY")
 }
 
 // Some unused dependencies are commented out below instead of being removed.
