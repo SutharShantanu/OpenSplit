@@ -26,14 +26,14 @@ android {
     manifestPlaceholders["firebaseAuthActionHost"] = firebaseAuthActionHost
     buildConfigField("String", "FIREBASE_AUTH_ACTION_HOST", "\"$firebaseAuthActionHost\"")
 
-    val envFile = rootProject.file(".env")
-    val envProps = java.util.Properties().apply {
-      if (envFile.exists()) {
-        envFile.inputStream().use(::load)
-      }
-    }
-    val geminiApiKey = System.getenv("GEMINI_API_KEY")
-      ?: envProps.getProperty("GEMINI_API_KEY")?.removeSurrounding("\"")
+    val envGeminiKey = rootProject.file(".env").takeIf { it.exists() }
+      ?.readLines()
+      ?.firstOrNull { it.trim().startsWith("GEMINI_API_KEY=") }
+      ?.substringAfter("=")
+      ?.trim()
+      ?.trim('"', '\'')
+    val geminiApiKey = System.getenv("GEMINI_API_KEY")?.ifEmpty { null }
+      ?: envGeminiKey
       ?: ""
     buildConfigField("String", "GEMINI_API_KEY", "\"$geminiApiKey\"")
 
