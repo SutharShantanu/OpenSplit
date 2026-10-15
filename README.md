@@ -98,6 +98,35 @@ Quick version:
 ./gradlew :app:testDebugUnitTest
 ```
 
+## 🚀 CI/CD & Android APK Build Flow (GitHub Actions)
+
+OpenSplit uses **GitHub Actions** for automated Continuous Integration and Android APK generation on every push to `main` and on demand via `workflow_dispatch`.
+
+> **Note on Web Hosting Platforms (Vercel / Netlify):**  
+> Web platforms such as Vercel and Netlify only support frontend web applications and serverless functions (Next.js, React, Node.js). They do **not** provide the Android SDK, Android Build Tools, or the Gradle toolchain needed to compile Kotlin code into `.apk` binaries. All Android compilation and APK releases are handled through **GitHub Actions**.
+
+### Automated Workflow Pipeline
+
+The workflow defined in [`.github/workflows/android.yml`](.github/workflows/android.yml) executes the following pipeline on GitHub's `ubuntu-latest` runner:
+
+1. **Environment Setup**: Checks out the repository and sets up JDK 21 (Temurin) with Gradle dependency caching.
+2. **Permissions**: Ensures Gradle Wrapper has execute permissions (`chmod +x gradlew`).
+3. **Firebase Configuration**: Injects `app/google-services.json` from the `GOOGLE_SERVICES_JSON` repository secret (or uses `.github/google-services.debug.json` placeholder for testing).
+4. **Environment Variables**: Generates `.env` from the `GEMINI_API_KEY` repository secret (or sets safe fallback values for Secrets Gradle plugin).
+5. **Keystore Generation**: Recreates the debug keystore with standard credentials for deterministic debug signing.
+6. **Compile & Assemble**: Compiles the project using `./gradlew :app:assembleDebug --stacktrace`.
+7. **Artifact Upload**: Uploads `OpenSplit-debug.apk` as a workflow artifact retained for 14 days.
+8. **Release Publishing**: Automatically deploys the APK to the rolling [`nightly`](https://github.com/SutharShantanu/OpenSplit/releases/tag/nightly) release on GitHub.
+
+### Optional GitHub Secrets
+
+To customize CI builds, configure the following under **Settings > Secrets and variables > Actions**:
+
+| Secret Name | Description | Default Fallback |
+|-------------|-------------|------------------|
+| `GOOGLE_SERVICES_JSON` | Base64-encoded `google-services.json` from Firebase console (`base64 -w 0 google-services.json`) | Uses `.github/google-services.debug.json` |
+| `GEMINI_API_KEY` | Optional Gemini API key for AI features | Empty string fallback in `.env` |
+
 ## Contributing
 
 Contributions are welcome — see **[CONTRIBUTING.md](CONTRIBUTING.md)**.
