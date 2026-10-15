@@ -37,6 +37,8 @@ jobs:
             # CI placeholder so the build succeeds; Firebase calls won't work at runtime.
             cp .github/google-services.debug.json app/google-services.json
             echo "No GOOGLE_SERVICES_JSON secret set — using placeholder (UI-testable, Firebase disabled)."
+          fi
+
       - name: Provide .env
         run: |
           if [ -n "${{ secrets.GEMINI_API_KEY }}" ]; then
