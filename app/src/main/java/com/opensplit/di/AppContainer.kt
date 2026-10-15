@@ -45,6 +45,14 @@ class AppContainer(private val applicationContext: Context) {
         }
     }
     
+    val inviteLinkRepository: com.opensplit.domain.repository.InviteLinkRepository by lazy {
+        com.opensplit.data.repository.InviteLinkRepositoryImpl(firestore, activityRepository)
+    }
+
+    val aiService: com.opensplit.data.ai.AiService by lazy {
+        com.opensplit.data.ai.AiService(userPreferencesRepository)
+    }
+
     val authRepository: AuthRepository by lazy {
         AuthRepositoryImpl(firebaseAuth)
     }
@@ -71,7 +79,7 @@ class AppContainer(private val applicationContext: Context) {
         com.opensplit.data.repository.PendingInviteRepositoryImpl(firestore)
     }
     val friendInviteRepository: com.opensplit.domain.repository.FriendInviteRepository by lazy {
-        com.opensplit.data.repository.FriendInviteRepositoryImpl(firestore)
+        com.opensplit.data.repository.FriendInviteRepositoryImpl(firestore, groupRepository)
     }
     val userPreferencesRepository: UserPreferencesRepository by lazy {
         UserPreferencesRepositoryImpl(applicationContext)

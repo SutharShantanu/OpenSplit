@@ -1,5 +1,6 @@
 package com.opensplit.ui.screens
 
+import com.opensplit.ui.components.SymbolIcon
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.tween
@@ -94,8 +95,8 @@ fun SplashScreen(onTimeout: () -> Unit) {
                     .background(Color.White.copy(alpha = 0.20f), shape = CircleShape),
                 contentAlignment = Alignment.Center
             ) {
-                Icon(
-                    imageVector = OpenSplitIcons.PieChart,
+                SymbolIcon(
+                    symbol = OpenSplitIcons.PieChart,
                     contentDescription = "openSplit Logo",
                     tint = OnPrimaryContainerLight,
                     modifier = Modifier.size(48.dp)

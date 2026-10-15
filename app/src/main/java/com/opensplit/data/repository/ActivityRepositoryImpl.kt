@@ -3,6 +3,7 @@ package com.opensplit.data.repository
 import com.opensplit.domain.model.Activity
 import com.opensplit.domain.repository.ActivityRepository
 import com.google.firebase.firestore.FirebaseFirestore
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.tasks.await
@@ -39,7 +40,9 @@ class ActivityRepositoryImpl(
     @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
     override fun getActivityForUser(userId: String, groupIds: List<String>): Flow<List<Activity>> {
         if (groupIds.isEmpty()) return kotlinx.coroutines.flow.flowOf(emptyList())
-        val groupActivityFlows = groupIds.map { groupId -> getActivityForGroup(groupId) }
+        val groupActivityFlows = groupIds.map { groupId ->
+            getActivityForGroup(groupId).map { list -> list.map { it.copy(groupId = groupId) } }
+        }
         return kotlinx.coroutines.flow.combine(groupActivityFlows) { arrays ->
             arrays.flatMap { it }.sortedByDescending { it.timestamp.seconds }
         }
@@ -49,8 +52,8 @@ class ActivityRepositoryImpl(
         if (groupId.isBlank()) return Result.failure(IllegalArgumentException("Group ID cannot be blank"))
         return try {
             val docRef = firestore.collection("groups").document(groupId)
-                .collection("activity")
-                .add(activity).await()
+                .collection("activity").document()
+            docRef.set(activity).awaitWrite()
             Result.success(docRef.id)
         } catch (e: Exception) {
             Result.failure(e)

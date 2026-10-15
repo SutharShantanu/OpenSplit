@@ -129,7 +129,7 @@ fun GroupAvatarPickerSheet(
                                 verticalAlignment = Alignment.CenterVertically,
                                 horizontalArrangement = Arrangement.spacedBy(4.dp)
                             ) {
-                                Icon(
+                                SymbolIcon(
                                     OpenSplitIcons.AutoAwesome,
                                     contentDescription = null,
                                     tint = MaterialTheme.colorScheme.primary,
@@ -176,7 +176,7 @@ fun GroupAvatarPickerSheet(
                         Text(text = preset.emoji, fontSize = 28.sp)
                         if (isAiSuggested && !isSelected) {
                             Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.TopEnd) {
-                                Icon(
+                                SymbolIcon(
                                     OpenSplitIcons.AutoAwesome,
                                     contentDescription = "AI Pick",
                                     tint = MaterialTheme.colorScheme.primary,
@@ -188,7 +188,7 @@ fun GroupAvatarPickerSheet(
                         }
                         if (isSelected) {
                             Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.BottomEnd) {
-                                Icon(
+                                SymbolIcon(
                                     OpenSplitIcons.Check,
                                     contentDescription = "Selected",
                                     tint = preset.color,

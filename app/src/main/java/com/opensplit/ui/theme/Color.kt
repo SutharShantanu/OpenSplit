@@ -124,3 +124,17 @@ val AwayDotColor = Color(0xFFFACC15)
 
 
 
+
+// ==========================================
+// AMOLED Dark — true black surface, containers lifted from near-black.
+// Applied on top of whichever dark scheme is active (brand or dynamic).
+// ==========================================
+val SurfaceAmoled = Color(0xFF000000)
+val SurfaceDimAmoled = Color(0xFF000000)
+val SurfaceBrightAmoled = Color(0xFF2A2633)
+val SurfaceContainerLowestAmoled = Color(0xFF000000)
+val SurfaceContainerLowAmoled = Color(0xFF0A0A0F)
+val SurfaceContainerAmoled = Color(0xFF12101A)
+val SurfaceContainerHighAmoled = Color(0xFF1A1724)
+val SurfaceContainerHighestAmoled = Color(0xFF231F2E)
+val SurfaceVariantAmoled = Color(0xFF231F2E)

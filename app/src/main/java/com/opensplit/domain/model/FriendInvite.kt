@@ -11,5 +11,9 @@ data class FriendInvite(
     val inviterUid: String = "",
     val email: String = "",
     val createdAt: Timestamp = Timestamp.now(),
-    val expiresAt: Timestamp = Timestamp(Timestamp.now().seconds + 7 * 24 * 3600, 0)
+    val expiresAt: Timestamp = Timestamp(Timestamp.now().seconds + 7 * 24 * 3600, 0),
+    /** Shown to the recipient before they accept. */
+    val inviterName: String = "",
+    /** pending | accepted | declined */
+    val status: String = "pending"
 )

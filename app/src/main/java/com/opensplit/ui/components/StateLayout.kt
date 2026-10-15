@@ -1,3 +1,5 @@
+@file:OptIn(androidx.compose.material3.ExperimentalMaterial3ExpressiveApi::class)
+
 package com.opensplit.ui.components
 
 import android.widget.Toast
@@ -43,8 +45,8 @@ fun SectionErrorBanner(
                 horizontalArrangement = Arrangement.spacedBy(10.dp),
                 modifier = Modifier.weight(1f)
             ) {
-                Icon(
-                    imageVector = OpenSplitIcons.ErrorIcon,
+                SymbolIcon(
+                    symbol = OpenSplitIcons.ErrorIcon,
                     contentDescription = "Error",
                     tint = MaterialTheme.colorScheme.error,
                     modifier = Modifier.size(22.dp)
@@ -110,7 +112,7 @@ fun <T> StateLayout(
 
     Box(modifier = modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
         when (state) {
-            is ScreenState.Loading -> AppLoadingIndicator()
+            is ScreenState.Loading -> androidx.compose.material3.ContainedLoadingIndicator()
             is ScreenState.Empty -> {
                 Box(
                     modifier = Modifier

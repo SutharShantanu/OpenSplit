@@ -32,7 +32,9 @@ data class GroupDetailUiState(
     val balances: Map<String, Double>,
     val simplifiedSettlements: List<DebtSimplifier.SettlementSuggestion>,
     val settlements: List<Settlement> = emptyList(),
-    val pendingInvites: List<PendingInvite> = emptyList()
+    val pendingInvites: List<PendingInvite> = emptyList(),
+    /** People who left or were removed; shown with a "Left" badge, names kept on old expenses. */
+    val formerMembers: List<User> = emptyList()
 )
 
 class GroupDetailViewModel(
@@ -44,8 +46,34 @@ class GroupDetailViewModel(
     private val settlementRepository: SettlementRepository,
     private val pendingInviteRepository: PendingInviteRepository,
     private val authRepository: AuthRepository? = null,
-    private val storageRepository: StorageRepository? = null
+    private val storageRepository: StorageRepository? = null,
+    private val inviteLinkRepository: com.opensplit.domain.repository.InviteLinkRepository? = null
 ) : ViewModel() {
+
+    @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
+    val inviteLinks: StateFlow<List<com.opensplit.domain.model.InviteLink>> =
+        (inviteLinkRepository?.linksForGroup(groupId) ?: flowOf(emptyList()))
+            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    fun createInviteLink(expiresInSeconds: Long?, maxUses: Int, onResult: (Boolean) -> Unit = {}) {
+        val g = currentGroup() ?: return
+        viewModelScope.launch {
+            val uid = authRepository?.getCurrentUserId() ?: return@launch
+            onResult(inviteLinkRepository?.create(g, uid, expiresInSeconds, maxUses)?.isSuccess == true)
+        }
+    }
+
+    fun revokeInviteLink(token: String) {
+        viewModelScope.launch { inviteLinkRepository?.revoke(token) }
+    }
+
+    fun setDefaultSplitType(type: com.opensplit.domain.model.SplitType) {
+        val g = currentGroup() ?: return
+        viewModelScope.launch { groupRepository.updateGroup(g.copy(defaultSplitType = type)); retry() }
+    }
+
+    /** Net balance of [uid] in this group; leaving is only allowed at zero. */
+    fun balanceOf(uid: String): Double = (uiState.value as? ScreenState.Success)?.data?.balances?.get(uid) ?: 0.0
 
     private val retryTrigger = MutableStateFlow(0)
 
@@ -55,6 +83,7 @@ class GroupDetailViewModel(
             try {
                 val g = groupRepository.getGroup(groupId) ?: throw Exception("Group not found")
                 val members = loadMembers(g.memberIds)
+                val former = loadMembers(g.formerMemberIds.filterNot { it in g.memberIds })
 
                 combine(
                     expenseRepository.getExpensesForGroup(groupId),
@@ -66,7 +95,7 @@ class GroupDetailViewModel(
                         val suggestions = BalanceCalculator.settlementSuggestions(expList, settleList, g.simplifyDebts)
                         emit(
                             ScreenState.Success(
-                                GroupDetailUiState(g, expList, members, balances, suggestions, settleList, pendingList)
+                                GroupDetailUiState(g, expList, members, balances, suggestions, settleList, pendingList, former)
                             )
                         )
                     }
@@ -109,7 +138,8 @@ class GroupDetailViewModel(
     fun updateExpense(expense: Expense, receiptUri: android.net.Uri? = null, onSuccess: () -> Unit = {}) {
         viewModelScope.launch {
             val finalExpense = withUploadedReceipt(expense, receiptUri)
-            val res = expenseRepository.updateExpense(finalExpense)
+            val actor = authRepository?.getCurrentUserId() ?: expense.createdBy
+            val res = expenseRepository.updateExpense(finalExpense, actor)
             if (res.isSuccess) {
                 onSuccess()
             }
@@ -161,7 +191,7 @@ class GroupDetailViewModel(
         val g = currentGroup() ?: return
         if (g.memberIds.contains(uid)) return
         viewModelScope.launch {
-            groupRepository.updateGroup(g.copy(memberIds = g.memberIds + uid))
+            groupRepository.updateGroup(g.copy(memberIds = g.memberIds + uid, formerMemberIds = g.formerMemberIds - uid))
             retry()
         }
     }
@@ -170,7 +200,7 @@ class GroupDetailViewModel(
         val g = currentGroup() ?: return
         if (!g.memberIds.contains(uid)) return
         viewModelScope.launch {
-            groupRepository.updateGroup(g.copy(memberIds = g.memberIds - uid))
+            groupRepository.updateGroup(g.copy(memberIds = g.memberIds - uid, formerMemberIds = (g.formerMemberIds + uid).distinct()))
             val actor = authRepository?.getCurrentUserId() ?: ""
             val name = (uiState.value as? ScreenState.Success)?.data?.members?.find { it.uid == uid }?.displayName ?: "a member"
             activityRepository.logActivity(
@@ -185,9 +215,18 @@ class GroupDetailViewModel(
         val g = currentGroup() ?: return
         viewModelScope.launch {
             val uid = authRepository?.getCurrentUserId() ?: return@launch
-            groupRepository.updateGroup(g.copy(memberIds = g.memberIds - uid))
+            groupRepository.updateGroup(g.copy(memberIds = g.memberIds - uid, formerMemberIds = (g.formerMemberIds + uid).distinct()))
+            activityRepository.logActivity(groupId, Activity(type = ActivityType.MEMBER_REMOVED, actorUid = uid, message = "left the group"))
             onDone()
         }
+    }
+
+    fun deleteExpense(expenseId: String, onDone: (Boolean) -> Unit) {
+        viewModelScope.launch { onDone(expenseRepository.deleteExpense(groupId, expenseId).isSuccess) }
+    }
+
+    fun restoreExpense(expenseId: String) {
+        viewModelScope.launch { expenseRepository.restoreExpense(groupId, expenseId) }
     }
 
     fun deleteGroup(onDone: () -> Unit) {

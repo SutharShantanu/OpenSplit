@@ -1,20 +1,19 @@
+@file:OptIn(androidx.compose.material3.ExperimentalMaterial3ExpressiveApi::class)
+
 package com.opensplit.ui.screens
 
+import com.opensplit.ui.theme.Symbol
+import com.opensplit.ui.theme.OpenSplitIcons
+import com.opensplit.ui.components.SymbolIcon
 import android.Manifest
 import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.*
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.CameraAlt
-import androidx.compose.material.icons.rounded.Contacts
-import androidx.compose.material.icons.rounded.Notifications
-import androidx.compose.material.icons.rounded.Shield
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -53,7 +52,7 @@ fun PermissionPrimerScreen(
             TopAppBar(
                 title = { Text("Permissions", fontWeight = FontWeight.Bold) },
                 actions = {
-                    TextButton(onClick = {
+                    TextButton(shapes = ButtonDefaults.shapes(), onClick = {
                         viewModel.markPrimerCompleted()
                         onComplete()
                     }) {
@@ -89,8 +88,8 @@ fun PermissionPrimerScreen(
                         modifier = Modifier.size(64.dp)
                     ) {
                         Box(contentAlignment = Alignment.Center) {
-                            Icon(
-                                imageVector = Icons.Rounded.Shield,
+                            SymbolIcon(
+                                symbol = OpenSplitIcons.Shield,
                                 contentDescription = null,
                                 modifier = Modifier.size(32.dp),
                                 tint = MaterialTheme.colorScheme.onPrimaryContainer
@@ -119,7 +118,7 @@ fun PermissionPrimerScreen(
                     Spacer(modifier = Modifier.height(24.dp))
 
                     PermissionRow(
-                        icon = Icons.Rounded.Contacts,
+                        icon = OpenSplitIcons.Contacts,
                         title = "Contacts",
                         description = "Quickly invite and split expenses with friends"
                     )
@@ -127,7 +126,7 @@ fun PermissionPrimerScreen(
                     Spacer(modifier = Modifier.height(12.dp))
 
                     PermissionRow(
-                        icon = Icons.Rounded.CameraAlt,
+                        icon = OpenSplitIcons.CameraAlt,
                         title = "Camera",
                         description = "Scan paper receipts with AI OCR for automatic splitting"
                     )
@@ -135,7 +134,7 @@ fun PermissionPrimerScreen(
                     Spacer(modifier = Modifier.height(12.dp))
 
                     PermissionRow(
-                        icon = Icons.Rounded.Notifications,
+                        icon = OpenSplitIcons.Notifications,
                         title = "Notifications",
                         description = "Get real-time updates when expenses or settlements are added"
                     )
@@ -148,7 +147,7 @@ fun PermissionPrimerScreen(
                         },
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(50.dp),
+                            .height(52.dp),
                         shape = MaterialTheme.shapes.medium
                     ) {
                         Text("Grant All Permissions", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
@@ -156,7 +155,7 @@ fun PermissionPrimerScreen(
 
                     Spacer(modifier = Modifier.height(8.dp))
 
-                    TextButton(
+                    TextButton(shapes = ButtonDefaults.shapes(), 
                         onClick = {
                             viewModel.markPrimerCompleted()
                             onComplete()
@@ -172,7 +171,7 @@ fun PermissionPrimerScreen(
 
 @Composable
 private fun PermissionRow(
-    icon: ImageVector,
+    icon: Symbol,
     title: String,
     description: String
 ) {
@@ -186,8 +185,8 @@ private fun PermissionRow(
             modifier = Modifier.size(40.dp)
         ) {
             Box(contentAlignment = Alignment.Center) {
-                Icon(
-                    imageVector = icon,
+                SymbolIcon(
+                    symbol = icon,
                     contentDescription = null,
                     modifier = Modifier.size(20.dp),
                     tint = MaterialTheme.colorScheme.onSecondaryContainer

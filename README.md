@@ -47,7 +47,16 @@ adb install -r OpenSplit-debug.apk
   (CSV / JSON / PDF).
 - **Offline-first** — Firestore local persistence keeps the app usable without a
   connection.
-- **Material 3 everywhere** — dynamic color support, light/dark/system themes.
+- **Material 3 Expressive** — Material Symbols Rounded, brand violet or Material You,
+  Light / Dark / AMOLED themes, navigation rail and list-detail panes on tablets.
+- **Bring-your-own-key AI** — Claude, OpenAI, Gemini, Groq, Mistral, DeepSeek or any
+  OpenAI-compatible endpoint. Keys stay on the device (encrypted). Receipt scanning,
+  natural-language expense entry, smart categories, group icons and spending insights,
+  each with an offline fallback and a per-feature switch.
+- **Invite links with expiry** and QR codes, friend requests, direct 1:1 expenses, archived
+  groups, recurring bills (weekly to yearly, pausable), recently deleted (90-day restore),
+  edit history on every expense, global search across expenses, payments, groups and people,
+  per-category monthly budgets, per-type push notification controls.
 
 ## Tech stack
 

@@ -1,11 +1,17 @@
+@file:OptIn(androidx.compose.material3.ExperimentalMaterial3ExpressiveApi::class)
+
 package com.opensplit.ui.screens
 
+import com.opensplit.ui.theme.Symbol
+import com.opensplit.ui.components.SymbolIcon
 import androidx.compose.foundation.background
 import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -58,19 +64,21 @@ private fun dayLabel(date: Date): String {
 fun ActivityScreen(
     viewModel: ActivityViewModel,
     onNavigateBack: () -> Unit,
-    showTopBar: Boolean = false
+    showTopBar: Boolean = false,
+    onOpenExpense: (groupId: String, expenseId: String) -> Unit = { _, _ -> }
 ) {
     val state by viewModel.uiState.collectAsState()
     val hazeState = remember { HazeState() }
 
     Scaffold(
+        contentWindowInsets = if (showTopBar) androidx.compose.material3.ScaffoldDefaults.contentWindowInsets else androidx.compose.foundation.layout.WindowInsets(0, 0, 0, 0),
         topBar = {
             if (showTopBar) {
                 TopAppBar(
                     title = { Text("Activity Feed", fontWeight = FontWeight.Bold) },
                     navigationIcon = {
-                        IconButton(onClick = onNavigateBack) {
-                            Icon(OpenSplitIcons.Back, contentDescription = "Back")
+                        IconButton(shapes = IconButtonDefaults.shapes(), onClick = onNavigateBack) {
+                            SymbolIcon(OpenSplitIcons.Back, contentDescription = "Back")
                         }
                     },
                     colors = TopAppBarDefaults.topAppBarColors(
@@ -94,25 +102,7 @@ fun ActivityScreen(
                         .padding(horizontal = OpenSplitTokens.SpaceLG)
                 ) {
 
-                    // Search Bar
-                    OutlinedTextField(
-                        value = uiState.searchQuery,
-                        onValueChange = { viewModel.setSearchQuery(it) },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(vertical = OpenSplitTokens.SpaceSM),
-                        placeholder = { Text("Search activities...") },
-                        leadingIcon = { Icon(OpenSplitIcons.Search, contentDescription = "Search") },
-                        trailingIcon = {
-                            if (uiState.searchQuery.isNotEmpty()) {
-                                IconButton(onClick = { viewModel.setSearchQuery("") }) {
-                                    Icon(OpenSplitIcons.Close, contentDescription = "Clear search")
-                                }
-                            }
-                        },
-                        singleLine = true,
-                        shape = MaterialTheme.shapes.medium
-                    )
+                    Spacer(modifier = Modifier.height(OpenSplitTokens.SpaceSM))
 
                     // Group Selector & Sort Controls
                     Row(
@@ -135,7 +125,7 @@ fun ActivityScreen(
                                 selected = uiState.selectedGroupId != null,
                                 onClick = { groupDropdownExpanded = true },
                                 label = { Text(currentGroupName) },
-                                trailingIcon = { Icon(OpenSplitIcons.Dropdown, contentDescription = null, modifier = Modifier.size(16.dp)) },
+                                trailingIcon = { SymbolIcon(OpenSplitIcons.Dropdown, contentDescription = null, modifier = Modifier.size(16.dp)) },
                                 shape = MaterialTheme.shapes.medium
                             )
 
@@ -152,7 +142,7 @@ fun ActivityScreen(
                                     },
                                     leadingIcon = {
                                         if (uiState.selectedGroupId == null) {
-                                            Icon(OpenSplitIcons.Check, contentDescription = null)
+                                            SymbolIcon(OpenSplitIcons.Check, contentDescription = null)
                                         }
                                     }
                                 )
@@ -165,7 +155,7 @@ fun ActivityScreen(
                                         },
                                         leadingIcon = {
                                             if (uiState.selectedGroupId == group.id) {
-                                                Icon(OpenSplitIcons.Check, contentDescription = null)
+                                                SymbolIcon(OpenSplitIcons.Check, contentDescription = null)
                                             }
                                         }
                                     )
@@ -179,7 +169,7 @@ fun ActivityScreen(
                             AssistChip(
                                 onClick = { sortDropdownExpanded = true },
                                 label = { Text(uiState.sortOrder.label) },
-                                leadingIcon = { Icon(OpenSplitIcons.Sort, contentDescription = "Sort", modifier = Modifier.size(16.dp)) },
+                                leadingIcon = { SymbolIcon(OpenSplitIcons.Sort, contentDescription = "Sort", modifier = Modifier.size(16.dp)) },
                                 shape = MaterialTheme.shapes.medium
                             )
 
@@ -197,7 +187,7 @@ fun ActivityScreen(
                                         },
                                         leadingIcon = {
                                             if (uiState.sortOrder == order) {
-                                                Icon(OpenSplitIcons.Check, contentDescription = null)
+                                                SymbolIcon(OpenSplitIcons.Check, contentDescription = null)
                                             }
                                         }
                                     )
@@ -244,7 +234,7 @@ fun ActivityScreen(
                                 selected = datePreset != DateRangePreset.ALL_TIME,
                                 onClick = { dateDropdownExpanded = true },
                                 label = { Text(datePreset.label) },
-                                leadingIcon = { Icon(OpenSplitIcons.DateRange, contentDescription = "Date range", modifier = Modifier.size(16.dp)) },
+                                leadingIcon = { SymbolIcon(OpenSplitIcons.DateRange, contentDescription = "Date range", modifier = Modifier.size(16.dp)) },
                                 shape = MaterialTheme.shapes.medium
                             )
 
@@ -262,7 +252,7 @@ fun ActivityScreen(
                                         },
                                         leadingIcon = {
                                             if (datePreset == preset) {
-                                                Icon(OpenSplitIcons.Check, contentDescription = null)
+                                                SymbolIcon(OpenSplitIcons.Check, contentDescription = null)
                                             }
                                         }
                                     )
@@ -275,7 +265,7 @@ fun ActivityScreen(
                             DatePickerDialog(
                                 onDismissRequest = { showCustomRangeDialog = false },
                                 confirmButton = {
-                                    TextButton(onClick = {
+                                    TextButton(shapes = ButtonDefaults.shapes(), onClick = {
                                         val start = rangeState.selectedStartDateMillis
                                         val end = rangeState.selectedEndDateMillis
                                         if (start != null) {
@@ -286,7 +276,7 @@ fun ActivityScreen(
                                     }) { Text("Apply") }
                                 },
                                 dismissButton = {
-                                    TextButton(onClick = { showCustomRangeDialog = false }) { Text("Cancel") }
+                                    TextButton(shapes = ButtonDefaults.shapes(), onClick = { showCustomRangeDialog = false }) { Text("Cancel") }
                                 }
                             ) {
                                 DateRangePicker(state = rangeState, modifier = Modifier.weight(1f))
@@ -302,8 +292,8 @@ fun ActivityScreen(
                         horizontalArrangement = Arrangement.spacedBy(OpenSplitTokens.SpaceSM),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Icon(
-                            imageVector = OpenSplitIcons.Filter,
+                        SymbolIcon(
+                            symbol = OpenSplitIcons.Filter,
                             contentDescription = null,
                             tint = MaterialTheme.colorScheme.onSurfaceVariant,
                             modifier = Modifier.size(20.dp)
@@ -313,7 +303,7 @@ fun ActivityScreen(
                             FilterChip(
                                 selected = uiState.selectedTypeFilter == filter,
                                 onClick = { viewModel.setTypeFilter(filter) },
-                                label = { Text(filter.label) },
+                                label = { Text(filter.label, maxLines = 1) },
                                 shape = MaterialTheme.shapes.extraLarge
                             )
                         }
@@ -325,6 +315,7 @@ fun ActivityScreen(
                         Box(
                             modifier = Modifier
                                 .fillMaxSize()
+                                .verticalScroll(rememberScrollState()) // lets pull-to-refresh catch the gesture
                                 .padding(OpenSplitTokens.SpaceXL),
                             contentAlignment = Alignment.Center
                         ) {
@@ -355,6 +346,7 @@ fun ActivityScreen(
                         }
 
                         LazyColumn(
+                            modifier = Modifier.fillMaxSize(),
                             verticalArrangement = Arrangement.spacedBy(OpenSplitTokens.SpaceXS),
                             contentPadding = PaddingValues(bottom = OpenSplitTokens.SpaceLG)
                         ) {
@@ -370,7 +362,7 @@ fun ActivityScreen(
                                 }
                                 items(activitiesForDay, key = { it.id }) { act ->
                                     val isUnread = lastSeen != null && act.timestamp.seconds > lastSeen.seconds
-                                    ActivityRow(act = act, isUnread = isUnread)
+                                    ActivityRow(act = act, isUnread = isUnread, onOpen = { onOpenExpense(it.groupId, it.relatedExpenseId ?: return@ActivityRow) })
                                     HorizontalDivider(color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
                                 }
                             }
@@ -383,7 +375,7 @@ fun ActivityScreen(
 }
 
 @Composable
-private fun ActivityRow(act: Activity, isUnread: Boolean) {
+private fun ActivityRow(act: Activity, isUnread: Boolean, onOpen: (Activity) -> Unit = {}) {
     val timeStr = remember(act.timestamp) {
         SimpleDateFormat("h:mm a", Locale.getDefault()).format(act.timestamp.toDate())
     }
@@ -398,7 +390,8 @@ private fun ActivityRow(act: Activity, isUnread: Boolean) {
     ListItem(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(MaterialTheme.shapes.medium),
+            .clip(MaterialTheme.shapes.medium)
+            .clickable(enabled = act.relatedExpenseId != null && act.groupId.isNotBlank()) { onOpen(act) },
         colors = ListItemDefaults.colors(
             containerColor = if (isUnread) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.25f) else Color.Transparent
         ),
@@ -423,8 +416,8 @@ private fun ActivityRow(act: Activity, isUnread: Boolean) {
                 modifier = Modifier.size(40.dp)
             ) {
                 Box(contentAlignment = Alignment.Center) {
-                    Icon(
-                        imageVector = icon,
+                    SymbolIcon(
+                        symbol = icon,
                         contentDescription = null,
                         tint = MaterialTheme.colorScheme.primary,
                         modifier = Modifier.size(20.dp)

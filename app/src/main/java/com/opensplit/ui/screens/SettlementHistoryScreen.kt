@@ -1,5 +1,8 @@
+@file:OptIn(androidx.compose.material3.ExperimentalMaterial3ExpressiveApi::class)
+
 package com.opensplit.ui.screens
 
+import com.opensplit.ui.components.SymbolIcon
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -141,16 +144,16 @@ fun SettlementHistoryScreen(
                     )
                 },
                 navigationIcon = {
-                    IconButton(onClick = onNavigateBack) {
-                        Icon(OpenSplitIcons.Back, contentDescription = "Back")
+                    IconButton(shapes = IconButtonDefaults.shapes(), onClick = onNavigateBack) {
+                        SymbolIcon(OpenSplitIcons.Back, contentDescription = "Back")
                     }
                 },
                 actions = {
-                    IconButton(onClick = {
+                    IconButton(shapes = IconButtonDefaults.shapes(), onClick = {
                         onExportHistory()
                         snackbar.showMessage("Exporting settlement statement...")
                     }) {
-                        Icon(OpenSplitIcons.Export, contentDescription = "Export History")
+                        SymbolIcon(OpenSplitIcons.Export, contentDescription = "Export History")
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
@@ -197,8 +200,8 @@ fun SettlementHistoryScreen(
                             modifier = Modifier.size(36.dp)
                         ) {
                             Box(contentAlignment = Alignment.Center) {
-                                Icon(
-                                    imageVector = OpenSplitIcons.Settle,
+                                SymbolIcon(
+                                    symbol = OpenSplitIcons.Settle,
                                     contentDescription = null,
                                     tint = MaterialTheme.colorScheme.onPrimaryContainer,
                                     modifier = Modifier.size(20.dp)
@@ -269,8 +272,8 @@ fun SettlementHistoryScreen(
                         onClick = { showFiltersBottomSheet = true },
                         label = { Text("More Filters") },
                         leadingIcon = {
-                            Icon(
-                                imageVector = OpenSplitIcons.Filter,
+                            SymbolIcon(
+                                symbol = OpenSplitIcons.Filter,
                                 contentDescription = null,
                                 modifier = Modifier.size(16.dp)
                             )
@@ -289,8 +292,8 @@ fun SettlementHistoryScreen(
                     contentAlignment = Alignment.Center
                 ) {
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Icon(
-                            imageVector = OpenSplitIcons.Settle,
+                        SymbolIcon(
+                            symbol = OpenSplitIcons.Settle,
                             contentDescription = null,
                             tint = MaterialTheme.colorScheme.outlineVariant,
                             modifier = Modifier.size(48.dp)
@@ -357,8 +360,8 @@ fun SettlementHistoryScreen(
                                         modifier = Modifier.size(44.dp)
                                     ) {
                                         Box(contentAlignment = Alignment.Center) {
-                                            Icon(
-                                                imageVector = if (isPaidByMe) OpenSplitIcons.Payments else OpenSplitIcons.Settle,
+                                            SymbolIcon(
+                                                symbol = if (isPaidByMe) OpenSplitIcons.Payments else OpenSplitIcons.Settle,
                                                 contentDescription = null,
                                                 tint = if (isPaidByMe) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onPrimaryContainer,
                                                 modifier = Modifier.size(22.dp)
@@ -427,8 +430,8 @@ fun SettlementHistoryScreen(
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.primary
                     )
-                    IconButton(onClick = { showFiltersBottomSheet = false }) {
-                        Icon(OpenSplitIcons.Close, contentDescription = "Close")
+                    IconButton(shapes = IconButtonDefaults.shapes(), onClick = { showFiltersBottomSheet = false }) {
+                        SymbolIcon(OpenSplitIcons.Close, contentDescription = "Close")
                     }
                 }
 
@@ -488,7 +491,7 @@ fun SettlementHistoryScreen(
                         },
                         modifier = Modifier
                             .weight(1f)
-                            .height(56.dp),
+                            .height(52.dp),
                         shape = CircleShape,
                         colors = ButtonDefaults.buttonColors(
                             containerColor = MaterialTheme.colorScheme.secondaryContainer,
@@ -502,7 +505,7 @@ fun SettlementHistoryScreen(
                         onClick = { showFiltersBottomSheet = false },
                         modifier = Modifier
                             .weight(1f)
-                            .height(56.dp),
+                            .height(52.dp),
                         shape = CircleShape,
                         colors = ButtonDefaults.buttonColors(
                             containerColor = MaterialTheme.colorScheme.primary,

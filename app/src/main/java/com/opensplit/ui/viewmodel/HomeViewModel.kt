@@ -87,8 +87,8 @@ class HomeViewModel(private val appContainer: AppContainer) : ViewModel() {
 
                 val defaultCurrency = currentUser.defaultCurrency.ifEmpty { "INR" }
 
-                // Recent groups sorted by recent activity or group creation
-                val sortedGroups = groupWithBalances.take(5)
+                // Every group with the user's balance in it; the Groups tab reads chips from this.
+                val sortedGroups = groupWithBalances
                 val recentActivities = activities.take(3)
 
                 // Smart nudge: largest outstanding balance with a single friend, in the

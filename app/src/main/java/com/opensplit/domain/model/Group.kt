@@ -12,5 +12,13 @@ data class Group(
     val memberIds: List<String> = emptyList(),
     val currency: String = "INR",
     val createdAt: Timestamp = Timestamp.now(),
-    val simplifyDebts: Boolean = true
+    val simplifyDebts: Boolean = true,
+    /** Members who left or were removed. Their past expenses keep showing their names. */
+    val formerMemberIds: List<String> = emptyList(),
+    /** Preselected split method on Add Expense for this group. */
+    val defaultSplitType: SplitType = SplitType.EQUAL,
+    /** Token of the invite link last used to join; lets Firestore rules verify self-joins. */
+    val lastJoinToken: String? = null,
+    /** Hidden two-person group that backs one-to-one expenses between friends. */
+    val isDirect: Boolean = false
 )

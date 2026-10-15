@@ -13,5 +13,7 @@ data class Activity(
     val actorUid: String = "",
     val message: String = "",
     val timestamp: Timestamp = Timestamp.now(),
-    val relatedExpenseId: String? = null
+    val relatedExpenseId: String? = null,
+    /** Filled in when reading across groups so a tap can open the right expense. */
+    val groupId: String = ""
 )

@@ -1,5 +1,8 @@
+@file:OptIn(androidx.compose.material3.ExperimentalMaterial3ExpressiveApi::class)
+
 package com.opensplit.ui.screens.auth
 
+import com.opensplit.ui.components.SymbolIcon
 import androidx.compose.animation.*
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
@@ -84,7 +87,7 @@ private fun OnboardingCarousel(
             horizontalArrangement = Arrangement.End
         ) {
             if (pagerState.currentPage < 2) {
-                TextButton(onClick = onSkip) {
+                TextButton(shapes = ButtonDefaults.shapes(), onClick = onSkip) {
                     Text(
                         text = "Skip",
                         style = MaterialTheme.typography.labelLarge,
@@ -234,8 +237,8 @@ private fun OnboardingSlide1() {
                         modifier = Modifier.size(80.dp)
                     ) {
                         Box(contentAlignment = Alignment.Center) {
-                            Icon(
-                                imageVector = OpenSplitIcons.Groups,
+                            SymbolIcon(
+                                symbol = OpenSplitIcons.Groups,
                                 contentDescription = null,
                                 tint = MaterialTheme.colorScheme.primary,
                                 modifier = Modifier.size(44.dp)
@@ -252,8 +255,8 @@ private fun OnboardingSlide1() {
                             verticalAlignment = Alignment.CenterVertically,
                             modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
                         ) {
-                            Icon(
-                                imageVector = OpenSplitIcons.ReceiptLong,
+                            SymbolIcon(
+                                symbol = OpenSplitIcons.ReceiptLong,
                                 contentDescription = null,
                                 tint = MaterialTheme.colorScheme.primary,
                                 modifier = Modifier.size(18.dp)
@@ -320,8 +323,8 @@ private fun OnboardingSlide2() {
                         modifier = Modifier.size(80.dp)
                     ) {
                         Box(contentAlignment = Alignment.Center) {
-                            Icon(
-                                imageVector = OpenSplitIcons.SmartToy,
+                            SymbolIcon(
+                                symbol = OpenSplitIcons.SmartToy,
                                 contentDescription = null,
                                 tint = MaterialTheme.colorScheme.onPrimaryContainer,
                                 modifier = Modifier.size(44.dp)
@@ -335,8 +338,8 @@ private fun OnboardingSlide2() {
                         modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp)
                     ) {
                         Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)) {
-                            Icon(
-                                imageVector = OpenSplitIcons.AutoAwesome,
+                            SymbolIcon(
+                                symbol = OpenSplitIcons.AutoAwesome,
                                 contentDescription = null,
                                 tint = MaterialTheme.colorScheme.onPrimaryContainer,
                                 modifier = Modifier.size(16.dp)
@@ -403,8 +406,8 @@ private fun OnboardingSlide3() {
                         modifier = Modifier.size(80.dp)
                     ) {
                         Box(contentAlignment = Alignment.Center) {
-                            Icon(
-                                imageVector = OpenSplitIcons.Verified,
+                            SymbolIcon(
+                                symbol = OpenSplitIcons.Verified,
                                 contentDescription = null,
                                 tint = MaterialTheme.colorScheme.onTertiaryContainer,
                                 modifier = Modifier.size(44.dp)
@@ -481,9 +484,9 @@ private fun LoginView(
         ) {
             // Top back button
             Row(modifier = Modifier.fillMaxWidth()) {
-                IconButton(onClick = onBackToOnboarding) {
-                    Icon(
-                        imageVector = OpenSplitIcons.Back,
+                IconButton(shapes = IconButtonDefaults.shapes(), onClick = onBackToOnboarding) {
+                    SymbolIcon(
+                        symbol = OpenSplitIcons.Back,
                         contentDescription = "Back",
                         tint = MaterialTheme.colorScheme.onSurface
                     )
@@ -502,8 +505,8 @@ private fun LoginView(
                         .background(MaterialTheme.colorScheme.primaryContainer, shape = CircleShape),
                     contentAlignment = Alignment.Center
                 ) {
-                    Icon(
-                        imageVector = OpenSplitIcons.PieChart,
+                    SymbolIcon(
+                        symbol = OpenSplitIcons.PieChart,
                         contentDescription = null,
                         tint = MaterialTheme.colorScheme.onPrimaryContainer,
                         modifier = Modifier.size(40.dp)

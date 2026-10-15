@@ -1,17 +1,13 @@
 package com.opensplit.ui.components
 
+import com.opensplit.ui.theme.Symbol
+import com.opensplit.ui.theme.OpenSplitIcons
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.Code
-import androidx.compose.material.icons.rounded.Description
-import androidx.compose.material.icons.rounded.PictureAsPdf
-import androidx.compose.material.icons.rounded.TableChart
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -28,11 +24,11 @@ enum class ExportFormat(
     val title: String,
     val description: String,
     val mimeType: String,
-    val icon: ImageVector
+    val icon: Symbol
 ) {
-    CSV("CSV Spreadsheet", "Standard tabular format for Excel or Sheets", "text/csv", Icons.Rounded.TableChart),
-    PDF("PDF Document", "Formatted print-ready summary table", "application/pdf", Icons.Rounded.PictureAsPdf),
-    JSON("JSON (backup format)", "Full structured data export for backup & restore", "application/json", Icons.Rounded.Code)
+    CSV("CSV Spreadsheet", "Standard tabular format for Excel or Sheets", "text/csv", OpenSplitIcons.TableChart),
+    PDF("PDF Document", "Formatted print-ready summary table", "application/pdf", OpenSplitIcons.PictureAsPdf),
+    JSON("JSON (backup format)", "Full structured data export for backup & restore", "application/json", OpenSplitIcons.Code)
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -48,6 +44,8 @@ fun ExportBottomSheet(
     val snackbar = LocalSnackbarController.current
     val coroutineScope = rememberCoroutineScope()
     var isExporting by remember { mutableStateOf(false) }
+    val busy = LocalBusy.current
+    androidx.compose.runtime.LaunchedEffect(isExporting) { if (isExporting) busy.show("Exporting…") else busy.hide() }
     var exportingFormatName by remember { mutableStateOf("") }
 
     ModalBottomSheet(
@@ -138,8 +136,8 @@ fun ExportBottomSheet(
                                 modifier = Modifier.size(44.dp)
                             ) {
                                 Box(contentAlignment = Alignment.Center) {
-                                    Icon(
-                                        imageVector = format.icon,
+                                    SymbolIcon(
+                                        symbol = format.icon,
                                         contentDescription = null,
                                         tint = MaterialTheme.colorScheme.onPrimaryContainer
                                     )

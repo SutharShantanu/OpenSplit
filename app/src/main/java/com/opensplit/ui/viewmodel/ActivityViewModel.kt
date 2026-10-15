@@ -9,10 +9,12 @@ import com.opensplit.domain.model.Group
 import com.google.firebase.Timestamp
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.FlowPreview
-import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.flow.*
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.flow.channelFlow
 import kotlin.time.Duration.Companion.seconds
 
 data class ActivityUiState(
@@ -264,16 +266,19 @@ class ActivityViewModel(private val appContainer: AppContainer) : ViewModel() {
                 }.collect { emit(it) }
             }
                 // If a Firestore listener never emits (e.g. backend unreachable), fail fast with a
-                // retryable error instead of spinning forever.
-                .timeout(15.seconds)
-                .catch { e ->
-                    val message = if (e is TimeoutCancellationException) {
-                        "Taking too long to load — check your connection and try again."
-                    } else {
-                        e.message ?: "An unexpected error occurred"
+                // retryable error instead of spinning forever. Only the first emission is watched:
+                // a live listener that is simply idle must not be torn down.
+                .let { upstream ->
+                    channelFlow {
+                        var gotFirst = false
+                        launch {
+                            delay(15.seconds)
+                            if (!gotFirst) send(ScreenState.Error("Taking too long to load — check your connection and try again.", ::retry))
+                        }
+                        upstream.collect { gotFirst = true; send(it) }
                     }
-                    emit(ScreenState.Error(message, ::retry))
                 }
+                .catch { e -> emit(ScreenState.Error(e.message ?: "An unexpected error occurred", ::retry)) }
         }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), ScreenState.Loading)
 }
 

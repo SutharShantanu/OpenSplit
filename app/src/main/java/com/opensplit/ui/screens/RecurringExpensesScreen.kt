@@ -1,194 +1,208 @@
+@file:OptIn(androidx.compose.material3.ExperimentalMaterial3ExpressiveApi::class)
+
 package com.opensplit.ui.screens
 
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material3.AssistChip
+import androidx.compose.material3.IconButtonDefaults
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import com.opensplit.domain.model.RecurrenceFrequency
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.viewModelScope
+import androidx.lifecycle.viewmodel.compose.viewModel
+import com.opensplit.di.AppContainer
+import com.opensplit.domain.logic.RecurrenceScheduler
+import com.opensplit.domain.model.Expense
+import com.opensplit.domain.model.Group
 import com.opensplit.ui.components.LocalSnackbarController
-import com.opensplit.ui.components.appHazeHeader
-import com.opensplit.ui.components.appHazeSource
+import com.opensplit.ui.components.SymbolIcon
+import com.opensplit.ui.components.getCategoryColor
+import com.opensplit.ui.components.getCategoryIcon
 import com.opensplit.ui.theme.OpenSplitIcons
 import com.opensplit.ui.theme.OpenSplitTokens
-import dev.chrisbanes.haze.HazeState
+import com.opensplit.util.CurrencyFormatter
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.launch
+import java.text.SimpleDateFormat
+import java.util.Locale
 
-data class DummyRecurringExpense(
-    val id: String,
-    val title: String,
-    val amount: Double,
-    val currency: String,
-    val frequency: RecurrenceFrequency,
-    val nextDate: String,
-    val groupName: String,
-    val isPaused: Boolean
-)
+data class RecurringItem(val expense: Expense, val group: Group, val setUpByMe: Boolean)
+
+/** Recurring templates across every group the user belongs to. */
+class RecurringExpensesViewModel(private val container: AppContainer) : ViewModel() {
+    private val uid = container.authRepository.currentUser?.uid ?: ""
+
+    @OptIn(ExperimentalCoroutinesApi::class)
+    val items: StateFlow<List<RecurringItem>> = container.groupRepository.getGroupsForUser(uid)
+        .flatMapLatest { groups ->
+            if (groups.isEmpty()) flowOf(emptyList()) else combine(
+                groups.map { g -> container.expenseRepository.getExpensesForGroup(g.id).let { f -> combine(f, flowOf(g)) { e, gg -> e to gg } } }
+            ) { pairs ->
+                pairs.flatMap { (expenses, g) ->
+                    expenses.filter { it.recurrence != null && it.recurrence.frequency != com.opensplit.domain.model.RecurrenceFrequency.NONE }
+                        .map { RecurringItem(it, g, it.createdBy == uid) }
+                }.sortedBy { it.expense.recurrence?.nextOccurrence?.seconds ?: 0 }
+            }
+        }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    fun setPaused(item: RecurringItem, paused: Boolean) {
+        val rule = item.expense.recurrence ?: return
+        viewModelScope.launch { container.expenseRepository.updateExpense(item.expense.copy(recurrence = rule.copy(paused = paused)), uid) }
+    }
+
+    fun stop(item: RecurringItem) {
+        viewModelScope.launch { container.expenseRepository.updateExpense(item.expense.copy(recurrence = null), uid) }
+    }
+
+    class Factory(private val container: AppContainer) : ViewModelProvider.Factory {
+        @Suppress("UNCHECKED_CAST")
+        override fun <T : ViewModel> create(modelClass: Class<T>): T = RecurringExpensesViewModel(container) as T
+    }
+}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun RecurringExpensesScreen(
-    onNavigateBack: () -> Unit
+    appContainer: AppContainer,
+    onNavigateBack: () -> Unit,
+    onOpenExpense: (groupId: String, expenseId: String) -> Unit
 ) {
+    val viewModel: RecurringExpensesViewModel = viewModel(factory = RecurringExpensesViewModel.Factory(appContainer))
+    val items by viewModel.items.collectAsState()
     val snackbar = LocalSnackbarController.current
-    val hazeState = remember { HazeState() }
-
-    val recurringList = remember {
-        mutableStateListOf(
-            DummyRecurringExpense("rec1", "Internet Bill", 1299.0, "INR", RecurrenceFrequency.MONTHLY, "Sep 5, 2026", "Apartment 302", false),
-            DummyRecurringExpense("rec2", "Netflix & Spotify", 649.0, "INR", RecurrenceFrequency.MONTHLY, "Sep 12, 2026", "Apartment 302", false),
-            DummyRecurringExpense("rec3", "Weekly Groceries", 2500.0, "INR", RecurrenceFrequency.WEEKLY, "Aug 27, 2026", "Home", true)
-        )
-    }
+    val dateFmt = SimpleDateFormat("MMM d, yyyy", Locale.getDefault())
 
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Recurring Expenses", fontWeight = FontWeight.Bold) },
+                title = { Text("Recurring bills", fontWeight = FontWeight.Bold) },
                 navigationIcon = {
-                    IconButton(onClick = onNavigateBack) {
-                        Icon(OpenSplitIcons.Back, contentDescription = "Back")
-                    }
+                    IconButton(shapes = IconButtonDefaults.shapes(), onClick = onNavigateBack) { SymbolIcon(OpenSplitIcons.Back, contentDescription = "Back") }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.75f)
-                ),
-                modifier = Modifier.appHazeHeader(hazeState)
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.surface)
             )
-        },
-        floatingActionButton = {
-            FloatingActionButton(
-                onClick = { snackbar.showMessage("Select a group and expense to make it recurring.") },
-                containerColor = MaterialTheme.colorScheme.primaryContainer,
-                contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
-                shape = CircleShape
-            ) {
-                Icon(OpenSplitIcons.AddExpense, contentDescription = "Add Recurring Expense")
-            }
         }
     ) { padding ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(padding)
-                .appHazeSource(hazeState)
-                .padding(horizontal = OpenSplitTokens.SpaceLG)
-        ) {
-            Spacer(modifier = Modifier.height(OpenSplitTokens.SpaceSM))
-
-            Text(
-                text = "Automatically remind or split regular expenses like rent, subscriptions, and utility bills.",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-
-            Spacer(modifier = Modifier.height(OpenSplitTokens.SpaceMD))
-
-            if (recurringList.isEmpty()) {
-                Box(
-                    modifier = Modifier.fillMaxSize(),
-                    contentAlignment = Alignment.Center
-                ) {
+        if (items.isEmpty()) {
+            Box(modifier = Modifier.fillMaxSize().padding(padding).padding(OpenSplitTokens.SpaceXL), contentAlignment = Alignment.Center) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    SymbolIcon(OpenSplitIcons.Autorenew, contentDescription = null, modifier = Modifier.size(64.dp), tint = MaterialTheme.colorScheme.primary)
+                    Spacer(Modifier.height(OpenSplitTokens.SpaceLG))
+                    Text("No recurring bills yet", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                    Spacer(Modifier.height(OpenSplitTokens.SpaceSM))
                     Text(
-                        text = "No recurring expenses set up yet.",
-                        style = MaterialTheme.typography.bodyLarge,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        "Set \"Repeat\" on any expense to weekly, fortnightly, monthly or yearly and it shows up here.",
+                        style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = TextAlign.Center
                     )
                 }
-            } else {
-                LazyColumn(
-                    verticalArrangement = Arrangement.spacedBy(OpenSplitTokens.SpaceMD),
-                    contentPadding = PaddingValues(bottom = 80.dp)
-                ) {
-                    items(recurringList, key = { it.id }) { item ->
-                        Card(
-                            modifier = Modifier.fillMaxWidth(),
-                            shape = MaterialTheme.shapes.large,
-                            colors = CardDefaults.cardColors(
-                                containerColor = if (item.isPaused) MaterialTheme.colorScheme.surfaceContainerLow else MaterialTheme.colorScheme.surfaceContainerHigh
-                            )
-                        ) {
-                            Column(modifier = Modifier.padding(OpenSplitTokens.SpaceMD)) {
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.SpaceBetween,
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Column(modifier = Modifier.weight(1f)) {
-                                        Text(
-                                            text = item.title,
-                                            style = MaterialTheme.typography.titleMedium,
-                                            fontWeight = FontWeight.Bold
-                                        )
-                                        Text(
-                                            text = "${item.groupName} • ${item.frequency.name.lowercase().replaceFirstChar { it.uppercase() }}",
-                                            style = MaterialTheme.typography.bodySmall,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                                        )
-                                    }
+            }
+            return@Scaffold
+        }
+        val mine = items.filter { it.setUpByMe }; val others = items.filterNot { it.setUpByMe }
+        LazyColumn(
+            modifier = Modifier.fillMaxSize().padding(padding),
+            contentPadding = PaddingValues(horizontal = OpenSplitTokens.SpaceLG, vertical = OpenSplitTokens.SpaceMD),
+            verticalArrangement = Arrangement.spacedBy(OpenSplitTokens.SpaceSM)
+        ) {
+            if (mine.isNotEmpty()) item { SectionLabel("Set up by you") }
+            items(mine, key = { it.expense.id }) { RecurringRow(it, dateFmt, viewModel, snackbar::showMessage, onOpenExpense, canEdit = true) }
+            if (others.isNotEmpty()) item { SectionLabel("Set up by others") }
+            items(others, key = { it.expense.id }) { RecurringRow(it, dateFmt, viewModel, snackbar::showMessage, onOpenExpense, canEdit = false) }
+        }
+    }
+}
 
-                                    Text(
-                                        text = com.opensplit.util.CurrencyFormatter.format(item.amount, item.currency),
-                                        style = MaterialTheme.typography.titleMedium,
-                                        fontWeight = FontWeight.Bold,
-                                        color = MaterialTheme.colorScheme.primary
-                                    )
-                                }
+@Composable
+private fun SectionLabel(text: String) {
+    Text(text, style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary, modifier = Modifier.padding(vertical = OpenSplitTokens.SpaceXS))
+}
 
-                                Spacer(modifier = Modifier.height(OpenSplitTokens.SpaceSM))
-                                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
-                                Spacer(modifier = Modifier.height(OpenSplitTokens.SpaceXS))
-
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.SpaceBetween,
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Text(
-                                        text = if (item.isPaused) "Paused" else "Next: ${item.nextDate}",
-                                        style = MaterialTheme.typography.labelMedium,
-                                        color = if (item.isPaused) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.secondary,
-                                        fontWeight = FontWeight.SemiBold
-                                    )
-
-                                    Row(horizontalArrangement = Arrangement.spacedBy(OpenSplitTokens.SpaceXS)) {
-                                        TextButton(
-                                            onClick = {
-                                                val index = recurringList.indexOfFirst { it.id == item.id }
-                                                if (index >= 0) {
-                                                    val updated = item.copy(isPaused = !item.isPaused)
-                                                    recurringList[index] = updated
-                                                    snackbar.showMessage(if (updated.isPaused) "Paused ${item.title}" else "Resumed ${item.title}")
-                                                }
-                                            }
-                                        ) {
-                                            Text(if (item.isPaused) "Resume" else "Pause")
-                                        }
-
-                                        IconButton(
-                                            onClick = {
-                                                recurringList.removeIf { it.id == item.id }
-                                                snackbar.showMessage("Deleted ${item.title}")
-                                            }
-                                        ) {
-                                            Icon(
-                                                imageVector = OpenSplitIcons.Close,
-                                                contentDescription = "Delete",
-                                                tint = MaterialTheme.colorScheme.error,
-                                                modifier = Modifier.size(18.dp)
-                                            )
-                                        }
-                                    }
-                                }
-                            }
-                        }
+@Composable
+private fun RecurringRow(
+    item: RecurringItem,
+    dateFmt: SimpleDateFormat,
+    viewModel: RecurringExpensesViewModel,
+    toast: (String) -> Unit,
+    onOpenExpense: (String, String) -> Unit,
+    canEdit: Boolean
+) {
+    val exp = item.expense; val rule = exp.recurrence ?: return
+    Card(
+        onClick = { onOpenExpense(exp.groupId, exp.id) },
+        modifier = Modifier.fillMaxWidth(),
+        shape = OpenSplitTokens.BrandCardShape,
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer)
+    ) {
+        Column(modifier = Modifier.padding(OpenSplitTokens.SpaceLG)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Surface(shape = OpenSplitTokens.PillShape, color = getCategoryColor(exp.category).copy(alpha = 0.15f), modifier = Modifier.size(40.dp)) {
+                    Box(contentAlignment = Alignment.Center) {
+                        SymbolIcon(getCategoryIcon(exp.category), contentDescription = null, tint = getCategoryColor(exp.category), modifier = Modifier.size(20.dp))
                     }
+                }
+                Spacer(Modifier.width(OpenSplitTokens.SpaceMD))
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(exp.description, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+                    Text(
+                        "${item.group.name} · ${RecurrenceScheduler.label(rule.frequency)}" + if (rule.paused) " · Paused" else " · Next on ${dateFmt.format(rule.nextOccurrence.toDate())}",
+                        style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+                Text(
+                    CurrencyFormatter.format(exp.amount, exp.currency),
+                    style = MaterialTheme.typography.titleMedium.copy(fontFamily = com.opensplit.ui.theme.MoneyFontFamily), fontWeight = FontWeight.Bold
+                )
+            }
+            if (canEdit) {
+                Spacer(Modifier.height(OpenSplitTokens.SpaceSM))
+                Row(horizontalArrangement = Arrangement.spacedBy(OpenSplitTokens.SpaceSM)) {
+                    AssistChip(
+                        onClick = { viewModel.setPaused(item, !rule.paused); toast(if (rule.paused) "Resumed ${exp.description}" else "Paused ${exp.description}") },
+                        label = { Text(if (rule.paused) "Resume" else "Pause") },
+                        leadingIcon = { SymbolIcon(if (rule.paused) OpenSplitIcons.Autorenew else OpenSplitIcons.Pending, contentDescription = null, modifier = Modifier.size(16.dp)) }
+                    )
+                    AssistChip(
+                        onClick = { viewModel.stop(item); toast("Stopped repeating ${exp.description}") },
+                        label = { Text("Stop repeating") },
+                        leadingIcon = { SymbolIcon(OpenSplitIcons.Close, contentDescription = null, modifier = Modifier.size(16.dp)) }
+                    )
                 }
             }
         }

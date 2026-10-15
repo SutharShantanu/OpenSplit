@@ -12,8 +12,24 @@ interface UserPreferencesRepository {
     val notificationsEnabledFlow: Flow<Boolean>
     suspend fun setNotificationsEnabled(enabled: Boolean)
 
+    /** Notification type ids (NotificationType.id) the user switched off. */
+    val disabledNotificationTypesFlow: Flow<Set<String>>
+    suspend fun setNotificationTypeEnabled(typeId: String, enabled: Boolean)
+
+    /** Monthly budget per category in the user's default currency; absent = no budget. */
+    val categoryBudgetsFlow: Flow<Map<String, Double>>
+    suspend fun setCategoryBudget(category: String, amount: Double?)
+
+    /** Groups whose pushes are silenced. */
+    val mutedGroupIdsFlow: Flow<Set<String>>
+    suspend fun setGroupMuted(groupId: String, muted: Boolean)
+
     val pinnedGroupIdsFlow: Flow<Set<String>>
     suspend fun togglePinnedGroup(groupId: String)
+
+    /** Groups hidden from this user's list; balances still count. */
+    val archivedGroupIdsFlow: Flow<Set<String>>
+    suspend fun setGroupArchived(groupId: String, archived: Boolean)
 
     val openAiApiKeyFlow: Flow<String>
     suspend fun setOpenAiApiKey(key: String)
@@ -35,4 +51,20 @@ interface UserPreferencesRepository {
 
     val customModelFlow: Flow<String>
     suspend fun setCustomModel(model: String)
+
+    /** Master switch for every AI feature. Keys stay stored while off. */
+    val aiEnabledFlow: Flow<Boolean>
+    suspend fun setAiEnabled(enabled: Boolean)
+
+    /** Feature ids (AiFeature.name) the user switched off. Empty = all on. */
+    val aiDisabledFeaturesFlow: Flow<Set<String>>
+    suspend fun setAiFeatureEnabled(featureId: String, enabled: Boolean)
+
+    /** providerId -> model override; absent = provider default. */
+    val providerModelsFlow: Flow<Map<String, String>>
+    suspend fun setProviderModel(providerId: String, model: String)
+
+    /** providerId -> number of successful AI calls made from this device. */
+    val aiUsageFlow: Flow<Map<String, Int>>
+    suspend fun incrementAiUsage(providerId: String)
 }

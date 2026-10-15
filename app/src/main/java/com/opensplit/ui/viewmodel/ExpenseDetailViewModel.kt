@@ -87,10 +87,10 @@ class ExpenseDetailViewModel(
         }
     }
 
-    /** Re-creates a previously deleted expense (the Undo half of [deleteExpense]). */
+    /** Un-deletes the expense in place (the Undo half of [deleteExpense]); history and comments survive. */
     fun restoreExpense(expense: Expense) {
         viewModelScope.launch {
-            appContainer.expenseRepository.addExpense(expense)
+            appContainer.expenseRepository.restoreExpense(expense.groupId, expense.id)
         }
     }
 }

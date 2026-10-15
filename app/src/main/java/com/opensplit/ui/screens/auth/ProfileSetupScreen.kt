@@ -1,5 +1,8 @@
+@file:OptIn(androidx.compose.material3.ExperimentalMaterial3ExpressiveApi::class)
+
 package com.opensplit.ui.screens.auth
 
+import com.opensplit.ui.components.SymbolIcon
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -11,9 +14,6 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.Call
-import androidx.compose.material.icons.rounded.Person
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -76,15 +76,15 @@ fun ProfileSetupScreen(
                         )
                     },
                     navigationIcon = {
-                        IconButton(onClick = onDismiss) {
-                            Icon(OpenSplitIcons.Close, contentDescription = "Close")
+                        IconButton(shapes = IconButtonDefaults.shapes(), onClick = onDismiss) {
+                            SymbolIcon(OpenSplitIcons.Close, contentDescription = "Close")
                         }
                     },
                     colors = TopAppBarDefaults.topAppBarColors(
                         containerColor = MaterialTheme.colorScheme.surface
                     )
                 )
-                LinearProgressIndicator(
+                androidx.compose.material3.LinearWavyProgressIndicator(
                     progress = { 1.0f },
                     modifier = Modifier.fillMaxWidth(),
                     color = MaterialTheme.colorScheme.primary,
@@ -152,8 +152,8 @@ fun ProfileSetupScreen(
                             contentScale = ContentScale.Crop
                         )
                     } else {
-                        Icon(
-                            imageVector = OpenSplitIcons.Person,
+                        SymbolIcon(
+                            symbol = OpenSplitIcons.Person,
                             contentDescription = null,
                             tint = MaterialTheme.colorScheme.onSecondaryContainer,
                             modifier = Modifier.size(56.dp)
@@ -169,8 +169,8 @@ fun ProfileSetupScreen(
                             .background(MaterialTheme.colorScheme.primary),
                         contentAlignment = Alignment.Center
                     ) {
-                        Icon(
-                            imageVector = OpenSplitIcons.Camera,
+                        SymbolIcon(
+                            symbol = OpenSplitIcons.Camera,
                             contentDescription = "Pick photo",
                             tint = MaterialTheme.colorScheme.onPrimary,
                             modifier = Modifier.size(18.dp)
@@ -196,8 +196,8 @@ fun ProfileSetupScreen(
                         label = { Text("Display Name") },
                         placeholder = { Text("e.g. Alex Morgan") },
                         leadingIcon = {
-                            Icon(
-                                imageVector = OpenSplitIcons.Person,
+                            SymbolIcon(
+                                symbol = OpenSplitIcons.Person,
                                 contentDescription = null,
                                 tint = MaterialTheme.colorScheme.onSurfaceVariant
                             )
@@ -218,8 +218,8 @@ fun ProfileSetupScreen(
                         label = { Text("Phone Number (Optional)") },
                         placeholder = { Text("+1 (555) 000-0000") },
                         leadingIcon = {
-                            Icon(
-                                imageVector = Icons.Rounded.Call,
+                            SymbolIcon(
+                                symbol = OpenSplitIcons.Call,
                                 contentDescription = null,
                                 tint = MaterialTheme.colorScheme.onSurfaceVariant
                             )
@@ -257,7 +257,7 @@ fun ProfileSetupScreen(
                     contentColor = MaterialTheme.colorScheme.onPrimary
                 )
             ) {
-                Icon(OpenSplitIcons.Check, contentDescription = null, modifier = Modifier.size(20.dp))
+                SymbolIcon(OpenSplitIcons.Check, contentDescription = null, modifier = Modifier.size(20.dp))
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(
                     text = "Finish Setup",

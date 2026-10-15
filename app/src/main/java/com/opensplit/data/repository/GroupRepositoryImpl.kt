@@ -54,7 +54,7 @@ class GroupRepositoryImpl(
         return try {
             val docRef = groupsCollection.document()
             val newGroup = group.copy(id = docRef.id)
-            docRef.set(newGroup).await()
+            docRef.set(newGroup).awaitWrite()
             activityRepository.logActivity(
                 docRef.id,
                 Activity(
@@ -72,7 +72,7 @@ class GroupRepositoryImpl(
     override suspend fun updateGroup(group: Group): Result<Unit> {
         if (group.id.isBlank()) return Result.failure(IllegalArgumentException("Group ID cannot be blank"))
         return try {
-            groupsCollection.document(group.id).set(group).await()
+            groupsCollection.document(group.id).set(group).awaitWrite()
             Result.success(Unit)
         } catch (e: Exception) {
             Result.failure(e)
@@ -82,10 +82,20 @@ class GroupRepositoryImpl(
     override suspend fun deleteGroup(groupId: String): Result<Unit> {
         if (groupId.isBlank()) return Result.failure(IllegalArgumentException("Group ID cannot be blank"))
         return try {
-            groupsCollection.document(groupId).delete().await()
+            groupsCollection.document(groupId).delete().awaitWrite()
             Result.success(Unit)
         } catch (e: Exception) {
             Result.failure(e)
         }
     }
+
+    override suspend fun getOrCreateDirectGroup(me: String, other: String, currency: String): Result<Group> = try {
+        val existing = groupsCollection.whereEqualTo("isDirect", true).whereArrayContains("memberIds", me).get().await()
+            .documents.mapNotNull { it.toObject(Group::class.java) }
+            .firstOrNull { other in it.memberIds }
+        if (existing != null) Result.success(existing) else {
+            val group = Group(name = "Direct", createdBy = me, memberIds = listOf(me, other), currency = currency, isDirect = true)
+            createGroup(group).map { id -> group.copy(id = id) }
+        }
+    } catch (e: Exception) { Result.failure(e) }
 }

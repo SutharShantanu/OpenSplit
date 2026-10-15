@@ -18,10 +18,19 @@ data class ExpenseItem(
     val assignedUids: List<String> = emptyList()
 )
 
-enum class RecurrenceFrequency { NONE, DAILY, WEEKLY, MONTHLY }
+enum class RecurrenceFrequency { NONE, DAILY, WEEKLY, FORTNIGHTLY, MONTHLY, YEARLY }
 data class RecurrenceRule(
     val frequency: RecurrenceFrequency = RecurrenceFrequency.NONE,
-    val nextOccurrence: Timestamp = Timestamp.now()
+    val nextOccurrence: Timestamp = Timestamp.now(),
+    /** Paused templates keep their schedule but create no occurrences until resumed. */
+    val paused: Boolean = false
+)
+
+/** One edit on an expense: who, when, and a short human summary per changed field. */
+data class ExpenseChange(
+    val uid: String = "",
+    val timestamp: Timestamp = Timestamp.now(),
+    val changes: List<String> = emptyList()
 )
 
 data class Comment(
@@ -49,5 +58,8 @@ data class Expense(
     val receiptImageUrl: String? = null,
     val createdBy: String = "",
     val createdAt: Timestamp = Timestamp.now(),
-    val isDeleted: Boolean = false
+    val isDeleted: Boolean = false,
+    /** Set on soft delete; "Recently deleted" keeps entries for 90 days after this. */
+    val deletedAt: Timestamp? = null,
+    val history: List<ExpenseChange> = emptyList()
 )

@@ -42,7 +42,9 @@ fun OpenSplitNavGraph(
     appContainer: AppContainer,
     navController: NavHostController = rememberNavController(),
     pendingResetOobCode: String? = null,
-    onResetOobCodeConsumed: () -> Unit = {}
+    onResetOobCodeConsumed: () -> Unit = {},
+    pendingJoinToken: String? = null,
+    onJoinTokenConsumed: () -> Unit = {}
 ) {
     val authViewModel: AuthViewModel = viewModel(
         factory = ViewModelFactory(appContainer)
@@ -73,6 +75,13 @@ fun OpenSplitNavGraph(
             }
             is AuthState.LoggedIn -> {
                 MainNavHost(navController = navController, appContainer = appContainer, authViewModel = authViewModel)
+                // An invite link opened while signed in (or after signing in) lands on the join screen.
+                androidx.compose.runtime.LaunchedEffect(pendingJoinToken) {
+                    if (pendingJoinToken != null) {
+                        navController.navigate(if (pendingJoinToken.startsWith("friend:")) "friend/${pendingJoinToken.removePrefix("friend:")}" else "join/$pendingJoinToken")
+                        onJoinTokenConsumed()
+                    }
+                }
             }
         }
     }
@@ -149,7 +158,8 @@ fun MainNavHost(navController: NavHostController, appContainer: AppContainer, au
                 onNavigateBack = { navController.popBackStack() },
                 onNavigateToAddExpense = { navController.navigate("add_expense/$groupId") },
                 onNavigateToExpenseDetail = { gId, eId -> navController.navigate("expense_detail/$gId/$eId") },
-                onNavigateToSettleUp = { navController.navigate("settle_up/$groupId") }
+                onNavigateToSettleUp = { navController.navigate("settle_up/$groupId") },
+                onNavigateToEditExpense = { gId, eId -> navController.navigate("edit_expense/$gId/$eId") }
             )
         }
         composable("expense_detail/{groupId}/{expenseId}") { backStackEntry ->
@@ -191,7 +201,8 @@ fun MainNavHost(navController: NavHostController, appContainer: AppContainer, au
                 viewModel = vm,
                 onNavigateBack = { navController.popBackStack() },
                 onNavigateToSettleUp = { groupId -> navController.navigate("settle_up/$groupId") },
-                onNavigateToGroup = { groupId -> navController.navigate("group_detail/$groupId") }
+                onNavigateToGroup = { groupId -> navController.navigate("group_detail/$groupId") },
+                onNavigateToAddExpense = { groupId -> navController.navigate("add_expense/$groupId") }
             )
         }
 
@@ -226,13 +237,45 @@ fun MainNavHost(navController: NavHostController, appContainer: AppContainer, au
 
         composable("recurring_expenses") {
             com.opensplit.ui.screens.RecurringExpensesScreen(
+                appContainer = appContainer,
+                onNavigateBack = { navController.popBackStack() },
+                onOpenExpense = { gId, eId -> navController.navigate("expense_detail/$gId/$eId") }
+            )
+        }
+
+        composable("join/{token}") { backStackEntry ->
+            val token = backStackEntry.arguments?.getString("token") ?: ""
+            com.opensplit.ui.screens.JoinGroupScreen(
+                token = token,
+                appContainer = appContainer,
+                onNavigateBack = { navController.popBackStack() },
+                onJoined = { gId ->
+                    navController.navigate("group_detail/$gId") { popUpTo("home") }
+                }
+            )
+        }
+
+        composable("friend/{token}") { backStackEntry ->
+            val token = backStackEntry.arguments?.getString("token") ?: ""
+            com.opensplit.ui.screens.AcceptFriendScreen(
+                token = token,
+                appContainer = appContainer,
+                onNavigateBack = { navController.popBackStack() },
+                onAccepted = { uid -> navController.navigate("person_balance/$uid") { popUpTo("home") } }
+            )
+        }
+
+        composable("recently_deleted") {
+            com.opensplit.ui.screens.RecentlyDeletedScreen(
+                appContainer = appContainer,
                 onNavigateBack = { navController.popBackStack() }
             )
         }
 
         composable("notification_settings") {
             com.opensplit.ui.screens.NotificationSettingsScreen(
-                onNavigateBack = { navController.popBackStack() }
+                onNavigateBack = { navController.popBackStack() },
+                prefs = appContainer.userPreferencesRepository
             )
         }
 

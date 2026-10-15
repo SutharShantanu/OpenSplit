@@ -1,5 +1,9 @@
+@file:OptIn(androidx.compose.material3.ExperimentalMaterial3ExpressiveApi::class)
+
 package com.opensplit.ui.screens
 
+import com.opensplit.ui.theme.Symbol
+import com.opensplit.ui.components.SymbolIcon
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -8,15 +12,14 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.ArrowDownward
-import androidx.compose.material.icons.rounded.ArrowUpward
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
@@ -44,7 +47,7 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, androidx.compose.material3.ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun AnalyticsScreen(
     viewModel: AnalyticsViewModel,
@@ -53,19 +56,21 @@ fun AnalyticsScreen(
 ) {
     val state by viewModel.uiState.collectAsState()
     val insights by viewModel.insightsState.collectAsState()
+    val aiAvailable by viewModel.aiAvailable.collectAsState()
     val currentMonthName = remember {
         SimpleDateFormat("MMMM", Locale.getDefault()).format(Date())
     }
     var chartMode by remember { mutableStateOf("Weekly") } // "Weekly" or "Monthly"
 
     Scaffold(
+        contentWindowInsets = if (onNavigateBack != null) androidx.compose.material3.ScaffoldDefaults.contentWindowInsets else androidx.compose.foundation.layout.WindowInsets(0, 0, 0, 0),
         topBar = {
             if (onNavigateBack != null) {
                 TopAppBar(
                     title = { Text("Spending Analytics", fontWeight = FontWeight.Bold) },
                     navigationIcon = {
-                        IconButton(onClick = onNavigateBack) {
-                            Icon(OpenSplitIcons.ArrowBack, contentDescription = "Back")
+                        IconButton(shapes = IconButtonDefaults.shapes(), onClick = onNavigateBack) {
+                            SymbolIcon(OpenSplitIcons.ArrowBack, contentDescription = "Back")
                         }
                     },
                     colors = TopAppBarDefaults.topAppBarColors(
@@ -115,29 +120,12 @@ fun AnalyticsScreen(
                             .padding(horizontal = OpenSplitTokens.SpaceLG, vertical = OpenSplitTokens.SpaceMD),
                         verticalArrangement = Arrangement.spacedBy(OpenSplitTokens.SpaceMD)
                     ) {
-                        if (onNavigateBack == null) {
-                            // Header: Title & Subtitle
-                            Column(modifier = Modifier.fillMaxWidth()) {
-                                Text(
-                                    text = "Analytics",
-                                    style = MaterialTheme.typography.headlineLarge,
-                                    fontWeight = FontWeight.Bold,
-                                    color = MaterialTheme.colorScheme.onSurface
-                                )
-                                Spacer(modifier = Modifier.height(2.dp))
-                                Text(
-                                    text = "Your spending insights this month.",
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            }
-                        }
 
                 // Scope tabs: "All Groups" followed by one tab per group
                 val scopeIds: List<String?> = listOf(null) + analyticsState.groups.map { it.id }
                 val selectedScopeIndex = scopeIds.indexOf(analyticsState.selectedGroupId).coerceAtLeast(0)
 
-                ScrollableTabRow(
+                androidx.compose.material3.PrimaryScrollableTabRow(
                     selectedTabIndex = selectedScopeIndex,
                     edgePadding = 0.dp,
                     containerColor = Color.Transparent,
@@ -215,15 +203,16 @@ fun AnalyticsScreen(
                                         modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
                                         verticalAlignment = Alignment.CenterVertically
                                     ) {
-                                        Icon(
-                                            imageVector = Icons.Rounded.ArrowDownward,
+                                        val mom = analyticsState.monthOverMonth
+                                        SymbolIcon(
+                                            symbol = if ((mom ?: 0.0) >= 0) OpenSplitIcons.ArrowUpward else OpenSplitIcons.ArrowDownward,
                                             contentDescription = null,
                                             modifier = Modifier.size(16.dp),
                                             tint = MaterialTheme.colorScheme.onPrimaryContainer
                                         )
                                         Spacer(modifier = Modifier.width(2.dp))
                                         Text(
-                                            text = "12%",
+                                            text = mom?.let { "${kotlin.math.abs(it * 100).toInt()}%" } ?: "new",
                                             style = MaterialTheme.typography.bodySmall,
                                             fontWeight = FontWeight.Bold,
                                             color = MaterialTheme.colorScheme.onPrimaryContainer
@@ -384,6 +373,101 @@ fun AnalyticsScreen(
                     }
                 }
 
+                // 3b. Local insights (always available) and category budgets
+                if (analyticsState.localInsights.isNotEmpty()) {
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(24.dp),
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer)
+                    ) {
+                        Column(modifier = Modifier.padding(OpenSplitTokens.SpaceLG), verticalArrangement = Arrangement.spacedBy(OpenSplitTokens.SpaceSM)) {
+                            Text("What stands out", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                            analyticsState.localInsights.forEach { line ->
+                                Row(verticalAlignment = Alignment.Top) {
+                                    SymbolIcon(OpenSplitIcons.Lightbulb, contentDescription = null, modifier = Modifier.size(18.dp), tint = MaterialTheme.colorScheme.primary)
+                                    Spacer(Modifier.width(OpenSplitTokens.SpaceSM))
+                                    Text(line, style = MaterialTheme.typography.bodyMedium)
+                                }
+                            }
+                        }
+                    }
+                }
+
+                val budgets by viewModel.budgets.collectAsState()
+                var budgetEditCategory by remember { mutableStateOf<String?>(null) }
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(24.dp),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer)
+                ) {
+                    Column(modifier = Modifier.padding(OpenSplitTokens.SpaceLG), verticalArrangement = Arrangement.spacedBy(OpenSplitTokens.SpaceSM)) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text("Monthly budgets", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
+                            TextButton(shapes = ButtonDefaults.shapes(), onClick = { budgetEditCategory = "" }) { Text("Add") }
+                        }
+                        if (budgets.isEmpty()) {
+                            Text("Set a limit per category and watch this month's share fill it up.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
+                        budgets.entries.sortedBy { it.key }.forEach { (cat, limit) ->
+                            val spent = analyticsState.categoryBreakdown.firstOrNull { it.category == cat }?.amount ?: 0.0
+                            val frac = (spent / limit).coerceIn(0.0, 1.0).toFloat()
+                            Column(modifier = Modifier.fillMaxWidth().clickable { budgetEditCategory = cat }) {
+                                Row {
+                                    Text(cat, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
+                                    Text(
+                                        "${analyticsState.currency}${"%,.0f".format(spent)} / ${analyticsState.currency}${"%,.0f".format(limit)}",
+                                        style = MaterialTheme.typography.bodySmall.copy(fontFamily = com.opensplit.ui.theme.MoneyFontFamily),
+                                        color = if (spent > limit) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                                Spacer(Modifier.height(4.dp))
+                                androidx.compose.material3.LinearWavyProgressIndicator(
+                                    progress = { frac },
+                                    modifier = Modifier.fillMaxWidth(),
+                                    color = if (spent > limit) MaterialTheme.colorScheme.error else getCategoryColor(cat),
+                                    trackColor = MaterialTheme.colorScheme.surfaceContainerHighest
+                                )
+                            }
+                        }
+                    }
+                }
+                budgetEditCategory?.let { editing ->
+                    var cat by remember(editing) { mutableStateOf(editing.ifBlank { com.opensplit.data.ai.AiService.CATEGORIES.first() }) }
+                    var amount by remember(editing) { mutableStateOf(budgets[editing]?.let { "%.0f".format(it) } ?: "") }
+                    AlertDialog(
+                        onDismissRequest = { budgetEditCategory = null },
+                        title = { Text(if (editing.isBlank()) "New budget" else "Edit budget") },
+                        text = {
+                            Column(verticalArrangement = Arrangement.spacedBy(OpenSplitTokens.SpaceSM)) {
+                                if (editing.isBlank()) {
+                                    androidx.compose.foundation.layout.FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                                        com.opensplit.data.ai.AiService.CATEGORIES.filter { it !in budgets }.forEach { c ->
+                                            FilterChip(selected = cat == c, onClick = { cat = c }, label = { Text(c) })
+                                        }
+                                    }
+                                }
+                                OutlinedTextField(
+                                    value = amount, onValueChange = { v -> amount = v.filter { it.isDigit() || it == '.' } },
+                                    label = { Text("Monthly limit (${analyticsState.currency})") }, singleLine = true,
+                                    keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = androidx.compose.ui.text.input.KeyboardType.Decimal),
+                                    modifier = Modifier.fillMaxWidth()
+                                )
+                            }
+                        },
+                        confirmButton = {
+                            Button(shapes = ButtonDefaults.shapes(), enabled = amount.toDoubleOrNull()?.let { it > 0 } == true, onClick = {
+                                viewModel.setBudget(cat, amount.toDoubleOrNull()); budgetEditCategory = null
+                            }) { Text("Save") }
+                        },
+                        dismissButton = {
+                            Row {
+                                if (editing.isNotBlank()) TextButton(shapes = ButtonDefaults.shapes(), onClick = { viewModel.setBudget(editing, null); budgetEditCategory = null }) { Text("Remove") }
+                                TextButton(shapes = ButtonDefaults.shapes(), onClick = { budgetEditCategory = null }) { Text("Cancel") }
+                            }
+                        }
+                    )
+                }
+
                 // 4. Headline Metrics 2x2 Grid
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -422,7 +506,7 @@ fun AnalyticsScreen(
                 }
 
                 // 5. AI Insights Card
-                if (viewModel.isAiConfigured && analyticsState.totalExpenseCount > 0) {
+                if (aiAvailable && analyticsState.totalExpenseCount > 0) {
                     AiInsightsCard(
                         state = insights,
                         onGenerate = { viewModel.generateInsights() }
@@ -472,8 +556,8 @@ fun AnalyticsScreen(
                                         modifier = Modifier.size(40.dp)
                                     ) {
                                         Box(contentAlignment = Alignment.Center) {
-                                            Icon(
-                                                imageVector = catIcon,
+                                            SymbolIcon(
+                                                symbol = catIcon,
                                                 contentDescription = null,
                                                 tint = catColor,
                                                 modifier = Modifier.size(20.dp)
@@ -511,11 +595,13 @@ fun CashFlowLineChart(
     val gridColor = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f)
     val maxVal = remember(values) { maxOf(1.0, values.maxOrNull() ?: 1.0) }
 
+    val chartDescription = labels.zip(values).joinToString(", ") { (l, v) -> "$l $currency${"%.0f".format(v)}" }
     Column(modifier = Modifier.fillMaxWidth()) {
         Canvas(
             modifier = Modifier
                 .fillMaxWidth()
                 .height(170.dp)
+                .semantics { contentDescription = "Spending over time: $chartDescription" }
         ) {
             val width = size.width
             val height = size.height
@@ -616,7 +702,9 @@ fun CashFlowLineChart(
 
 @Composable
 fun DonutChart(categories: List<CategorySpend>, modifier: Modifier = Modifier) {
-    Canvas(modifier = modifier.size(130.dp)) {
+    val trackColor = MaterialTheme.colorScheme.surfaceContainerHighest
+    val description = categories.take(4).joinToString(", ") { "${it.category} ${(it.percentage * 100).toInt()} percent" }
+    Canvas(modifier = modifier.size(130.dp).semantics { contentDescription = "Spending by category: $description" }) {
         val strokeWidth = 20.dp.toPx()
         val arcSize = size.width - strokeWidth
         val topLeft = Offset(strokeWidth / 2, strokeWidth / 2)
@@ -624,7 +712,7 @@ fun DonutChart(categories: List<CategorySpend>, modifier: Modifier = Modifier) {
 
         // Draw track background circle
         drawArc(
-            color = Color(0xFFE5E1E7),
+            color = trackColor,
             startAngle = 0f,
             sweepAngle = 360f,
             useCenter = false,
@@ -655,7 +743,7 @@ fun DonutChart(categories: List<CategorySpend>, modifier: Modifier = Modifier) {
 
 @Composable
 private fun AnalyticsStatCard(
-    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    icon: Symbol,
     label: String,
     value: String,
     modifier: Modifier = Modifier
@@ -669,8 +757,8 @@ private fun AnalyticsStatCard(
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(
-                    imageVector = icon,
+                SymbolIcon(
+                    symbol = icon,
                     contentDescription = null,
                     tint = MaterialTheme.colorScheme.primary,
                     modifier = Modifier.size(16.dp)
@@ -708,8 +796,8 @@ private fun AiInsightsCard(
     ) {
         Column(modifier = Modifier.padding(OpenSplitTokens.SpaceLG)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(
-                    imageVector = OpenSplitIcons.AutoAwesome,
+                SymbolIcon(
+                    symbol = OpenSplitIcons.AutoAwesome,
                     contentDescription = null,
                     tint = MaterialTheme.colorScheme.primary,
                     modifier = Modifier.size(20.dp)
@@ -770,7 +858,7 @@ private fun AiInsightsCard(
                         }
                     }
                     Spacer(modifier = Modifier.height(OpenSplitTokens.SpaceSM))
-                    TextButton(onClick = onGenerate) {
+                    TextButton(shapes = ButtonDefaults.shapes(), onClick = onGenerate) {
                         Text("Regenerate")
                     }
                 }

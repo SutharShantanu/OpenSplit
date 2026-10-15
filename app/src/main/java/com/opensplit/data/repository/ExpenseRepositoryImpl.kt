@@ -104,7 +104,7 @@ class ExpenseRepositoryImpl(
             }
             val docRef = commentsRef.document()
             val newComment = comment.copy(id = docRef.id)
-            docRef.set(newComment).await()
+            docRef.set(newComment).awaitWrite()
             if (groupId.isNotBlank()) {
                 activityRepository.logActivity(groupId, Activity(type = ActivityType.COMMENT_ADDED, actorUid = comment.uid, message = "commented on an expense", relatedExpenseId = expenseId))
             }
@@ -122,7 +122,7 @@ class ExpenseRepositoryImpl(
                 topLevelExpensesCollection.document()
             }
             val newExpense = expense.copy(id = docRef.id)
-            docRef.set(newExpense).await()
+            docRef.set(newExpense).awaitWrite()
 
             if (expense.groupId.isNotBlank()) {
                 activityRepository.logActivity(
@@ -141,13 +141,20 @@ class ExpenseRepositoryImpl(
         }
     }
 
-    override suspend fun updateExpense(expense: Expense): Result<Unit> {
+    override suspend fun updateExpense(expense: Expense, actorUid: String): Result<Unit> {
         return try {
-            if (expense.groupId.isNotBlank()) {
-                getGroupExpensesRef(expense.groupId).document(expense.id).set(expense).await()
+            val docRef = if (expense.groupId.isNotBlank()) {
+                getGroupExpensesRef(expense.groupId).document(expense.id)
             } else {
-                topLevelExpensesCollection.document(expense.id).set(expense).await()
+                topLevelExpensesCollection.document(expense.id)
             }
+            // Diff against the stored version so the edit history is computed once, server-side of the UI.
+            val previous = runCatching { docRef.get().await().toObject(Expense::class.java) }.getOrNull()
+            val changes = previous?.let { com.opensplit.domain.logic.ExpenseDiff.describe(it, expense) }.orEmpty()
+            val withHistory = if (changes.isEmpty()) expense else expense.copy(
+                history = (previous?.history.orEmpty() + com.opensplit.domain.model.ExpenseChange(uid = actorUid, changes = changes)).takeLast(50)
+            )
+            docRef.set(withHistory).awaitWrite()
 
             if (expense.groupId.isNotBlank()) {
                 val actType = if (expense.isDeleted) ActivityType.EXPENSE_DELETED else ActivityType.EXPENSE_EDITED
@@ -201,7 +208,7 @@ class ExpenseRepositoryImpl(
             }
             val snapshot = docRef.get().await()
             if (snapshot.exists()) {
-                docRef.update("isDeleted", true).await()
+                docRef.update(mapOf("isDeleted" to true, "deletedAt" to com.google.firebase.Timestamp.now())).awaitWrite()
                 if (groupId.isNotBlank()) {
                     val expense = snapshot.toObject(Expense::class.java)
                     activityRepository.logActivity(
@@ -219,5 +226,44 @@ class ExpenseRepositoryImpl(
         } catch (e: Exception) {
             Result.failure(e)
         }
+    }
+
+    private fun expenseRef(groupId: String, expenseId: String) =
+        if (groupId.isNotBlank()) getGroupExpensesRef(groupId).document(expenseId) else topLevelExpensesCollection.document(expenseId)
+
+    override suspend fun restoreExpense(groupId: String, expenseId: String): Result<Unit> = try {
+        val ref = expenseRef(groupId, expenseId)
+        ref.update(mapOf("isDeleted" to false, "deletedAt" to null)).awaitWrite()
+        if (groupId.isNotBlank()) {
+            val expense = ref.get().await().toObject(Expense::class.java)
+            activityRepository.logActivity(
+                groupId,
+                Activity(type = ActivityType.EXPENSE_ADDED, actorUid = expense?.createdBy ?: "", message = "restored expense '${expense?.description ?: ""}'", relatedExpenseId = expenseId)
+            )
+        }
+        Result.success(Unit)
+    } catch (e: Exception) { Result.failure(e) }
+
+    override suspend fun purgeExpense(groupId: String, expenseId: String): Result<Unit> = try {
+        expenseRef(groupId, expenseId).delete().awaitWrite()
+        Result.success(Unit)
+    } catch (e: Exception) { Result.failure(e) }
+
+    override fun getDeletedExpensesForGroups(groupIds: List<String>): Flow<List<Expense>> {
+        if (groupIds.isEmpty()) return flowOf(emptyList())
+        val cutoff = com.google.firebase.Timestamp(System.currentTimeMillis() / 1000 - 90L * 86400, 0)
+        val flows = groupIds.map { groupId ->
+            callbackFlow<List<Expense>> {
+                val listener = getGroupExpensesRef(groupId)
+                    .whereEqualTo("isDeleted", true)
+                    .addSnapshotListener { snapshot, e ->
+                        if (e != null) { trySend(emptyList()); return@addSnapshotListener }
+                        trySend(snapshot?.documents?.mapNotNull { it.toObject(Expense::class.java)?.copy(id = it.id) }
+                            ?.filter { (it.deletedAt ?: it.createdAt) >= cutoff } ?: emptyList())
+                    }
+                awaitClose { listener.remove() }
+            }.onStart { emit(emptyList()) }
+        }
+        return combine(flows) { lists -> lists.flatMap { it }.sortedByDescending { it.deletedAt ?: it.createdAt } }
     }
 }

@@ -1,351 +1,211 @@
+@file:OptIn(androidx.compose.material3.ExperimentalMaterial3ExpressiveApi::class)
+
 package com.opensplit.ui.components
 
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.Button
+import androidx.compose.material3.IconButtonDefaults
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExposedDropdownMenuBox
+import androidx.compose.material3.ExposedDropdownMenuDefaults
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.material3.rememberModalBottomSheetState
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.unit.dp
-import com.opensplit.data.ai.GeminiGroupIconSuggester
+import com.opensplit.data.ai.AiHeuristics
 import com.opensplit.ui.theme.OpenSplitIcons
 import com.opensplit.ui.theme.OpenSplitTokens
+import com.opensplit.util.CurrencyFormatter
 import kotlinx.coroutines.delay
 
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-fun CreateGroupBottomSheet(
-    onDismiss: () -> Unit,
-    onCreate: (name: String, currency: String, avatarKey: String?) -> Unit
-) {
-    var name by remember { mutableStateOf("") }
-    var avatarKey by remember { mutableStateOf<String?>(null) }
-    var isManualSelection by remember { mutableStateOf(false) }
-    var isAiSuggested by remember { mutableStateOf(false) }
-    var aiSuggestedKey by remember { mutableStateOf<String?>(null) }
-    var showAvatarPicker by remember { mutableStateOf(false) }
-    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
-
-    // Automatically suggest avatar as user types group name
-    LaunchedEffect(name) {
-        val trimmed = name.trim()
-        if (trimmed.isNotBlank()) {
-            // Step 1: Immediate local heuristic suggestion for zero UI latency
-            val localMatch = GeminiGroupIconSuggester.getLocalHeuristicSuggestion(trimmed)
-            if (localMatch != null) {
-                aiSuggestedKey = localMatch
-                if (!isManualSelection) {
-                    avatarKey = localMatch
-                    isAiSuggested = true
-                }
-            }
-
-            // Step 2: Debounced Gemini 2.0 Flash AI suggestion for intelligent contextual matching
-            delay(300)
-            if (name.trim() == trimmed) {
-                val aiMatch = GeminiGroupIconSuggester.suggestAvatarKey(trimmed)
-                if (aiMatch != null) {
-                    aiSuggestedKey = aiMatch
-                    if (!isManualSelection) {
-                        avatarKey = aiMatch
-                        isAiSuggested = true
-                    }
-                }
-            }
-        } else {
-            aiSuggestedKey = null
-            if (!isManualSelection) {
-                avatarKey = null
-                isAiSuggested = false
-            }
-        }
-    }
-
-    ModalBottomSheet(
-        onDismissRequest = onDismiss,
-        sheetState = sheetState,
-        containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
-        shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
-        dragHandle = { BottomSheetDefaults.DragHandle() }
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .wrapContentHeight()
-                .padding(horizontal = 20.dp)
-                .padding(bottom = 28.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
-        ) {
-            // Header
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = "Create Group",
-                    style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onSurface
-                )
-                IconButton(onClick = onDismiss) {
-                    Icon(OpenSplitIcons.Close, contentDescription = "Close")
-                }
-            }
-
-            // 80px Avatar Picker
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(vertical = 4.dp),
-                contentAlignment = Alignment.Center
-            ) {
-                Box(
-                    modifier = Modifier
-                        .size(80.dp)
-                        .clip(CircleShape)
-                        .clickable { showAvatarPicker = true }
-                ) {
-                    GroupAvatar(name = name.ifBlank { "G" }, avatarKey = avatarKey, size = 80.dp)
-                    // Edit badge
-                    Box(
-                        modifier = Modifier
-                            .size(28.dp)
-                            .align(Alignment.BottomEnd)
-                            .clip(CircleShape)
-                            .background(MaterialTheme.colorScheme.primaryContainer),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            imageVector = OpenSplitIcons.Camera,
-                            contentDescription = "Edit photo",
-                            tint = MaterialTheme.colorScheme.onPrimaryContainer,
-                            modifier = Modifier.size(16.dp)
-                        )
-                    }
-                }
-            }
-
-            // Group Name Input
-            OutlinedTextField(
-                value = name,
-                onValueChange = { name = it },
-                label = { Text("Group Name") },
-                placeholder = { Text("Apartment 4B, Vegas Trip…") },
-                leadingIcon = {
-                    Icon(OpenSplitIcons.Groups, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
-                },
-                singleLine = true,
-                keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Words),
-                shape = RoundedCornerShape(12.dp),
-                modifier = Modifier.fillMaxWidth(),
-                colors = OutlinedTextFieldDefaults.colors(
-                    focusedBorderColor = MaterialTheme.colorScheme.primary,
-                    unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant
-                )
-            )
-
-            // Category Chips Row
-            var selectedCategory by remember { mutableStateOf("Home") }
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text(
-                    text = "Category",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    fontWeight = FontWeight.Medium
-                )
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    listOf(
-                        "Home" to "🏠",
-                        "Trip" to "✈️",
-                        "Food" to "🍽️",
-                        "Work" to "💼",
-                        "Sports" to "⚽",
-                        "Other" to "✨"
-                    ).forEach { (cat, emoji) ->
-                        val isSelected = selectedCategory == cat
-                        FilterChip(
-                            selected = isSelected,
-                            onClick = { selectedCategory = cat },
-                            label = { Text("$emoji $cat") },
-                            shape = CircleShape,
-                            colors = FilterChipDefaults.filterChipColors(
-                                selectedContainerColor = MaterialTheme.colorScheme.secondaryContainer,
-                                selectedLabelColor = MaterialTheme.colorScheme.onSecondaryContainer
-                            )
-                        )
-                    }
-                }
-            }
-
-            // Default Currency Row
-            Surface(
-                shape = RoundedCornerShape(12.dp),
-                color = MaterialTheme.colorScheme.surfaceContainerLow,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(56.dp)
-            ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(horizontal = 16.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(12.dp)
-                    ) {
-                        Icon(
-                            imageVector = OpenSplitIcons.CategoryBills,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                        Text(
-                            text = "INR — Indian Rupee (₹)",
-                            style = MaterialTheme.typography.bodyMedium,
-                            fontWeight = FontWeight.Medium
-                        )
-                    }
-                    Icon(
-                        imageVector = OpenSplitIcons.Dropdown,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-            }
-
-            // Members Row
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text(
-                    text = "WHO'S IN THE GROUP",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    fontWeight = FontWeight.Bold
-                )
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    // You chip
-                    Surface(
-                        shape = CircleShape,
-                        color = MaterialTheme.colorScheme.secondaryContainer,
-                        modifier = Modifier.height(36.dp)
-                    ) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
-                        ) {
-                            Icon(
-                                imageVector = OpenSplitIcons.Verified,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.onSecondaryContainer,
-                                modifier = Modifier.size(16.dp)
-                            )
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Text(
-                                text = "You",
-                                style = MaterialTheme.typography.labelMedium,
-                                fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.onSecondaryContainer
-                            )
-                        }
-                    }
-
-                    // Add member chip
-                    Surface(
-                        shape = CircleShape,
-                        color = MaterialTheme.colorScheme.surface,
-                        border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
-                        modifier = Modifier
-                            .height(36.dp)
-                            .clickable { /* Can add members after group creation */ }
-                    ) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
-                        ) {
-                            Icon(
-                                imageVector = OpenSplitIcons.Invite,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.primary,
-                                modifier = Modifier.size(16.dp)
-                            )
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Text(
-                                text = "Add Member",
-                                style = MaterialTheme.typography.labelMedium,
-                                color = MaterialTheme.colorScheme.primary,
-                                fontWeight = FontWeight.SemiBold
-                            )
-                        }
-                    }
-                }
-            }
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            // Create Group Button (56dp height, pill shape)
-            Button(
-                onClick = {
-                    if (name.isNotBlank()) {
-                        onCreate(name.trim(), "INR", avatarKey)
-                    }
-                },
-                enabled = name.isNotBlank(),
-                shape = CircleShape,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(56.dp),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = MaterialTheme.colorScheme.primary,
-                    contentColor = MaterialTheme.colorScheme.onPrimary
-                )
-            ) {
-                Icon(OpenSplitIcons.Check, contentDescription = null, modifier = Modifier.size(20.dp))
-                Spacer(modifier = Modifier.width(8.dp))
-                Text(
-                    text = "Create Group",
-                    style = MaterialTheme.typography.labelLarge,
-                    fontWeight = FontWeight.Bold
-                )
-            }
-        }
-    }
-
-    if (showAvatarPicker) {
-        GroupAvatarPickerSheet(
-            currentKey = avatarKey,
-            aiSuggestedKey = aiSuggestedKey,
-            onDismiss = { showAvatarPicker = false },
-            onSelect = { selectedKey ->
-                avatarKey = selectedKey
-                isManualSelection = true
-                isAiSuggested = (selectedKey == aiSuggestedKey)
-            }
-        )
-    }
-}
+private val GROUP_TYPES = listOf("Home" to "home", "Trip" to "travel", "Food" to "food", "Work" to "work", "Party" to "party", "Other" to "money")
+private val CURRENCIES = listOf("INR", "USD", "EUR", "GBP", "JPY", "AUD", "CAD", "SGD", "AED")
 
 /**
- * Backward compatibility alias
+ * New-group form. One screen, no dead space: name first (focused), type chips that also pick
+ * the avatar, currency as a dropdown, and Create in the header the way full-screen dialogs do.
  */
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class, androidx.compose.material3.ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun CreateGroupDialog(
     onDismiss: () -> Unit,
-    onCreate: (name: String, currency: String, avatarKey: String?) -> Unit
+    onCreate: (name: String, currency: String, avatarKey: String?) -> Unit,
+    defaultCurrency: String = "INR"
 ) {
-    CreateGroupBottomSheet(onDismiss = onDismiss, onCreate = onCreate)
+    var name by remember { mutableStateOf("") }
+    var type by remember { mutableStateOf<String?>(null) }
+    var avatarKey by remember { mutableStateOf<String?>(null) }
+    var avatarPickedByHand by remember { mutableStateOf(false) }
+    var avatarSuggested by remember { mutableStateOf(false) }
+    var showAvatars by remember { mutableStateOf(false) }
+    var currency by remember { mutableStateOf(defaultCurrency) }
+    var currencyMenu by remember { mutableStateOf(false) }
+    val focus = remember { FocusRequester() }
+    val aiService = LocalAiService.current
+    val canCreate = name.trim().length >= 2
+
+    LaunchedEffect(Unit) { delay(150); runCatching { focus.requestFocus() } }
+
+    // Avatar follows the name (local heuristic instantly, AI after a pause) unless chosen by hand.
+    LaunchedEffect(name) {
+        if (avatarPickedByHand) return@LaunchedEffect
+        val trimmed = name.trim()
+        if (trimmed.isBlank()) { if (type == null) { avatarKey = null; avatarSuggested = false }; return@LaunchedEffect }
+        AiHeuristics.avatarKeyFor(trimmed)?.let { avatarKey = it; avatarSuggested = true }
+        delay(700)
+        if (name.trim() == trimmed) aiService.suggestAvatarKey(trimmed, GroupAvatarPresets.all.map { it.key })?.let { avatarKey = it; avatarSuggested = true }
+    }
+
+    ModalBottomSheet(onDismissRequest = onDismiss, sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = OpenSplitTokens.SpaceLG)
+                .padding(bottom = OpenSplitTokens.SpaceXL),
+            verticalArrangement = Arrangement.spacedBy(OpenSplitTokens.SpaceLG)
+        ) {
+            // Header: close · title · primary action (full-screen dialog pattern)
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                IconButton(shapes = IconButtonDefaults.shapes(), onClick = onDismiss) { SymbolIcon(OpenSplitIcons.Close, contentDescription = "Close") }
+                Text("New group", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
+                Button(enabled = canCreate, shapes = androidx.compose.material3.ButtonDefaults.shapes(), onClick = { onCreate(name.trim(), currency, avatarKey) }) { Text("Create") }
+            }
+
+            // Avatar + name side by side
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(OpenSplitTokens.SpaceMD)) {
+                Box(modifier = Modifier.size(76.dp)) {
+                    GroupAvatar(
+                        name = name.ifBlank { "G" }, avatarKey = avatarKey, size = 72.dp,
+                        modifier = Modifier.align(Alignment.TopStart).clip(CircleShape).clickable { showAvatars = !showAvatars }
+                    )
+                    // Edit badge overlaps the avatar's corner; it is outside the avatar's clip so it never gets cut.
+                    Surface(
+                        onClick = { showAvatars = !showAvatars },
+                        shape = CircleShape,
+                        color = MaterialTheme.colorScheme.primary,
+                        border = androidx.compose.foundation.BorderStroke(2.dp, MaterialTheme.colorScheme.surface),
+                        modifier = Modifier.size(28.dp).align(Alignment.BottomEnd)
+                    ) {
+                        Box(contentAlignment = Alignment.Center) {
+                            SymbolIcon(OpenSplitIcons.Edit, contentDescription = "Choose avatar", tint = MaterialTheme.colorScheme.onPrimary, modifier = Modifier.size(14.dp))
+                        }
+                    }
+                }
+                OutlinedTextField(
+                    value = name,
+                    onValueChange = { if (it.length <= 40) name = it },
+                    label = { Text("Group name") },
+                    placeholder = { Text("Goa trip, Flat 4B…") },
+                    singleLine = true,
+                    supportingText = if (avatarSuggested && !avatarPickedByHand) ({ Row { AiBadge(label = "Avatar suggested") } }) else null,
+                    keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Words, imeAction = ImeAction.Done),
+                    modifier = Modifier.weight(1f).focusRequester(focus)
+                )
+            }
+
+            AnimatedVisibility(visible = showAvatars) {
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    GroupAvatarPresets.all.forEach { preset ->
+                        val selected = preset.key == avatarKey
+                        Surface(
+                            onClick = { avatarKey = preset.key; avatarPickedByHand = true; avatarSuggested = false; showAvatars = false },
+                            shape = CircleShape,
+                            color = if (selected) MaterialTheme.colorScheme.primaryContainer else preset.color.copy(alpha = 0.15f),
+                            border = if (selected) androidx.compose.foundation.BorderStroke(2.dp, MaterialTheme.colorScheme.primary) else null,
+                            modifier = Modifier.size(44.dp)
+                        ) {
+                            Box(contentAlignment = Alignment.Center) { Text(preset.emoji, style = MaterialTheme.typography.titleMedium) }
+                        }
+                    }
+                }
+            }
+
+            // Type: one tap sets a sensible avatar too
+            Column(verticalArrangement = Arrangement.spacedBy(OpenSplitTokens.SpaceXS)) {
+                Text("What's it for?", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                // Expressive toggle buttons: one connected row that wraps on narrow widths.
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(androidx.compose.material3.ButtonGroupDefaults.ConnectedSpaceBetween), verticalArrangement = Arrangement.spacedBy(OpenSplitTokens.SpaceSM)) {
+                    GROUP_TYPES.forEach { (label, key) ->
+                        val preset = GroupAvatarPresets.all.firstOrNull { it.key == key }
+                        androidx.compose.material3.ToggleButton(
+                            checked = type == label,
+                            onCheckedChange = {
+                                type = label
+                                if (!avatarPickedByHand) { avatarKey = key; avatarSuggested = false }
+                            }
+                        ) {
+                            preset?.let { Text(it.emoji); Spacer(Modifier.width(6.dp)) }
+                            Text(label)
+                        }
+                    }
+                }
+            }
+
+            // Currency
+            ExposedDropdownMenuBox(expanded = currencyMenu, onExpandedChange = { currencyMenu = it }) {
+                OutlinedTextField(
+                    value = "${CurrencyFormatter.getCurrencyFlag(currency)} $currency · ${CurrencyFormatter.getCurrencySymbol(currency)}",
+                    onValueChange = {}, readOnly = true, singleLine = true,
+                    label = { Text("Currency") },
+                    supportingText = { Text("Locked once the group has expenses") },
+                    trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = currencyMenu) },
+                    modifier = Modifier.fillMaxWidth().menuAnchor(androidx.compose.material3.MenuAnchorType.PrimaryNotEditable)
+                )
+                ExposedDropdownMenu(expanded = currencyMenu, onDismissRequest = { currencyMenu = false }) {
+                    CURRENCIES.forEach { c ->
+                        DropdownMenuItem(
+                            text = { Text("${CurrencyFormatter.getCurrencyFlag(c)} $c · ${CurrencyFormatter.getCurrencySymbol(c)}") },
+                            onClick = { currency = c; currencyMenu = false }
+                        )
+                    }
+                }
+            }
+
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                SymbolIcon(OpenSplitIcons.QrCode, contentDescription = null, modifier = Modifier.size(18.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                Spacer(Modifier.width(OpenSplitTokens.SpaceSM))
+                Text("You're the first member. Invite others with a link or QR code once the group exists.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+            Spacer(Modifier.height(OpenSplitTokens.SpaceSM))
+        }
+    }
 }

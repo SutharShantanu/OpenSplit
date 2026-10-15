@@ -1,5 +1,8 @@
+@file:OptIn(androidx.compose.material3.ExperimentalMaterial3ExpressiveApi::class)
+
 package com.opensplit.ui.screens
 
+import com.opensplit.ui.components.SymbolIcon
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -7,11 +10,6 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.automirrored.rounded.Send
-import androidx.compose.material.icons.rounded.Delete
-import androidx.compose.material.icons.rounded.Edit
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -39,6 +37,7 @@ fun ExpenseDetailScreen(
     var commentText by remember { mutableStateOf("") }
     var showDeleteConfirmDialog by remember { mutableStateOf(false) }
     val snackbar = LocalSnackbarController.current
+    val busy = com.opensplit.ui.components.LocalBusy.current
 
     Scaffold(
         topBar = {
@@ -52,21 +51,21 @@ fun ExpenseDetailScreen(
                     )
                 },
                 navigationIcon = {
-                    IconButton(onClick = onNavigateBack) {
-                        Icon(OpenSplitIcons.Back, contentDescription = "Back")
+                    IconButton(shapes = IconButtonDefaults.shapes(), onClick = onNavigateBack) {
+                        SymbolIcon(OpenSplitIcons.Back, contentDescription = "Back")
                     }
                 },
                 actions = {
-                    IconButton(onClick = onNavigateToEdit) {
-                        Icon(
-                            imageVector = OpenSplitIcons.Edit,
+                    IconButton(shapes = IconButtonDefaults.shapes(), onClick = onNavigateToEdit) {
+                        SymbolIcon(
+                            symbol = OpenSplitIcons.Edit,
                             contentDescription = "Edit Expense",
                             tint = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
-                    IconButton(onClick = { showDeleteConfirmDialog = true }) {
-                        Icon(
-                            imageVector = OpenSplitIcons.Delete,
+                    IconButton(shapes = IconButtonDefaults.shapes(), onClick = { showDeleteConfirmDialog = true }) {
+                        SymbolIcon(
+                            symbol = OpenSplitIcons.Delete,
                             contentDescription = "Delete Expense",
                             tint = MaterialTheme.colorScheme.error
                         )
@@ -118,8 +117,8 @@ fun ExpenseDetailScreen(
                                             .background(MaterialTheme.colorScheme.secondaryContainer),
                                         contentAlignment = Alignment.Center
                                     ) {
-                                        Icon(
-                                            imageVector = OpenSplitIcons.CategoryFood,
+                                        SymbolIcon(
+                                            symbol = OpenSplitIcons.CategoryFood,
                                             contentDescription = null,
                                             tint = MaterialTheme.colorScheme.onSecondaryContainer,
                                             modifier = Modifier.size(28.dp)
@@ -255,6 +254,27 @@ fun ExpenseDetailScreen(
                             }
                         }
 
+                        // Edit history (who changed what)
+                        if (exp.history.isNotEmpty()) {
+                            Text(text = "History", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                            Card(
+                                modifier = Modifier.fillMaxWidth(),
+                                shape = RoundedCornerShape(16.dp),
+                                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer)
+                            ) {
+                                Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                    exp.history.takeLast(5).reversed().forEach { change ->
+                                        val who = detailState.memberNames[change.uid] ?: "Someone"
+                                        val whenStr = SimpleDateFormat("MMM d, h:mm a", Locale.getDefault()).format(change.timestamp.toDate())
+                                        Text("$who · $whenStr", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                        change.changes.forEach { line ->
+                                            Text("• $line", style = MaterialTheme.typography.bodySmall)
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
                         // Comments / Notes
                         Text(
                             text = "Comments & Notes",
@@ -305,7 +325,7 @@ fun ExpenseDetailScreen(
                                 singleLine = true
                             )
                             Spacer(modifier = Modifier.width(8.dp))
-                            IconButton(
+                            IconButton(shapes = IconButtonDefaults.shapes(), 
                                 onClick = {
                                     if (commentText.isNotBlank()) {
                                         viewModel.addComment(commentText)
@@ -314,7 +334,7 @@ fun ExpenseDetailScreen(
                                 },
                                 enabled = commentText.isNotBlank()
                             ) {
-                                Icon(Icons.AutoMirrored.Rounded.Send, contentDescription = "Send comment", tint = MaterialTheme.colorScheme.primary)
+                                SymbolIcon(OpenSplitIcons.Send, contentDescription = "Send comment", tint = MaterialTheme.colorScheme.primary)
                             }
                         }
                     }
@@ -331,8 +351,8 @@ fun ExpenseDetailScreen(
         AlertDialog(
             onDismissRequest = { showDeleteConfirmDialog = false },
             icon = {
-                Icon(
-                    imageVector = OpenSplitIcons.DeleteForever,
+                SymbolIcon(
+                    symbol = OpenSplitIcons.DeleteForever,
                     contentDescription = null,
                     tint = MaterialTheme.colorScheme.error,
                     modifier = Modifier.size(32.dp)
@@ -358,7 +378,9 @@ fun ExpenseDetailScreen(
             confirmButton = {
                 Button(
                     onClick = {
+                        busy.show("Deleting expense…")
                         viewModel.deleteExpense { deleted ->
+                            busy.hide()
                             showDeleteConfirmDialog = false
                             onNavigateBack()
                             if (deleted != null) {
@@ -380,7 +402,7 @@ fun ExpenseDetailScreen(
                 }
             },
             dismissButton = {
-                TextButton(onClick = { showDeleteConfirmDialog = false }) {
+                TextButton(shapes = ButtonDefaults.shapes(), onClick = { showDeleteConfirmDialog = false }) {
                     Text("Cancel", color = MaterialTheme.colorScheme.primary)
                 }
             }

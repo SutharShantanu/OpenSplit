@@ -1,3 +1,5 @@
+@file:OptIn(androidx.compose.material3.ExperimentalMaterial3ExpressiveApi::class)
+
 package com.opensplit.ui.components
 
 import androidx.compose.foundation.layout.Spacer
@@ -53,7 +55,7 @@ fun GoogleSignInButton(
     val scope = rememberCoroutineScope()
     val loading = uiState is AuthUiState.Loading
 
-    Button(
+    Button(shapes = ButtonDefaults.shapes(), 
         onClick = {
             scope.launch {
                 // Resolve the web client id the google-services plugin generates. Missing/blank
@@ -119,7 +121,7 @@ fun GoogleSignInButton(
                 } catch (e: GetCredentialException) {
                     val msg = e.message ?: "Authentication error"
                     if (msg.contains("16") || msg.contains("reauth", ignoreCase = true) || msg.contains("Canceled", ignoreCase = true)) {
-                        snackbar.showMessage("Google Sign-In failed [16]: Please ensure SHA-1 'F3:1A:A8:65:FC:48:A7:DF:01:ED:41:93:9B:5C:9B:F3:63:63:0C:4D' is added in Firebase Console.")
+                        snackbar.showMessage("Google Sign-In failed [16]: this build's signing SHA-1 is not registered in the Firebase console.")
                     } else {
                         snackbar.showMessage("Google Sign-In failed: $msg")
                     }
@@ -130,7 +132,6 @@ fun GoogleSignInButton(
         },
         enabled = !loading,
         modifier = modifier,
-        shape = MaterialTheme.shapes.large,
         colors = ButtonDefaults.buttonColors(
             containerColor = MaterialTheme.colorScheme.surfaceContainerHighest,
             contentColor = MaterialTheme.colorScheme.onSurface

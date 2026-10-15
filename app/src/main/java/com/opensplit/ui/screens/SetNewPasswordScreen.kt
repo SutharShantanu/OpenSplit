@@ -1,5 +1,9 @@
+@file:OptIn(androidx.compose.material3.ExperimentalMaterial3ExpressiveApi::class)
+
 package com.opensplit.ui.screens
 
+import com.opensplit.ui.theme.Symbol
+import com.opensplit.ui.components.SymbolIcon
 import com.opensplit.ui.components.AppLoadingIndicator
 
 import androidx.compose.foundation.layout.*
@@ -77,7 +81,7 @@ fun SetNewPasswordScreen(
                         horizontalAlignment = Alignment.CenterHorizontally,
                         verticalArrangement = Arrangement.Center
                     ) {
-                        Icon(
+                        SymbolIcon(
                             OpenSplitIcons.Success,
                             contentDescription = null,
                             modifier = Modifier.size(64.dp),
@@ -92,7 +96,7 @@ fun SetNewPasswordScreen(
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                         Spacer(modifier = Modifier.height(OpenSplitTokens.SpaceLG))
-                        Button(onClick = onDone) { Text("Continue") }
+                        Button(shapes = ButtonDefaults.shapes(), onClick = onDone) { Text("Continue") }
                     }
                 }
                 errorMessage != null -> {
@@ -101,7 +105,7 @@ fun SetNewPasswordScreen(
                         horizontalAlignment = Alignment.CenterHorizontally,
                         verticalArrangement = Arrangement.Center
                     ) {
-                        Icon(
+                        SymbolIcon(
                             OpenSplitIcons.ErrorIcon,
                             contentDescription = null,
                             modifier = Modifier.size(64.dp),
@@ -116,7 +120,7 @@ fun SetNewPasswordScreen(
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                         Spacer(modifier = Modifier.height(OpenSplitTokens.SpaceLG))
-                        Button(onClick = onDone) { Text("Close") }
+                        Button(shapes = ButtonDefaults.shapes(), onClick = onDone) { Text("Close") }
                     }
                 }
                 else -> {
@@ -134,8 +138,8 @@ fun SetNewPasswordScreen(
                         visualTransformation = if (newVisible) VisualTransformation.None else PasswordVisualTransformation(),
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
                         trailingIcon = {
-                            IconButton(onClick = { newVisible = !newVisible }) {
-                                Icon(
+                            IconButton(shapes = IconButtonDefaults.shapes(), onClick = { newVisible = !newVisible }) {
+                                SymbolIcon(
                                     if (newVisible) OpenSplitIcons.VisibilityOff else OpenSplitIcons.VisibilityOn,
                                     contentDescription = if (newVisible) "Hide password" else "Show password"
                                 )
@@ -151,7 +155,7 @@ fun SetNewPasswordScreen(
                             PasswordStrength.STRONG -> Color(0xFF2E7D32) to 1f
                         }
                         Column {
-                            LinearProgressIndicator(
+                            androidx.compose.material3.LinearWavyProgressIndicator(
                                 progress = { fraction },
                                 modifier = Modifier
                                     .fillMaxWidth()
@@ -177,8 +181,8 @@ fun SetNewPasswordScreen(
                         visualTransformation = if (repeatVisible) VisualTransformation.None else PasswordVisualTransformation(),
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
                         trailingIcon = {
-                            IconButton(onClick = { repeatVisible = !repeatVisible }) {
-                                Icon(
+                            IconButton(shapes = IconButtonDefaults.shapes(), onClick = { repeatVisible = !repeatVisible }) {
+                                SymbolIcon(
                                     if (repeatVisible) OpenSplitIcons.VisibilityOff else OpenSplitIcons.VisibilityOn,
                                     contentDescription = if (repeatVisible) "Hide password" else "Show password"
                                 )
@@ -194,7 +198,7 @@ fun SetNewPasswordScreen(
 
                     Spacer(modifier = Modifier.weight(1f))
 
-                    Button(
+                    Button(shapes = ButtonDefaults.shapes(), 
                         onClick = {
                             isSubmitting = true
                             scope.launch {
@@ -219,7 +223,7 @@ fun SetNewPasswordScreen(
                         }
                     }
 
-                    TextButton(onClick = onDone, modifier = Modifier.fillMaxWidth()) {
+                    TextButton(shapes = ButtonDefaults.shapes(), onClick = onDone, modifier = Modifier.fillMaxWidth()) {
                         Text("Cancel")
                     }
                 }

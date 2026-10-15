@@ -1,3 +1,5 @@
+@file:OptIn(androidx.compose.material3.ExperimentalMaterial3ExpressiveApi::class)
+
 package com.opensplit.ui.components
 
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -23,14 +25,14 @@ fun AppSearchBar(
         modifier = modifier.fillMaxWidth(),
         placeholder = { Text(placeholderText) },
         leadingIcon = {
-            Icon(OpenSplitIcons.Search, contentDescription = "Search")
+            SymbolIcon(OpenSplitIcons.Search, contentDescription = "Search")
         },
         trailingIcon = {
             if (isLoading) {
                 AppLoadingIndicator(size = 20.dp)
             } else if (query.isNotEmpty()) {
-                IconButton(onClick = { onQueryChange("") }) {
-                    Icon(OpenSplitIcons.Close, contentDescription = "Clear")
+                IconButton(shapes = IconButtonDefaults.shapes(), onClick = { onQueryChange("") }) {
+                    SymbolIcon(OpenSplitIcons.Close, contentDescription = "Clear")
                 }
             }
         },

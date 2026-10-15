@@ -1,5 +1,6 @@
 package com.opensplit.ui.components
 
+import com.opensplit.ui.theme.Symbol
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -7,7 +8,6 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
 import com.opensplit.ui.theme.OpenSplitIcons
 import com.opensplit.ui.theme.OpenSplitTokens
@@ -34,7 +34,7 @@ fun getCategoryColor(category: String): Color {
     }
 }
 
-fun getCategoryIcon(category: String): ImageVector {
+fun getCategoryIcon(category: String): Symbol {
     return when (category.lowercase()) {
         "food", "food & drink", "dining" -> OpenSplitIcons.CategoryFood
         "transport", "transportation" -> OpenSplitIcons.CategoryTransport
@@ -86,8 +86,8 @@ fun CategoryChipRow(
                 onClick = { onCategorySelected(category) },
                 label = { Text(category) },
                 leadingIcon = {
-                    Icon(
-                        imageVector = icon,
+                    SymbolIcon(
+                        symbol = icon,
                         contentDescription = null,
                         modifier = Modifier.size(18.dp),
                         // Tint follows the category color; on the selected tonal container it stays legible.

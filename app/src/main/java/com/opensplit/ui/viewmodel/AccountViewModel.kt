@@ -28,6 +28,7 @@ class AccountViewModel(
 ) : ViewModel() {
 
     private val retryTrigger = MutableStateFlow(0)
+    fun retry() { retryTrigger.value++ }
 
     val themeFlow = userPreferencesRepository.themeFlow
     val notificationsEnabledFlow = userPreferencesRepository.notificationsEnabledFlow
@@ -69,6 +70,20 @@ class AccountViewModel(
     val providerApiKeysFlow = userPreferencesRepository.providerApiKeysFlow
     val customEndpointFlow = userPreferencesRepository.customEndpointFlow
     val customModelFlow = userPreferencesRepository.customModelFlow
+    val aiEnabledFlow = userPreferencesRepository.aiEnabledFlow
+    val aiDisabledFeaturesFlow = userPreferencesRepository.aiDisabledFeaturesFlow
+    val providerModelsFlow = userPreferencesRepository.providerModelsFlow
+    val aiUsageFlow = userPreferencesRepository.aiUsageFlow
+
+    fun setAiEnabled(enabled: Boolean) { viewModelScope.launch { userPreferencesRepository.setAiEnabled(enabled) } }
+    fun setAiFeatureEnabled(featureId: String, enabled: Boolean) { viewModelScope.launch { userPreferencesRepository.setAiFeatureEnabled(featureId, enabled) } }
+    fun setProviderModel(providerId: String, model: String) { viewModelScope.launch { userPreferencesRepository.setProviderModel(providerId, model) } }
+    fun testAiKey(providerId: String, key: String, endpoint: String?, model: String?, onResult: (Result<String>) -> Unit) {
+        viewModelScope.launch {
+            val result = com.opensplit.data.ai.AiService(userPreferencesRepository).testKey(providerId, key, endpoint, model)
+            onResult(result)
+        }
+    }
 
     fun setAiProvider(provider: String) {
         viewModelScope.launch {

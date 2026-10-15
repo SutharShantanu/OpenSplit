@@ -52,6 +52,8 @@ interface FriendRepository {
 interface GroupRepository {
     fun getGroupsForUser(userId: String): Flow<List<Group>>
     suspend fun getGroup(groupId: String): Group?
+    /** The hidden two-person group between [me] and [other], created on first use. */
+    suspend fun getOrCreateDirectGroup(me: String, other: String, currency: String): Result<Group>
     suspend fun createGroup(group: Group): Result<String>
     suspend fun updateGroup(group: Group): Result<Unit>
     suspend fun deleteGroup(groupId: String): Result<Unit>
@@ -63,8 +65,15 @@ interface ExpenseRepository {
     fun getCommentsForExpense(groupId: String, expenseId: String): Flow<List<com.opensplit.domain.model.Comment>>
     suspend fun addComment(groupId: String, expenseId: String, comment: com.opensplit.domain.model.Comment): Result<String>
     suspend fun addExpense(expense: Expense): Result<String>
-    suspend fun updateExpense(expense: Expense): Result<Unit>
+    /** Saves [expense] and appends an edit-history entry attributed to [actorUid]. */
+    suspend fun updateExpense(expense: Expense, actorUid: String = expense.createdBy): Result<Unit>
+    /** Soft delete: hides the expense and stamps deletedAt so it can be restored for 90 days. */
     suspend fun deleteExpense(groupId: String, expenseId: String): Result<Unit>
+    suspend fun restoreExpense(groupId: String, expenseId: String): Result<Unit>
+    /** Permanent delete; only offered from "Recently deleted". */
+    suspend fun purgeExpense(groupId: String, expenseId: String): Result<Unit>
+    /** Soft-deleted expenses across [groupIds], newest deletion first, within the 90-day window. */
+    fun getDeletedExpensesForGroups(groupIds: List<String>): Flow<List<Expense>>
     /** Recurring templates in a group whose next occurrence is due (<= nowSeconds). */
     suspend fun getDueRecurringExpenses(groupId: String, nowSeconds: Long): List<Expense>
 }
@@ -82,8 +91,15 @@ interface PendingInviteRepository {
 
 interface FriendInviteRepository {
     fun getInvites(inviterUid: String): Flow<List<com.opensplit.domain.model.FriendInvite>>
-    suspend fun sendInvite(inviterUid: String, email: String): Result<String>
+    suspend fun sendInvite(inviterUid: String, email: String, inviterName: String = ""): Result<String>
     suspend fun revokeInvite(inviteId: String): Result<Unit>
+    /** Pending requests addressed to [email] (the signed-in user's). */
+    fun getIncomingInvites(email: String): Flow<List<com.opensplit.domain.model.FriendInvite>>
+    suspend fun respond(inviteId: String, accept: Boolean): Result<Unit>
+    /** A shareable "add me" link for [uid]; reused while valid, 30-day expiry. Returns the full URL. */
+    suspend fun getOrCreateFriendLink(uid: String, displayName: String): Result<String>
+    /** Resolves a friend link and creates the direct group; returns the link owner's uid. */
+    suspend fun acceptFriendLink(token: String, me: String, currency: String): Result<String>
 }
 
 interface ActivityRepository {
@@ -96,3 +112,14 @@ interface StorageRepository {
     /** Uploads a locally-picked receipt (image or PDF) and returns its public download URL. */
     suspend fun uploadReceipt(groupId: String, localUri: android.net.Uri): Result<String>
 }
+
+interface InviteLinkRepository {
+    /** Creates a link for [group]; [expiresInSeconds] null = never, [maxUses] 0 = unlimited. */
+    suspend fun create(group: Group, createdBy: String, expiresInSeconds: Long?, maxUses: Int): Result<com.opensplit.domain.model.InviteLink>
+    suspend fun get(token: String): com.opensplit.domain.model.InviteLink?
+    fun linksForGroup(groupId: String): Flow<List<com.opensplit.domain.model.InviteLink>>
+    suspend fun revoke(token: String): Result<Unit>
+    /** Validates the link and adds [uid] to the group. Returns the group id on success. */
+    suspend fun join(token: String, uid: String): Result<String>
+}
+

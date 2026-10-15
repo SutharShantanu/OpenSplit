@@ -36,7 +36,7 @@ class PendingInviteRepositoryImpl(
     override suspend fun addInvite(invite: PendingInvite): Result<String> {
         return try {
             val docRef = invitesRef(invite.groupId).document()
-            docRef.set(invite.copy(id = docRef.id)).await()
+            docRef.set(invite.copy(id = docRef.id)).awaitWrite()
             Result.success(docRef.id)
         } catch (e: Exception) {
             Result.failure(e)
@@ -45,7 +45,7 @@ class PendingInviteRepositoryImpl(
 
     override suspend fun revokeInvite(groupId: String, inviteId: String): Result<Unit> {
         return try {
-            invitesRef(groupId).document(inviteId).delete().await()
+            invitesRef(groupId).document(inviteId).delete().awaitWrite()
             Result.success(Unit)
         } catch (e: Exception) {
             Result.failure(e)

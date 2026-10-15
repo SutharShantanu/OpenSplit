@@ -1,5 +1,8 @@
+@file:OptIn(androidx.compose.material3.ExperimentalMaterial3ExpressiveApi::class)
+
 package com.opensplit.ui.screens
 
+import com.opensplit.ui.components.SymbolIcon
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -8,6 +11,8 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
+import kotlinx.coroutines.launch
+import com.opensplit.domain.model.NotificationType
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
@@ -27,13 +32,20 @@ import com.opensplit.ui.theme.OpenSplitIcons
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun NotificationSettingsScreen(
-    onNavigateBack: () -> Unit
+    onNavigateBack: () -> Unit,
+    prefs: com.opensplit.domain.repository.UserPreferencesRepository? = null
 ) {
     val snackbar = LocalSnackbarController.current
-    var newExpensesEnabled by rememberSaveable { mutableStateOf(true) }
-    var expenseUpdatesEnabled by rememberSaveable { mutableStateOf(true) }
-    var paymentRequestsEnabled by rememberSaveable { mutableStateOf(true) }
-    var automaticRemindersEnabled by rememberSaveable { mutableStateOf(false) }
+    val scope = androidx.compose.runtime.rememberCoroutineScope()
+    val disabled by (prefs?.disabledNotificationTypesFlow ?: kotlinx.coroutines.flow.flowOf(emptySet<String>())).collectAsState(initial = emptySet())
+    fun on(type: com.opensplit.domain.model.NotificationType) = type.id !in disabled
+    fun set(type: com.opensplit.domain.model.NotificationType, enabled: Boolean) {
+        scope.launch { prefs?.setNotificationTypeEnabled(type.id, enabled) }
+    }
+    val newExpensesEnabled = on(NotificationType.EXPENSE_ADDED)
+    val expenseUpdatesEnabled = on(NotificationType.EXPENSE_EDITED)
+    val paymentRequestsEnabled = on(NotificationType.PAYMENT)
+    val automaticRemindersEnabled = on(NotificationType.REMINDER)
 
     Scaffold(
         topBar = {
@@ -46,8 +58,8 @@ fun NotificationSettingsScreen(
                     )
                 },
                 navigationIcon = {
-                    IconButton(onClick = onNavigateBack) {
-                        Icon(OpenSplitIcons.Back, contentDescription = "Back")
+                    IconButton(shapes = IconButtonDefaults.shapes(), onClick = onNavigateBack) {
+                        SymbolIcon(OpenSplitIcons.Back, contentDescription = "Back")
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
@@ -99,8 +111,8 @@ fun NotificationSettingsScreen(
                         horizontalArrangement = Arrangement.spacedBy(12.dp),
                         modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
                     ) {
-                        Icon(
-                            imageVector = OpenSplitIcons.ReceiptLong,
+                        SymbolIcon(
+                            symbol = OpenSplitIcons.ReceiptLong,
                             contentDescription = null,
                             tint = MaterialTheme.colorScheme.primary,
                             modifier = Modifier.size(24.dp)
@@ -124,7 +136,7 @@ fun NotificationSettingsScreen(
                                 subtitle = "When someone adds a new expense involving you.",
                                 checked = newExpensesEnabled,
                                 onCheckedChange = {
-                                    newExpensesEnabled = it
+                                    set(NotificationType.EXPENSE_ADDED, it)
                                     snackbar.showMessage(if (it) "New expense alerts enabled" else "New expense alerts disabled")
                                 }
                             )
@@ -139,7 +151,7 @@ fun NotificationSettingsScreen(
                                 subtitle = "Changes to amount, date, or split logic on your expenses.",
                                 checked = expenseUpdatesEnabled,
                                 onCheckedChange = {
-                                    expenseUpdatesEnabled = it
+                                    set(NotificationType.EXPENSE_EDITED, it)
                                     snackbar.showMessage(if (it) "Expense update alerts enabled" else "Expense update alerts disabled")
                                 }
                             )
@@ -167,8 +179,8 @@ fun NotificationSettingsScreen(
                         horizontalArrangement = Arrangement.spacedBy(12.dp),
                         modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
                     ) {
-                        Icon(
-                            imageVector = OpenSplitIcons.Payments,
+                        SymbolIcon(
+                            symbol = OpenSplitIcons.Payments,
                             contentDescription = null,
                             tint = MaterialTheme.colorScheme.primary,
                             modifier = Modifier.size(24.dp)
@@ -192,7 +204,7 @@ fun NotificationSettingsScreen(
                                 subtitle = "When someone sends you a reminder to settle up.",
                                 checked = paymentRequestsEnabled,
                                 onCheckedChange = {
-                                    paymentRequestsEnabled = it
+                                    set(NotificationType.PAYMENT, it)
                                     snackbar.showMessage(if (it) "Payment request reminders enabled" else "Payment request reminders disabled")
                                 }
                             )
@@ -207,7 +219,7 @@ fun NotificationSettingsScreen(
                                 subtitle = "Weekly digest of outstanding balances you owe.",
                                 checked = automaticRemindersEnabled,
                                 onCheckedChange = {
-                                    automaticRemindersEnabled = it
+                                    set(NotificationType.REMINDER, it)
                                     snackbar.showMessage(if (it) "Weekly digest reminders enabled" else "Weekly digest reminders disabled")
                                 }
                             )

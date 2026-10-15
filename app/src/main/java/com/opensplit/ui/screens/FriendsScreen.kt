@@ -1,9 +1,14 @@
+@file:OptIn(androidx.compose.material3.ExperimentalMaterial3ExpressiveApi::class)
+
 package com.opensplit.ui.screens
 
+import com.opensplit.ui.components.SymbolIcon
 import com.opensplit.ui.components.LocalSnackbarController
 
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
@@ -32,17 +37,22 @@ import kotlin.math.abs
 enum class FriendFilterOption(val label: String) {
     ALL("All"),
     OWED_TO_YOU("Owed to you"),
-    YOU_OWE("You owe")
+    YOU_OWE("You owe"),
+    SETTLED("Settled")
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun FriendsScreen(
     viewModel: MainViewModel,
-    onFriendClick: (String) -> Unit
+    onFriendClick: (String) -> Unit,
+    onAddExpense: (groupId: String) -> Unit = {},
+    onSettleUp: (groupId: String) -> Unit = {}
 ) {
+    val busy = com.opensplit.ui.components.LocalBusy.current
     val friendsState by viewModel.friendsBalances.collectAsState()
     val friendInvites by viewModel.friendInvites.collectAsState()
+    val incomingInvites by viewModel.incomingFriendInvites.collectAsState()
     var searchQuery by rememberSaveable { mutableStateOf("") }
     var selectedFilter by rememberSaveable { mutableStateOf(FriendFilterOption.ALL) }
     var showInviteDialog by rememberSaveable { mutableStateOf(false) }
@@ -55,6 +65,46 @@ fun FriendsScreen(
                 .fillMaxSize()
                 .padding(horizontal = OpenSplitTokens.SpaceLG, vertical = OpenSplitTokens.SpaceMD)
         ) {
+        // Friend requests addressed to me
+        if (incomingInvites.isNotEmpty()) {
+            Spacer(modifier = Modifier.height(OpenSplitTokens.SpaceMD))
+            Text(
+                text = "Friend requests (${incomingInvites.size})",
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.primary
+            )
+            Spacer(modifier = Modifier.height(OpenSplitTokens.SpaceXS))
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = MaterialTheme.shapes.large,
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.35f))
+            ) {
+                Column {
+                    incomingInvites.forEachIndexed { index, invite ->
+                        if (index > 0) HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f))
+                        ListItem(
+                            colors = ListItemDefaults.colors(containerColor = androidx.compose.ui.graphics.Color.Transparent),
+                            headlineContent = { Text(invite.inviterName.ifBlank { "Someone" }, fontWeight = FontWeight.SemiBold) },
+                            supportingContent = { Text("wants to split expenses with you", style = MaterialTheme.typography.bodySmall) },
+                            trailingContent = {
+                                Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                                    TextButton(shapes = ButtonDefaults.shapes(), onClick = {
+                                        viewModel.respondToFriendInvite(invite, accept = false) { snackbar.showMessage("Request ignored") }
+                                    }) { Text("Ignore") }
+                                    Button(shapes = ButtonDefaults.shapes(), onClick = {
+                                        viewModel.respondToFriendInvite(invite, accept = true) { ok ->
+                                            snackbar.showMessage(if (ok) "You're now friends with ${invite.inviterName.ifBlank { "them" }}" else "Couldn't accept")
+                                        }
+                                    }) { Text("Accept") }
+                                }
+                            }
+                        )
+                    }
+                }
+            }
+        }
+
         // Pending invites
         if (friendInvites.isNotEmpty()) {
             Spacer(modifier = Modifier.height(OpenSplitTokens.SpaceMD))
@@ -91,6 +141,7 @@ fun FriendsScreen(
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
+                        .verticalScroll(rememberScrollState()) // lets pull-to-refresh catch the gesture
                         .padding(24.dp),
                     contentAlignment = Alignment.Center
                 ) {
@@ -113,18 +164,10 @@ fun FriendsScreen(
                             textAlign = TextAlign.Center
                         )
                         Spacer(modifier = Modifier.height(24.dp))
-                        Button(
+                        Button(shapes = ButtonDefaults.shapes(), 
                             onClick = { showInviteDialog = true },
-                            modifier = Modifier
-                                .fillMaxWidth(0.7f)
-                                .height(56.dp),
-                            shape = CircleShape,
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = MaterialTheme.colorScheme.primary,
-                                contentColor = MaterialTheme.colorScheme.onPrimary
-                            )
                         ) {
-                            Icon(OpenSplitIcons.PersonAdd, contentDescription = null, modifier = Modifier.size(20.dp))
+                            SymbolIcon(OpenSplitIcons.PersonAdd, contentDescription = null, modifier = Modifier.size(20.dp))
                             Spacer(modifier = Modifier.width(8.dp))
                             Text("Add a Friend", fontWeight = FontWeight.Bold)
                         }
@@ -219,6 +262,7 @@ fun FriendsScreen(
                                 FriendFilterOption.ALL -> true
                                 FriendFilterOption.OWED_TO_YOU -> fb.owesYou
                                 FriendFilterOption.YOU_OWE -> fb.youOwe
+                                FriendFilterOption.SETTLED -> !fb.owesYou && !fb.youOwe
                             }
                             matchesSearch && matchesFilter
                         }.sortedByDescending { it.maxMagnitude }
@@ -246,6 +290,25 @@ fun FriendsScreen(
                                 }
                             }
 
+                            val openDirect: (String, (String) -> Unit) -> Unit = { label, go ->
+                                busy.show(label)
+                                viewModel.openDirectGroup(fb.user.uid) { gId ->
+                                    busy.hide()
+                                    if (gId != null) go(gId) else snackbar.showMessage("Couldn't open a direct group with ${fb.user.displayName}")
+                                }
+                            }
+                            com.opensplit.ui.components.SwipeActionRow(
+                                startAction = com.opensplit.ui.components.SwipeAction(
+                                    icon = OpenSplitIcons.AddExpense, label = "Expense",
+                                    container = MaterialTheme.colorScheme.primaryContainer,
+                                    onContainer = MaterialTheme.colorScheme.onPrimaryContainer
+                                ) { openDirect("Opening…", onAddExpense) },
+                                endAction = com.opensplit.ui.components.SwipeAction(
+                                    icon = OpenSplitIcons.Settle, label = "Settle up",
+                                    container = MaterialTheme.colorScheme.tertiaryContainer,
+                                    onContainer = MaterialTheme.colorScheme.onTertiaryContainer
+                                ) { openDirect("Opening…", onSettleUp) }
+                            ) {
                             ListItem(
                                 modifier = Modifier
                                     .fillMaxWidth()
@@ -296,6 +359,7 @@ fun FriendsScreen(
                                     )
                                 }
                             )
+                            }
                             HorizontalDivider(color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
                         }
                     }
@@ -304,23 +368,15 @@ fun FriendsScreen(
         }
     }
 
-        FloatingActionButton(
-            onClick = { showInviteDialog = true },
-            modifier = Modifier
-                .align(Alignment.BottomEnd)
-                .padding(24.dp),
-            containerColor = MaterialTheme.colorScheme.primaryContainer,
-            contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
-            shape = RoundedCornerShape(16.dp)
-        ) {
-            Icon(OpenSplitIcons.Invite, contentDescription = "Add Friend")
-        }
     }
 
     if (showInviteDialog) {
+        val myLink by viewModel.friendLinkUrl.collectAsState()
+        androidx.compose.runtime.LaunchedEffect(Unit) { viewModel.ensureFriendLink() }
         InviteMemberDialog(
             title = "Invite a friend",
-            description = "Pick them from your contacts, or invite over WhatsApp or SMS.",
+            description = "Share your link or QR, pick a contact, or send an email request.",
+            friendInviteUrl = myLink,
             onDismiss = { showInviteDialog = false },
             onSubmitEmail = { email ->
                 viewModel.sendFriendInvite(email) { success ->
@@ -350,7 +406,7 @@ private fun InviteRow(invite: FriendInvite, onRevoke: () -> Unit) {
                 modifier = Modifier.size(40.dp)
             ) {
                 Box(contentAlignment = Alignment.Center) {
-                    Icon(
+                    SymbolIcon(
                         OpenSplitIcons.Invite,
                         contentDescription = null,
                         modifier = Modifier.size(20.dp),
@@ -360,7 +416,7 @@ private fun InviteRow(invite: FriendInvite, onRevoke: () -> Unit) {
             }
         },
         trailingContent = {
-            TextButton(onClick = onRevoke) {
+            TextButton(shapes = ButtonDefaults.shapes(), onClick = onRevoke) {
                 Text("Revoke", color = MaterialTheme.colorScheme.error)
             }
         }

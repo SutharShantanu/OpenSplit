@@ -1,5 +1,9 @@
+@file:OptIn(androidx.compose.material3.ExperimentalMaterial3ExpressiveApi::class)
+
 package com.opensplit.ui.screens
 
+import com.opensplit.ui.theme.Symbol
+import com.opensplit.ui.components.SymbolIcon
 import com.opensplit.ui.components.LocalSnackbarController
 
 import com.opensplit.ui.components.AppLoadingIndicator
@@ -14,7 +18,11 @@ import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.runtime.rememberCoroutineScope
-import com.opensplit.data.ai.GeminiReceiptParser
+import com.opensplit.data.ai.AiHeuristics
+import com.opensplit.data.ai.AiFeature
+import com.opensplit.ui.components.AiBadge
+import com.opensplit.ui.components.LocalAiService
+import androidx.compose.foundation.horizontalScroll
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -55,7 +63,7 @@ import com.opensplit.ui.theme.OpenSplitTokens
 import com.opensplit.ui.viewmodel.GroupDetailViewModel
 import com.google.firebase.Timestamp
 
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
+@OptIn(ExperimentalMaterial3Api::class, androidx.compose.material3.ExperimentalMaterial3ExpressiveApi::class, ExperimentalLayoutApi::class)
 @Composable
 fun AddExpenseScreen(
     viewModel: GroupDetailViewModel,
@@ -65,7 +73,9 @@ fun AddExpenseScreen(
     val uiState by viewModel.uiState.collectAsState()
     val context = LocalContext.current
     val snackbar = LocalSnackbarController.current
-    val sheetState = rememberModalBottomSheetState()
+    val busy = com.opensplit.ui.components.LocalBusy.current
+    // Add Expense is the one full-height sheet in the app; a half-open form reads as cut off.
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
     // This screen is reached via a NavHost `dialog()` destination, so the previous screen (Home,
     // GroupDetail, ...) stays visible behind it instead of being disposed. Blur it through the
@@ -97,13 +107,28 @@ fun AddExpenseScreen(
             val descriptionFocusRequester = remember { FocusRequester() }
             var amountText by remember { mutableStateOf(editingExpense?.amount?.takeIf { it > 0 }?.toString() ?: "") }
             var category by remember { mutableStateOf(editingExpense?.category ?: "Food") }
+            // True once the user picks a category by hand; suggestions then stop overriding it.
+            var categoryTouched by remember { mutableStateOf(isEditing) }
+            var categoryFromAi by remember { mutableStateOf(false) }
+            val aiService = LocalAiService.current
+            val categorizeAvailable by aiService.availability(AiFeature.CATEGORIZE).collectAsState(initial = false)
+            LaunchedEffect(description, categorizeAvailable) {
+                if (categoryTouched || description.isBlank()) return@LaunchedEffect
+                kotlinx.coroutines.delay(500)
+                val local = AiHeuristics.categoryFor(description)
+                if (local != "Other") { category = local; categoryFromAi = false }
+                if (categorizeAvailable && description.length >= 3) {
+                    kotlinx.coroutines.delay(400)
+                    aiService.suggestCategory(description)?.let { category = it; categoryFromAi = true }
+                }
+            }
             var paidBy by remember { mutableStateOf(editingExpense?.paidBy ?: members.firstOrNull()?.uid ?: "") }
             var isSaving by remember { mutableStateOf(false) }
 
             // 0: Equal, 1: Exact, 2: Percentage, 3: Shares, 4: Itemized
             var selectedSplitIndex by remember {
                 mutableStateOf(
-                    when (editingExpense?.splitType) {
+                    when (editingExpense?.splitType ?: group.defaultSplitType) {
                         SplitType.EXACT -> 1
                         SplitType.PERCENTAGE -> 2
                         SplitType.SHARES -> 3
@@ -185,7 +210,10 @@ fun AddExpenseScreen(
                 }
             }
 
-            // Receipt scanning (Gemini OCR) — prefills itemized list.
+            // Entry Tab State: 0 = AI Entry, 1 = Manual Entry
+            var selectedEntryTab by remember { mutableStateOf(if (isEditing) 1 else 0) }
+
+            // Receipt scanning via the user's AI provider; prefills merchant, total and items.
             val scope = rememberCoroutineScope()
             var isScanning by remember { mutableStateOf(false) }
             val receiptPicker = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
@@ -195,14 +223,25 @@ fun AddExpenseScreen(
                         val bytes = withContext(Dispatchers.IO) {
                             context.contentResolver.openInputStream(uri)?.use { it.readBytes() }
                         }
-                        val items = if (bytes != null) GeminiReceiptParser.parseReceipt(bytes) else null
+                        val mime = context.contentResolver.getType(uri) ?: "image/jpeg"
+                        val receipt = if (bytes != null) aiService.parseReceipt(bytes, mime) else null
                         isScanning = false
-                        if (!items.isNullOrEmpty()) {
-                            itemizedList.addAll(items)
-                            selectedSplitIndex = 4
-                            snackbar.showMessage("Added ${items.size} items from receipt")
+                        if (receipt != null) {
+                            if (description.isBlank()) receipt.merchant?.let { description = it }
+                            if (amountText.isBlank()) receipt.total?.let { amountText = it.toString() }
+                            if (receipt.items.isNotEmpty()) {
+                                itemizedList.addAll(receipt.items)
+                                selectedSplitIndex = 4
+                            }
+                            selectedEntryTab = 1
+                            snackbar.showMessage(
+                                if (receipt.lowConfidence) "Low confidence: the photo was hard to read. Check every field."
+                                else "Read ${receipt.items.size} items from receipt. Review and save."
+                            )
+                        } else if (!aiService.isAvailable(AiFeature.RECEIPT_SCAN)) {
+                            snackbar.showMessage("Receipt attached. Add an AI key in Settings to read it automatically.")
                         } else {
-                            snackbar.showMessage("Couldn't read receipt (check Gemini API key)")
+                            snackbar.showMessage("Couldn't read the receipt. Try a clearer photo.")
                         }
                     }
                 }
@@ -292,9 +331,8 @@ fun AddExpenseScreen(
             val showAfterDescription = description.isNotBlank()
             val showAfterSplitBetween = selectedParticipants.isNotEmpty()
 
-            // Entry Tab State: 0 = AI Entry, 1 = Manual Entry
-            var selectedEntryTab by remember { mutableStateOf(0) }
             var aiNaturalInput by remember { mutableStateOf("") }
+            var isParsingText by remember { mutableStateOf(false) }
 
             Column(
                 modifier = Modifier
@@ -314,13 +352,13 @@ fun AddExpenseScreen(
                         style = MaterialTheme.typography.titleLarge,
                         fontWeight = FontWeight.Bold
                     )
-                    IconButton(onClick = onNavigateBack, enabled = !isSaving) {
-                        Icon(OpenSplitIcons.Close, contentDescription = "Close")
+                    IconButton(shapes = IconButtonDefaults.shapes(), onClick = onNavigateBack, enabled = !isSaving) {
+                        SymbolIcon(OpenSplitIcons.Close, contentDescription = "Close")
                     }
                 }
 
                 // AI Entry vs Manual Entry Segmented Tab Row
-                TabRow(
+                androidx.compose.material3.PrimaryTabRow(
                     selectedTabIndex = selectedEntryTab,
                     containerColor = androidx.compose.ui.graphics.Color.Transparent,
                     contentColor = MaterialTheme.colorScheme.primary,
@@ -331,7 +369,7 @@ fun AddExpenseScreen(
                         onClick = { selectedEntryTab = 0 },
                         text = {
                             Row(verticalAlignment = Alignment.CenterVertically) {
-                                Icon(OpenSplitIcons.AutoAwesome, contentDescription = null, modifier = Modifier.size(18.dp))
+                                SymbolIcon(OpenSplitIcons.AutoAwesome, contentDescription = null, modifier = Modifier.size(18.dp))
                                 Spacer(modifier = Modifier.width(6.dp))
                                 Text("AI Entry", fontWeight = if (selectedEntryTab == 0) FontWeight.Bold else FontWeight.Normal)
                             }
@@ -358,7 +396,7 @@ fun AddExpenseScreen(
                             modifier = Modifier.padding(horizontal = OpenSplitTokens.SpaceSM, vertical = OpenSplitTokens.SpaceXS),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Icon(OpenSplitIcons.Groups, contentDescription = null, modifier = Modifier.size(14.dp))
+                            SymbolIcon(OpenSplitIcons.Groups, contentDescription = null, modifier = Modifier.size(14.dp))
                             Spacer(modifier = Modifier.width(OpenSplitTokens.SpaceXS))
                             Text(
                                 text = group.name,
@@ -407,8 +445,8 @@ fun AddExpenseScreen(
                                 modifier = Modifier.fillMaxWidth(),
                                 horizontalArrangement = Arrangement.End
                             ) {
-                                IconButton(onClick = { snackbar.showMessage("Listening for voice input...") }) {
-                                    Icon(OpenSplitIcons.Activity, contentDescription = "Voice Input")
+                                IconButton(shapes = IconButtonDefaults.shapes(), onClick = { snackbar.showMessage("Listening for voice input...") }) {
+                                    SymbolIcon(OpenSplitIcons.Activity, contentDescription = "Voice Input")
                                 }
                             }
                         }
@@ -451,8 +489,8 @@ fun AddExpenseScreen(
                                 modifier = Modifier.size(56.dp)
                             ) {
                                 Box(contentAlignment = Alignment.Center) {
-                                    Icon(
-                                        imageVector = OpenSplitIcons.ReceiptLong,
+                                    SymbolIcon(
+                                        symbol = OpenSplitIcons.ReceiptLong,
                                         contentDescription = null,
                                         tint = MaterialTheme.colorScheme.onSecondaryContainer,
                                         modifier = Modifier.size(28.dp)
@@ -479,26 +517,48 @@ fun AddExpenseScreen(
 
                     Button(
                         onClick = {
-                            if (aiNaturalInput.isNotBlank()) {
-                                // Extract digits for amount if present
-                                val amountMatch = Regex("""\$?\s*(\d+(?:\.\d{1,2})?)""").find(aiNaturalInput)
-                                if (amountMatch != null) {
-                                    amountText = amountMatch.groupValues[1]
+                            if (aiNaturalInput.isNotBlank() && !isParsingText) {
+                                isParsingText = true
+                                scope.launch {
+                                    val names = members.map { it.displayName.ifBlank { it.email } }
+                                    val parsed = aiService.parseExpenseText(aiNaturalInput, names, group.currency)
+                                        ?: AiHeuristics.parseExpenseText(aiNaturalInput, names)
+                                    isParsingText = false
+                                    if (parsed == null) {
+                                        snackbar.showMessage("Couldn't understand that. Try: 'Rahul paid 1200 for dinner'.")
+                                        return@launch
+                                    }
+                                    description = parsed.description
+                                    parsed.amount?.let { amountText = it.toString().removeSuffix(".0") }
+                                    parsed.category?.let { category = it; categoryTouched = true; categoryFromAi = parsed.source == com.opensplit.data.ai.ParsedExpense.Source.AI }
+                                    parsed.paidByName?.let { n -> members.firstOrNull { it.displayName.ifBlank { it.email } == n }?.let { paidBy = it.uid } }
+                                    if (parsed.participantNames.isNotEmpty()) {
+                                        val uids = members.filter { it.displayName.ifBlank { it.email } in parsed.participantNames }.map { it.uid }
+                                        if (uids.isNotEmpty()) { selectedParticipants.clear(); selectedParticipants.addAll((uids + paidBy).distinct()) }
+                                    }
+                                    parsed.splitType?.let { st ->
+                                        selectedSplitIndex = when (st) { SplitType.EXACT -> 1; SplitType.PERCENTAGE -> 2; SplitType.SHARES -> 3; SplitType.ITEMIZED -> 4; else -> 0 }
+                                    }
+                                    selectedEntryTab = 1
+                                    snackbar.showMessage(
+                                        if (parsed.source == com.opensplit.data.ai.ParsedExpense.Source.AI) "AI filled in the expense. Review and save."
+                                        else "Filled in what could be read offline. Add an AI key in Settings for smarter parsing."
+                                    )
                                 }
-                                val words = aiNaturalInput.split(" ").filter { !it.contains("$") && !it.contains("Paid") }
-                                description = words.take(4).joinToString(" ")
-                                selectedEntryTab = 1 // Switch to Manual tab with prefilled values
-                                snackbar.showMessage("AI extracted expense details! Review & save.")
                             } else {
                                 snackbar.showMessage("Enter an expense description or scan a receipt first.")
                             }
                         },
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(54.dp),
+                            .height(52.dp),
                         shape = CircleShape
                     ) {
-                        Icon(OpenSplitIcons.AutoAwesome, contentDescription = null, modifier = Modifier.size(20.dp))
+                        if (isParsingText) {
+                            AppLoadingIndicator(size = 20.dp, color = MaterialTheme.colorScheme.onPrimary)
+                        } else {
+                            SymbolIcon(OpenSplitIcons.AutoAwesome, contentDescription = null, modifier = Modifier.size(20.dp))
+                        }
                         Spacer(modifier = Modifier.width(8.dp))
                         Text("Process with AI", fontWeight = FontWeight.Bold)
                     }
@@ -581,12 +641,12 @@ fun AddExpenseScreen(
                                 .focusRequester(descriptionFocusRequester)
                         )
                     } else {
-                        OutlinedButton(
+                        OutlinedButton(shapes = ButtonDefaults.shapes(), 
                             onClick = { isDescriptionEditing = true },
                             modifier = Modifier.fillMaxWidth(),
                             contentPadding = PaddingValues(horizontal = OpenSplitTokens.SpaceMD, vertical = OpenSplitTokens.SpaceMD)
                         ) {
-                            Icon(OpenSplitIcons.EditExpense, contentDescription = null, modifier = Modifier.size(18.dp))
+                            SymbolIcon(OpenSplitIcons.EditExpense, contentDescription = null, modifier = Modifier.size(18.dp))
                             Spacer(modifier = Modifier.width(OpenSplitTokens.SpaceSM))
                             Text(
                                 text = description.ifBlank { "Add description" },
@@ -609,15 +669,18 @@ fun AddExpenseScreen(
                 Column(verticalArrangement = Arrangement.spacedBy(OpenSplitTokens.SpaceMD)) {
                 // Category Selection
                 Column {
-                    Text(
-                        text = "Category",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold
-                    )
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(OpenSplitTokens.SpaceSM)) {
+                        Text(
+                            text = "Category",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold
+                        )
+                        if (categoryFromAi && !categoryTouched) AiBadge(label = "AI suggested")
+                    }
                     Spacer(modifier = Modifier.height(OpenSplitTokens.SpaceXS))
                     CategoryChipRow(
                         selectedCategory = category,
-                        onCategorySelected = { category = it }
+                        onCategorySelected = { category = it; categoryTouched = true; categoryFromAi = false }
                     )
                 }
 
@@ -629,7 +692,7 @@ fun AddExpenseScreen(
                 ) {
                     Text("Date", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                     Spacer(modifier = Modifier.weight(1f))
-                    OutlinedButton(onClick = { showDatePicker = true }) {
+                    OutlinedButton(shapes = ButtonDefaults.shapes(), onClick = { showDatePicker = true }) {
                         Text(
                             java.text.SimpleDateFormat("MMM d, yyyy", java.util.Locale.getDefault())
                                 .format(java.util.Date(selectedDateMillis))
@@ -652,12 +715,12 @@ fun AddExpenseScreen(
                     )
                     LaunchedEffect(Unit) { notesFocusRequester.requestFocus() }
                 } else {
-                    OutlinedButton(
+                    OutlinedButton(shapes = ButtonDefaults.shapes(), 
                         onClick = { isNotesEditing = true },
                         modifier = Modifier.fillMaxWidth(),
                         contentPadding = PaddingValues(horizontal = OpenSplitTokens.SpaceMD, vertical = OpenSplitTokens.SpaceMD)
                     ) {
-                        Icon(OpenSplitIcons.Notes, contentDescription = null, modifier = Modifier.size(18.dp))
+                        SymbolIcon(OpenSplitIcons.Notes, contentDescription = null, modifier = Modifier.size(18.dp))
                         Spacer(modifier = Modifier.width(OpenSplitTokens.SpaceSM))
                         Text(
                             text = notes.ifBlank { "Add notes (optional)" },
@@ -678,7 +741,7 @@ fun AddExpenseScreen(
                             modifier = Modifier.fillMaxWidth(),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Icon(
+                            SymbolIcon(
                                 if (attachedName.endsWith(".pdf", ignoreCase = true)) OpenSplitIcons.Pdf else OpenSplitIcons.AttachFile,
                                 contentDescription = null,
                                 modifier = Modifier.size(18.dp)
@@ -690,20 +753,20 @@ fun AddExpenseScreen(
                                 style = MaterialTheme.typography.bodyMedium,
                                 maxLines = 1
                             )
-                            IconButton(onClick = {
+                            IconButton(shapes = IconButtonDefaults.shapes(), onClick = {
                                 pickedReceiptUri = null
                                 pickedReceiptName = null
                                 existingReceiptUrl = null
                             }) {
-                                Icon(OpenSplitIcons.Close, contentDescription = "Remove receipt")
+                                SymbolIcon(OpenSplitIcons.Close, contentDescription = "Remove receipt")
                             }
                         }
                     } else {
-                        OutlinedButton(
+                        OutlinedButton(shapes = ButtonDefaults.shapes(), 
                             onClick = { receiptAttachmentPicker.launch(arrayOf("image/*", "application/pdf")) },
                             modifier = Modifier.fillMaxWidth()
                         ) {
-                            Icon(OpenSplitIcons.AttachFile, contentDescription = null, modifier = Modifier.size(18.dp))
+                            SymbolIcon(OpenSplitIcons.AttachFile, contentDescription = null, modifier = Modifier.size(18.dp))
                             Spacer(modifier = Modifier.width(OpenSplitTokens.SpaceSM))
                             Text("Attach receipt (image or PDF)")
                         }
@@ -716,12 +779,7 @@ fun AddExpenseScreen(
                     Spacer(modifier = Modifier.height(OpenSplitTokens.SpaceXS))
                     FlowRow(horizontalArrangement = Arrangement.spacedBy(OpenSplitTokens.SpaceSM)) {
                         RecurrenceFrequency.values().forEach { freq ->
-                            val label = when (freq) {
-                                RecurrenceFrequency.NONE -> "Never"
-                                RecurrenceFrequency.DAILY -> "Daily"
-                                RecurrenceFrequency.WEEKLY -> "Weekly"
-                                RecurrenceFrequency.MONTHLY -> "Monthly"
-                            }
+                            val label = com.opensplit.domain.logic.RecurrenceScheduler.label(freq)
                             FilterChip(
                                 selected = recurrenceFreq == freq,
                                 onClick = { recurrenceFreq = freq },
@@ -762,7 +820,7 @@ fun AddExpenseScreen(
                                     label = { Text(user.displayName) },
                                     leadingIcon = {
                                         if (isSelected) {
-                                            Icon(OpenSplitIcons.Check, contentDescription = null, modifier = Modifier.size(16.dp))
+                                            SymbolIcon(OpenSplitIcons.Check, contentDescription = null, modifier = Modifier.size(16.dp))
                                         }
                                     }
                                 )
@@ -820,7 +878,7 @@ fun AddExpenseScreen(
                                 label = { Text(user.displayName) },
                                 leadingIcon = {
                                     if (isSelected) {
-                                        Icon(OpenSplitIcons.Check, contentDescription = null, modifier = Modifier.size(16.dp))
+                                        SymbolIcon(OpenSplitIcons.Check, contentDescription = null, modifier = Modifier.size(16.dp))
                                     }
                                 }
                             )
@@ -834,7 +892,7 @@ fun AddExpenseScreen(
                                 enabled = false,
                                 label = { Text(invite.email.substringBefore('@')) },
                                 leadingIcon = {
-                                    Icon(OpenSplitIcons.Pending, contentDescription = null, modifier = Modifier.size(16.dp))
+                                    SymbolIcon(OpenSplitIcons.Pending, contentDescription = null, modifier = Modifier.size(16.dp))
                                 }
                             )
                         }
@@ -842,7 +900,7 @@ fun AddExpenseScreen(
                             onClick = { showInvitePersonDialog = true },
                             label = { Text("Invite") },
                             leadingIcon = {
-                                Icon(OpenSplitIcons.AddMember, contentDescription = null, modifier = Modifier.size(16.dp))
+                                SymbolIcon(OpenSplitIcons.AddMember, contentDescription = null, modifier = Modifier.size(16.dp))
                             }
                         )
                     }
@@ -878,16 +936,15 @@ fun AddExpenseScreen(
                         fontWeight = FontWeight.Bold
                     )
                     Spacer(modifier = Modifier.height(OpenSplitTokens.SpaceXS))
-                    ScrollableTabRow(
-                        selectedTabIndex = selectedSplitIndex,
-                        edgePadding = 0.dp
+                    Row(
+                        modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                        horizontalArrangement = Arrangement.spacedBy(androidx.compose.material3.ButtonGroupDefaults.ConnectedSpaceBetween)
                     ) {
                         splitTypes.forEachIndexed { index, title ->
-                            Tab(
-                                selected = selectedSplitIndex == index,
-                                onClick = { selectedSplitIndex = index },
-                                text = { Text(title, fontWeight = if (selectedSplitIndex == index) FontWeight.Bold else FontWeight.Normal) }
-                            )
+                            androidx.compose.material3.ToggleButton(
+                                checked = selectedSplitIndex == index,
+                                onCheckedChange = { selectedSplitIndex = index }
+                            ) { Text(title) }
                         }
                     }
                 }
@@ -956,7 +1013,7 @@ fun AddExpenseScreen(
                                 ) {
                                     Text(m.displayName, modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium)
                                     Row(verticalAlignment = Alignment.CenterVertically) {
-                                        OutlinedButton(
+                                        OutlinedButton(shapes = ButtonDefaults.shapes(), 
                                             onClick = { if (currentShares > 1) shares[m.uid] = currentShares - 1 },
                                             contentPadding = PaddingValues(0.dp),
                                             modifier = Modifier.size(36.dp)
@@ -966,7 +1023,7 @@ fun AddExpenseScreen(
                                             modifier = Modifier.padding(horizontal = OpenSplitTokens.SpaceSM),
                                             style = MaterialTheme.typography.bodyMedium
                                         )
-                                        OutlinedButton(
+                                        OutlinedButton(shapes = ButtonDefaults.shapes(), 
                                             onClick = { shares[m.uid] = currentShares + 1 },
                                             contentPadding = PaddingValues(0.dp),
                                             modifier = Modifier.size(36.dp)
@@ -978,7 +1035,7 @@ fun AddExpenseScreen(
                     }
                     4 -> { // Itemized
                         Column(verticalArrangement = Arrangement.spacedBy(OpenSplitTokens.SpaceSM)) {
-                            OutlinedButton(
+                            OutlinedButton(shapes = ButtonDefaults.shapes(), 
                                 onClick = { receiptPicker.launch("image/*") },
                                 enabled = !isScanning,
                                 modifier = Modifier.fillMaxWidth()
@@ -988,7 +1045,7 @@ fun AddExpenseScreen(
                                     Spacer(modifier = Modifier.width(OpenSplitTokens.SpaceSM))
                                     Text("Scanning receipt...")
                                 } else {
-                                    Icon(OpenSplitIcons.Camera, contentDescription = null, modifier = Modifier.size(18.dp))
+                                    SymbolIcon(OpenSplitIcons.Camera, contentDescription = null, modifier = Modifier.size(18.dp))
                                     Spacer(modifier = Modifier.width(OpenSplitTokens.SpaceSM))
                                     Text("Scan receipt (AI)")
                                 }
@@ -1028,7 +1085,7 @@ fun AddExpenseScreen(
                                     )
                                 }
                             }
-                            Button(
+                            Button(shapes = ButtonDefaults.shapes(), 
                                 onClick = {
                                     val p = itemizedPrice.toDoubleOrNull()
                                     if (itemizedName.isNotBlank() && p != null && p > 0 && selectedUidsForItem.isNotEmpty()) {
@@ -1070,12 +1127,13 @@ fun AddExpenseScreen(
                 Spacer(modifier = Modifier.height(OpenSplitTokens.SpaceSM))
 
                 // Save Expense Button with Duplicate Prevention
-                Button(
+                Button(shapes = ButtonDefaults.shapes(), 
                     onClick = {
                         if (isSaving) return@Button
                         val evaluated = splitResult
                         if (description.isNotBlank() && totalAmount > 0 && evaluated != null && payersValid) {
                             isSaving = true
+                            busy.show(if (isEditing) "Updating expense…" else "Saving expense…")
                             val (sType, splitsList) = evaluated
                             val effectivePaidBy = if (multiplePayers) (payerMap?.keys?.firstOrNull() ?: paidBy) else paidBy
                             val builtExpense = (editingExpense ?: Expense(groupId = group.id, createdBy = paidBy)).copy(
@@ -1101,6 +1159,7 @@ fun AddExpenseScreen(
 
                             val onDone: () -> Unit = {
                                 isSaving = false
+                                busy.hide()
                                 snackbar.showMessage(if (isEditing) "Expense updated!" else "Expense saved successfully!")
                                 onNavigateBack()
                             }
@@ -1128,13 +1187,13 @@ fun AddExpenseScreen(
                     DatePickerDialog(
                         onDismissRequest = { showDatePicker = false },
                         confirmButton = {
-                            TextButton(onClick = {
+                            TextButton(shapes = ButtonDefaults.shapes(), onClick = {
                                 dateState.selectedDateMillis?.let { selectedDateMillis = it }
                                 showDatePicker = false
                             }) { Text("OK") }
                         },
                         dismissButton = {
-                            TextButton(onClick = { showDatePicker = false }) { Text("Cancel") }
+                            TextButton(shapes = ButtonDefaults.shapes(), onClick = { showDatePicker = false }) { Text("Cancel") }
                         }
                     ) {
                         DatePicker(state = dateState)
@@ -1158,16 +1217,8 @@ fun AddExpenseScreen(
 }
 
 /** Next occurrence timestamp for a recurring expense, one period after [fromMillis]. */
-private fun nextRecurrence(fromMillis: Long, frequency: RecurrenceFrequency): com.google.firebase.Timestamp {
-    val cal = java.util.Calendar.getInstance().apply { timeInMillis = fromMillis }
-    when (frequency) {
-        RecurrenceFrequency.DAILY -> cal.add(java.util.Calendar.DAY_OF_YEAR, 1)
-        RecurrenceFrequency.WEEKLY -> cal.add(java.util.Calendar.WEEK_OF_YEAR, 1)
-        RecurrenceFrequency.MONTHLY -> cal.add(java.util.Calendar.MONTH, 1)
-        RecurrenceFrequency.NONE -> Unit
-    }
-    return com.google.firebase.Timestamp(cal.time)
-}
+private fun nextRecurrence(fromMillis: Long, frequency: RecurrenceFrequency): com.google.firebase.Timestamp =
+    com.opensplit.domain.logic.RecurrenceScheduler.next(com.google.firebase.Timestamp(fromMillis / 1000, 0), frequency)
 
 /** Groups the integer digits of a raw amount string using the currency's thousands grouping (e.g. lakh/crore for INR). */
 private fun groupIntegerDigits(digits: String, currencyCode: String): String {

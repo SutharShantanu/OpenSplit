@@ -161,3 +161,25 @@ Prefer not to build locally? Grab the prebuilt APK from
   Firebase Android app settings.
 - **Permission-denied reads/writes** — confirm the Firestore rules from
   `firestore.rules` are deployed and you are signed in.
+
+## 9. Push notifications and security rules (optional)
+
+The app never talks to its own server. Two small pieces of Firebase config make the
+optional server-side features work:
+
+```bash
+# Security rules (invite links, friend requests, self-join)
+firebase deploy --only firestore:rules
+
+# Push fan-out: forwards Firestore writes to FCM as data messages
+cd functions && npm install && cd ..
+firebase deploy --only functions
+```
+
+Without the functions, every feature still works; you just won't get pushes for other
+people's actions. Users choose which notification types they want in Settings.
+
+Invite links open `https://opensplit-fe83f.firebaseapp.com/join/<token>`. For Android to
+open them in the app, add the SHA-256 of your signing key to the Firebase Android app
+(App Links verification); otherwise paste the link into Groups → "Join with invite link".
+

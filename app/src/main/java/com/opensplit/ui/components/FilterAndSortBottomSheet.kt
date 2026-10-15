@@ -1,3 +1,5 @@
+@file:OptIn(androidx.compose.material3.ExperimentalMaterial3ExpressiveApi::class)
+
 package com.opensplit.ui.components
 
 import androidx.compose.foundation.clickable
@@ -60,7 +62,7 @@ fun FilterAndSortBottomSheet(
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.onSurface
                 )
-                TextButton(
+                TextButton(shapes = ButtonDefaults.shapes(), 
                     onClick = {
                         selectedSort = ExpenseSortOrder.DATE_NEWEST
                         paidByYouState = false
@@ -194,8 +196,8 @@ fun FilterAndSortBottomSheet(
                         style = MaterialTheme.typography.bodyLarge,
                         color = MaterialTheme.colorScheme.onSurface
                     )
-                    Icon(
-                        imageVector = OpenSplitIcons.DateRange,
+                    SymbolIcon(
+                        symbol = OpenSplitIcons.DateRange,
                         contentDescription = "Date range",
                         tint = MaterialTheme.colorScheme.onSurfaceVariant
                     )

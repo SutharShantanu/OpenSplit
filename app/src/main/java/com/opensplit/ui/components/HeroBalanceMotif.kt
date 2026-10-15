@@ -7,14 +7,6 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.rounded.TrendingDown
-import androidx.compose.material.icons.automirrored.rounded.TrendingUp
-import androidx.compose.material.icons.rounded.Add
-import androidx.compose.material.icons.rounded.ArrowDownward
-import androidx.compose.material.icons.rounded.ArrowUpward
-import androidx.compose.material.icons.rounded.CheckCircle
-import androidx.compose.material.icons.rounded.Remove
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -142,7 +134,7 @@ fun HeroBalanceCard(
         modifier = modifier.fillMaxWidth(),
         shape = RoundedCornerShape(28.dp),
         colors = CardDefaults.cardColors(
-            containerColor = Color(0xFF482D7B)
+            containerColor = MaterialTheme.colorScheme.primaryContainer
         ),
         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
     ) {
@@ -158,7 +150,7 @@ fun HeroBalanceCard(
                     fontSize = 12.sp,
                     fontWeight = FontWeight.SemiBold,
                     letterSpacing = 1.sp,
-                    color = Color(0xFFC8B6FF)
+                    color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f)
                 )
             )
 
@@ -171,7 +163,7 @@ fun HeroBalanceCard(
                     fontSize = 38.sp,
                     fontWeight = FontWeight.Bold,
                     fontFamily = MoneyFontFamily,
-                    color = Color(0xFFEDE0FD)
+                    color = MaterialTheme.colorScheme.onPrimaryContainer
                 )
             )
 
@@ -188,17 +180,17 @@ fun HeroBalanceCard(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(
-                            imageVector = Icons.Rounded.ArrowDownward,
+                        SymbolIcon(
+                            symbol = OpenSplitIcons.ArrowDownward,
                             contentDescription = null,
                             modifier = Modifier.size(16.dp),
-                            tint = Color(0xFFC8B6FF)
+                            tint = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f)
                         )
                         Spacer(modifier = Modifier.width(6.dp))
                         Text(
                             text = "You are owed",
                             style = MaterialTheme.typography.bodyMedium.copy(
-                                color = Color(0xFFC8B6FF),
+                                color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f),
                                 fontWeight = FontWeight.Normal
                             )
                         )
@@ -208,7 +200,7 @@ fun HeroBalanceCard(
                         style = MaterialTheme.typography.bodyMedium.copy(
                             fontWeight = FontWeight.Bold,
                             fontFamily = MoneyFontFamily,
-                            color = Color(0xFFEDE0FD)
+                            color = MaterialTheme.colorScheme.onPrimaryContainer
                         )
                     )
                 }
@@ -225,17 +217,17 @@ fun HeroBalanceCard(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(
-                            imageVector = Icons.Rounded.ArrowUpward,
+                        SymbolIcon(
+                            symbol = OpenSplitIcons.ArrowUpward,
                             contentDescription = null,
                             modifier = Modifier.size(16.dp),
-                            tint = Color(0xFFC8B6FF)
+                            tint = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f)
                         )
                         Spacer(modifier = Modifier.width(6.dp))
                         Text(
                             text = "You owe",
                             style = MaterialTheme.typography.bodyMedium.copy(
-                                color = Color(0xFFC8B6FF),
+                                color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f),
                                 fontWeight = FontWeight.Normal
                             )
                         )
@@ -245,7 +237,7 @@ fun HeroBalanceCard(
                         style = MaterialTheme.typography.bodyMedium.copy(
                             fontWeight = FontWeight.Bold,
                             fontFamily = MoneyFontFamily,
-                            color = Color(0xFFFFD8CC)
+                            color = MaterialTheme.colorScheme.tertiary
                         )
                     )
                 }
@@ -261,21 +253,21 @@ fun HeroBalanceCard(
                         .fillMaxWidth()
                         .height(8.dp)
                         .clip(CircleShape)
-                        .background(Color(0xFFFFD8CC))
+                        .background(MaterialTheme.colorScheme.tertiary)
                 ) {
                     Box(
                         modifier = Modifier
                             .fillMaxHeight()
                             .fillMaxWidth(fraction = owedRatio)
                             .clip(CircleShape)
-                            .background(Color(0xFFA580FF))
+                            .background(MaterialTheme.colorScheme.primary)
                     )
                 }
             } else if (!subtitle.isNullOrEmpty()) {
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(
                     text = subtitle,
-                    style = MaterialTheme.typography.bodySmall.copy(color = Color(0xFFC8B6FF))
+                    style = MaterialTheme.typography.bodySmall.copy(color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f))
                 )
             }
         }

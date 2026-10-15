@@ -77,7 +77,8 @@ class GroupDetailViewModelFactory(
                 settlementRepository = container.settlementRepository,
                 pendingInviteRepository = container.pendingInviteRepository,
                 authRepository = container.authRepository,
-                storageRepository = container.storageRepository
+                storageRepository = container.storageRepository,
+                inviteLinkRepository = container.inviteLinkRepository
             ) as T
         }
         if (modelClass.isAssignableFrom(AccountViewModel::class.java)) {

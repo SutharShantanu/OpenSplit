@@ -1,5 +1,8 @@
+@file:OptIn(androidx.compose.material3.ExperimentalMaterial3ExpressiveApi::class)
+
 package com.opensplit.ui.screens
 
+import com.opensplit.ui.components.SymbolIcon
 import android.content.Intent
 import android.net.Uri
 import androidx.compose.animation.AnimatedVisibility
@@ -17,11 +20,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.ArrowForward
-import androidx.compose.material.icons.rounded.CheckCircle
-import androidx.compose.material.icons.rounded.PhoneAndroid
-import androidx.compose.material.icons.rounded.QrCodeScanner
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -59,6 +57,7 @@ fun SettleUpScreen(
     val currentUserId by viewModel.currentUserId.collectAsState()
     val currency by viewModel.currency.collectAsState()
     val snackbar = LocalSnackbarController.current
+    val busy = com.opensplit.ui.components.LocalBusy.current
 
     var fromUid by rememberSaveable { mutableStateOf(currentUserId ?: "") }
     var toUid by rememberSaveable { mutableStateOf(suggestedToUid ?: "") }
@@ -127,6 +126,7 @@ fun SettleUpScreen(
                 // If no UPI app installed or intent fails, fall back gracefully
             }
 
+            busy.show("Recording payment…")
             viewModel.addSettlement(
                 fromUid = fromUid,
                 toUid = toUid,
@@ -134,6 +134,7 @@ fun SettleUpScreen(
                 method = method,
                 note = note.ifBlank { null },
                 onSuccess = {
+                    busy.hide()
                     recordedSettlementAmount = rawAmount
                     isSuccessScreenShown = true
                 }
@@ -162,8 +163,8 @@ fun SettleUpScreen(
                         }
                     },
                     navigationIcon = {
-                        IconButton(onClick = onNavigateBack) {
-                            Icon(OpenSplitIcons.Close, contentDescription = "Close")
+                        IconButton(shapes = IconButtonDefaults.shapes(), onClick = onNavigateBack) {
+                            SymbolIcon(OpenSplitIcons.Close, contentDescription = "Close")
                         }
                     }
                 )
@@ -228,8 +229,8 @@ fun SettleUpScreen(
                                     modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
-                                    Icon(
-                                        imageVector = Icons.Rounded.ArrowForward,
+                                    SymbolIcon(
+                                        symbol = OpenSplitIcons.ArrowForward,
                                         contentDescription = "Paying",
                                         tint = MaterialTheme.colorScheme.onSecondaryContainer,
                                         modifier = Modifier.size(18.dp)
@@ -336,7 +337,7 @@ fun SettleUpScreen(
                                         fontWeight = FontWeight.SemiBold
                                     )
                                 },
-                                icon = { Icon(OpenSplitIcons.Check, contentDescription = null, modifier = Modifier.size(16.dp)) },
+                                icon = { SymbolIcon(OpenSplitIcons.Check, contentDescription = null, modifier = Modifier.size(16.dp)) },
                                 colors = SuggestionChipDefaults.suggestionChipColors(
                                     containerColor = MaterialTheme.colorScheme.secondaryContainer,
                                     labelColor = MaterialTheme.colorScheme.onSecondaryContainer
@@ -370,8 +371,8 @@ fun SettleUpScreen(
                         modifier = Modifier.padding(14.dp),
                         verticalAlignment = Alignment.Top
                     ) {
-                        Icon(
-                            imageVector = OpenSplitIcons.Info,
+                        SymbolIcon(
+                            symbol = OpenSplitIcons.Info,
                             contentDescription = "Info",
                             tint = MaterialTheme.colorScheme.primary,
                             modifier = Modifier.size(20.dp)
@@ -391,15 +392,15 @@ fun SettleUpScreen(
                     enabled = canSubmit,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(56.dp),
+                        .height(52.dp),
                     shape = CircleShape,
                     colors = ButtonDefaults.buttonColors(
                         containerColor = MaterialTheme.colorScheme.primary,
                         contentColor = MaterialTheme.colorScheme.onPrimary
                     )
                 ) {
-                    Icon(
-                        imageVector = OpenSplitIcons.Check,
+                    SymbolIcon(
+                        symbol = OpenSplitIcons.Check,
                         contentDescription = null,
                         modifier = Modifier.size(22.dp)
                     )
@@ -452,8 +453,8 @@ private fun SettlementSuccessOverlay(
                             modifier = Modifier.size(80.dp)
                         ) {
                             Box(contentAlignment = Alignment.Center) {
-                                Icon(
-                                    imageVector = Icons.Rounded.CheckCircle,
+                                SymbolIcon(
+                                    symbol = OpenSplitIcons.CheckCircle,
                                     contentDescription = "Success",
                                     tint = MaterialTheme.colorScheme.primary,
                                     modifier = Modifier.size(52.dp)
@@ -524,7 +525,7 @@ private fun SettlementSuccessOverlay(
                     onClick = onDone,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(54.dp),
+                        .height(52.dp),
                     shape = CircleShape,
                     colors = ButtonDefaults.buttonColors(
                         containerColor = MaterialTheme.colorScheme.primary,
@@ -544,7 +545,7 @@ private fun SettlementSuccessOverlay(
                     onClick = onDone,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(54.dp),
+                        .height(52.dp),
                     shape = CircleShape
                 ) {
                     Text(
@@ -589,8 +590,8 @@ fun SettlementFailedOverlay(
                 modifier = Modifier.size(96.dp)
             ) {
                 Box(contentAlignment = Alignment.Center) {
-                    Icon(
-                        imageVector = OpenSplitIcons.ErrorIcon,
+                    SymbolIcon(
+                        symbol = OpenSplitIcons.ErrorIcon,
                         contentDescription = "Settlement Failed",
                         tint = MaterialTheme.colorScheme.onErrorContainer,
                         modifier = Modifier.size(52.dp)
@@ -656,14 +657,14 @@ fun SettlementFailedOverlay(
                 onClick = onRetry,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(56.dp),
+                    .height(52.dp),
                 shape = CircleShape,
                 colors = ButtonDefaults.buttonColors(
                     containerColor = MaterialTheme.colorScheme.primary,
                     contentColor = MaterialTheme.colorScheme.onPrimary
                 )
             ) {
-                Icon(OpenSplitIcons.Refresh, contentDescription = null, modifier = Modifier.size(20.dp))
+                SymbolIcon(OpenSplitIcons.Refresh, contentDescription = null, modifier = Modifier.size(20.dp))
                 Spacer(modifier = Modifier.width(8.dp))
                 Text("Try Again", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium)
             }
@@ -674,7 +675,7 @@ fun SettlementFailedOverlay(
                 onClick = onCancel,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(56.dp),
+                    .height(52.dp),
                 shape = CircleShape
             ) {
                 Text("Cancel", fontWeight = FontWeight.SemiBold, style = MaterialTheme.typography.titleMedium)

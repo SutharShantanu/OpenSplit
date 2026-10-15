@@ -82,7 +82,7 @@ class UserRepositoryImpl(
         localUsers.value = localUsers.value + (user.uid to user)
         return try {
             kotlinx.coroutines.withTimeoutOrNull(1000) {
-                usersCollection.document(user.uid).set(user).await()
+                usersCollection.document(user.uid).set(user).awaitWrite()
             }
             Result.success(Unit)
         } catch (e: Exception) {
@@ -108,7 +108,7 @@ class UserRepositoryImpl(
             kotlinx.coroutines.withTimeoutOrNull(1200) {
                 val snapshot = usersCollection.document(uid).get().await()
                 if (!snapshot.exists()) {
-                    usersCollection.document(uid).set(user).await()
+                    usersCollection.document(uid).set(user).awaitWrite()
                 }
             }
             Result.success(Unit)
@@ -124,7 +124,7 @@ class UserRepositoryImpl(
         localUsers.value = localUsers.value + (uid to existing.copy(defaultCurrency = currency))
         return try {
             kotlinx.coroutines.withTimeoutOrNull(1000) {
-                usersCollection.document(uid).update("defaultCurrency", currency).await()
+                usersCollection.document(uid).update("defaultCurrency", currency).awaitWrite()
             }
             Result.success(Unit)
         } catch (e: Exception) {
@@ -136,7 +136,7 @@ class UserRepositoryImpl(
         if (user.uid.isBlank()) return Result.failure(IllegalArgumentException("User ID cannot be blank"))
         return try {
             kotlinx.coroutines.withTimeoutOrNull(1000) {
-                usersCollection.document(user.uid).update("displayName", user.displayName).await()
+                usersCollection.document(user.uid).update("displayName", user.displayName).awaitWrite()
             }
             Result.success(Unit)
         } catch (e: Exception) {
@@ -151,7 +151,7 @@ class UserRepositoryImpl(
         if (uid.isBlank()) return Result.failure(IllegalArgumentException("UID cannot be blank"))
         return try {
             kotlinx.coroutines.withTimeoutOrNull(1000) {
-                usersCollection.document(uid).update("lastSeenActivityTimestamp", timestamp).await()
+                usersCollection.document(uid).update("lastSeenActivityTimestamp", timestamp).awaitWrite()
             }
             Result.success(Unit)
         } catch (e: Exception) {

@@ -1,64 +1,80 @@
+@file:OptIn(androidx.compose.material3.ExperimentalMaterial3ExpressiveApi::class)
+
 package com.opensplit.ui.screens
 
-import com.opensplit.ui.components.LocalSnackbarController
-
+import com.opensplit.ui.theme.Symbol
+import com.opensplit.ui.components.SymbolIcon
 import androidx.compose.animation.AnimatedContent
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.expandVertically
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.shrinkVertically
-import androidx.compose.animation.*
-import androidx.compose.animation.core.tween
-import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.AccountCircle
-import androidx.compose.material.icons.rounded.Add
-import androidx.compose.material.icons.rounded.Analytics
-import androidx.compose.material.icons.rounded.Group
-import androidx.compose.material.icons.rounded.Home
-import androidx.compose.material.icons.rounded.Notifications
-import androidx.compose.material.icons.rounded.NotificationsNone
-import androidx.compose.material.icons.rounded.People
-import androidx.compose.material.icons.rounded.PersonOutline
-import androidx.compose.material.icons.rounded.Settings
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.Badge
+import androidx.compose.material3.IconButtonDefaults
+import androidx.compose.material3.BadgedBox
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
+import androidx.compose.material3.FloatingActionButton
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.NavigationBar
+import androidx.compose.material3.NavigationBarItem
+import androidx.compose.material3.NavigationRail
+import androidx.compose.material3.NavigationRailItem
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.ui.Alignment
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.drawBehind
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
-import coil.compose.AsyncImage
 import com.opensplit.di.AppContainer
+import com.opensplit.ui.components.CreateGroupDialog
+import com.opensplit.ui.components.GlobalSearchSheet
+import com.opensplit.ui.components.InviteMemberDialog
+import com.opensplit.ui.components.LocalSnackbarController
+import com.opensplit.ui.components.appHazeHeader
+import com.opensplit.ui.components.appHazeSource
+import com.opensplit.ui.theme.OpenSplitIcons
+import com.opensplit.ui.theme.OpenSplitMotion
+import com.opensplit.ui.viewmodel.AccountViewModel
+import com.opensplit.ui.viewmodel.ActivityViewModel
 import com.opensplit.ui.viewmodel.AnalyticsViewModel
 import com.opensplit.ui.viewmodel.HomeViewModel
 import com.opensplit.ui.viewmodel.MainViewModel
 import com.opensplit.ui.viewmodel.ScreenState
 import com.opensplit.ui.viewmodel.ViewModelFactory
-import kotlin.math.abs
+import dev.chrisbanes.haze.HazeState
 import kotlinx.coroutines.launch
 
-import com.opensplit.ui.components.appHazeHeader
-import com.opensplit.ui.components.appHazeSource
-import com.opensplit.ui.theme.OpenSplitIcons
-import com.opensplit.ui.theme.OpenSplitMotion
-import dev.chrisbanes.haze.HazeDefaults
-import dev.chrisbanes.haze.HazeState
-import dev.chrisbanes.haze.hazeEffect
+/** Top-level destinations. Order is the bar order. */
+enum class DashboardTab(val label: String, val icon: Symbol) {
+    GROUPS("Groups", OpenSplitIcons.Groups),
+    PEOPLE("People", OpenSplitIcons.Friends),
+    ACTIVITY("Activity", OpenSplitIcons.Activity),
+    INSIGHTS("Insights", OpenSplitIcons.Insights),
+    SETTINGS("Settings", OpenSplitIcons.Account)
+}
+
+/** Material 3 window-size breakpoint: medium and up gets a rail instead of a bar. */
+internal fun useNavigationRail(screenWidthDp: Int): Boolean = screenWidthDp >= 600
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
@@ -66,418 +82,251 @@ fun MainDashboard(
     appContainer: AppContainer,
     rootNavController: NavHostController
 ) {
-    var selectedTab by rememberSaveable { mutableStateOf(0) }
-    val tabTitles = listOf("OpenSplit", "Groups", "Friends", "Spending Insights", "Account & Settings")
-    val tabIcons = listOf(
-        Icons.Rounded.Home,
-        OpenSplitIcons.Groups,
-        Icons.Rounded.PersonOutline,
-        Icons.Rounded.Analytics,
-        Icons.Rounded.AccountCircle
-    )
-    val tabLabels = listOf("Home", "Groups", "Friends", "Insights", "Account")
+    var selectedTab by rememberSaveable { mutableStateOf(DashboardTab.GROUPS) }
     val hazeState = remember { HazeState() }
-    val coroutineScope = rememberCoroutineScope()
+    val snackbar = LocalSnackbarController.current
+    val busy = com.opensplit.ui.components.LocalBusy.current
+    val wide = useNavigationRail(LocalConfiguration.current.screenWidthDp)
 
     val mainViewModel: MainViewModel = viewModel(factory = ViewModelFactory(appContainer))
     val homeViewModel: HomeViewModel = viewModel(factory = ViewModelFactory(appContainer))
     val analyticsViewModel: AnalyticsViewModel = viewModel(factory = ViewModelFactory(appContainer))
+    val activityViewModel: ActivityViewModel = viewModel(factory = ViewModelFactory(appContainer))
+    val accountViewModel: AccountViewModel = viewModel(factory = ViewModelFactory(appContainer))
 
     val currentUid = appContainer.authRepository.currentUser?.uid ?: ""
-    // Remember the flows so recomposition doesn't rebuild and re-subscribe them each pass.
     val currentUserFlow = remember(currentUid) { appContainer.userRepository.getUserFlow(currentUid) }
     val currentUserState by currentUserFlow.collectAsState(initial = null)
     val userGroupsState by mainViewModel.userGroups.collectAsState()
-
-    val groupIds = (userGroupsState as? ScreenState.Success)?.data?.map { it.id } ?: emptyList()
+    val allGroups = (userGroupsState as? ScreenState.Success)?.data ?: emptyList()
+    val groupIds = allGroups.map { it.id }
     val activitiesFlow = remember(currentUid, groupIds) {
         appContainer.activityRepository.getActivityForUser(currentUid, groupIds)
     }
-    val activitiesState by activitiesFlow.collectAsState(initial = emptyList())
-
-    val unreadCount = remember(activitiesState, currentUserState) {
+    val activities by activitiesFlow.collectAsState(initial = emptyList())
+    val unreadCount = remember(activities, currentUserState) {
         val lastSeen = currentUserState?.lastSeenActivityTimestamp
-        if (lastSeen == null) {
-            activitiesState.size
-        } else {
-            activitiesState.count { it.timestamp.seconds > lastSeen.seconds }
-        }
+        if (lastSeen == null) activities.size else activities.count { it.timestamp.seconds > lastSeen.seconds }
     }
 
-    var menuExpanded by remember { mutableStateOf(false) }
-    var showGlobalSearchSheet by remember { mutableStateOf(false) }
+    var showGlobalSearch by remember { mutableStateOf(false) }
+    var showAddExpensePicker by remember { mutableStateOf(false) }
+    var showSettleUpPicker by remember { mutableStateOf(false) }
+    var showCreateGroup by remember { mutableStateOf(false) }
+    var showInviteFriend by remember { mutableStateOf(false) }
+    var showQrSheet by remember { mutableStateOf(false) }
+    val friendsState by mainViewModel.friendsBalances.collectAsState()
+    val hasFriends = ((friendsState as? ScreenState.Success)?.data?.isNotEmpty() == true)
+    val myFriendLink by mainViewModel.friendLinkUrl.collectAsState()
+    // On wide layouts Groups and People keep their detail open beside the list.
+    var detailGroupId by rememberSaveable { mutableStateOf<String?>(null) }
+    var detailFriendId by rememberSaveable { mutableStateOf<String?>(null) }
 
-    // Global quick-action FAB: which actions it offers depends on the active tab.
-    var fabExpanded by remember { mutableStateOf(false) }
-    var showFabAddExpensePicker by remember { mutableStateOf(false) }
-    var showFabSettleUpPicker by remember { mutableStateOf(false) }
-    var showFabCreateGroup by remember { mutableStateOf(false) }
-    var showFabInviteFriend by remember { mutableStateOf(false) }
-
-    val allGroups = (userGroupsState as? ScreenState.Success)?.data ?: emptyList()
-    val settleableGroups = allGroups.filter { it.memberIds.size > 1 }
-    val context = androidx.compose.ui.platform.LocalContext.current
-    val snackbar = LocalSnackbarController.current
-
-    data class QuickAction(val label: String, val icon: androidx.compose.ui.graphics.vector.ImageVector, val onClick: () -> Unit)
-
-    val quickActions: List<QuickAction> = when (selectedTab) {
-        0 -> listOfNotNull(
-            QuickAction("Add Friend", OpenSplitIcons.Invite) { showFabInviteFriend = true },
-            QuickAction("Create Group", OpenSplitIcons.Groups) { showFabCreateGroup = true },
-            QuickAction("Add Expense", OpenSplitIcons.AddExpense) {
-                if (allGroups.isEmpty()) {
-                    snackbar.showMessage("Create a group first")
-                } else if (allGroups.size == 1) {
-                    rootNavController.navigate("add_expense/${allGroups.first().id}")
-                } else {
-                    showFabAddExpensePicker = true
-                }
-            }
-        )
-        1 -> listOfNotNull(
-            QuickAction("New Group", OpenSplitIcons.Groups) { showFabCreateGroup = true },
-            QuickAction("Add Expense", OpenSplitIcons.AddExpense) {
-                if (allGroups.isEmpty()) {
-                    snackbar.showMessage("Create a group first")
-                } else if (allGroups.size == 1) {
-                    rootNavController.navigate("add_expense/${allGroups.first().id}")
-                } else {
-                    showFabAddExpensePicker = true
-                }
-            },
-            QuickAction("Settle Up", OpenSplitIcons.Settle) {
-                when {
-                    settleableGroups.isEmpty() -> snackbar.showMessage("Add another member to a group before settling up")
-                    settleableGroups.size == 1 -> rootNavController.navigate("settle_up/${settleableGroups.first().id}")
-                    else -> showFabSettleUpPicker = true
-                }
-            }
-        )
-        2 -> listOfNotNull(
-            QuickAction("Invite Friend", OpenSplitIcons.Invite) { showFabInviteFriend = true },
-            QuickAction("Settle Up", OpenSplitIcons.Settle) {
-                when {
-                    settleableGroups.isEmpty() -> snackbar.showMessage("Add another member to a group before settling up")
-                    settleableGroups.size == 1 -> rootNavController.navigate("settle_up/${settleableGroups.first().id}")
-                    else -> showFabSettleUpPicker = true
-                }
-            }
-        )
-        else -> emptyList()
+    fun addExpense() = when (allGroups.size) {
+        0 -> snackbar.showMessage("Create a group first")
+        1 -> rootNavController.navigate("add_expense/${allGroups.first().id}")
+        else -> showAddExpensePicker = true
     }
-    LaunchedEffect(selectedTab) { fabExpanded = false }
+
+    // One contextual FAB per tab; tabs without a primary create action have none.
+    // No FAB while a tab shows its empty state; the empty state already carries the one call to action.
+    val fab: (@Composable () -> Unit)? = when (selectedTab) {
+        DashboardTab.GROUPS -> if (allGroups.none { !it.isDirect }) null else ({
+            FloatingActionButton(
+                onClick = { addExpense() },
+                containerColor = MaterialTheme.colorScheme.primaryContainer,
+                contentColor = MaterialTheme.colorScheme.onPrimaryContainer
+            ) { SymbolIcon(OpenSplitIcons.AddExpense, contentDescription = "Add expense") }
+        })
+        DashboardTab.PEOPLE -> if (!hasFriends) null else ({
+            FloatingActionButton(
+                onClick = { showInviteFriend = true },
+                containerColor = MaterialTheme.colorScheme.primaryContainer,
+                contentColor = MaterialTheme.colorScheme.onPrimaryContainer
+            ) { SymbolIcon(OpenSplitIcons.PersonAdd, contentDescription = "Add friend") }
+        })
+        else -> null
+    }
+
+    val tabItem: @Composable (DashboardTab, @Composable () -> Unit) -> Unit = { tab, content ->
+        if (tab == DashboardTab.ACTIVITY && unreadCount > 0) {
+            BadgedBox(badge = { Badge { Text(if (unreadCount > 99) "99+" else "$unreadCount") } }) { content() }
+        } else content()
+    }
 
     Scaffold(
         topBar = {
-            if (selectedTab == 0) {
+            if (selectedTab != DashboardTab.SETTINGS) {
                 TopAppBar(
-                    title = {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(10.dp)
-                        ) {
-                            // User Avatar
-                            Box(
-                                modifier = Modifier
-                                    .size(36.dp)
-                                    .clip(CircleShape)
-                                    .background(MaterialTheme.colorScheme.primaryContainer)
-                                    .clickable { selectedTab = 4 },
-                                contentAlignment = Alignment.Center
-                            ) {
-                                if (!currentUserState?.photoUrl.isNullOrEmpty()) {
-                                    AsyncImage(
-                                        model = currentUserState?.photoUrl,
-                                        contentDescription = "Profile",
-                                        modifier = Modifier.fillMaxSize(),
-                                        contentScale = ContentScale.Crop
-                                    )
-                                } else {
-                                    val initial = currentUserState?.displayName?.firstOrNull()?.uppercase() ?: "U"
-                                    Text(
-                                        text = initial,
-                                        style = MaterialTheme.typography.titleMedium,
-                                        fontWeight = FontWeight.Bold,
-                                        color = MaterialTheme.colorScheme.onPrimaryContainer
-                                    )
-                                }
-                            }
-
-                            Text(
-                                text = "OpenSplit",
-                                fontWeight = FontWeight.Bold,
-                                style = MaterialTheme.typography.titleLarge
-                            )
-                        }
-                    },
-                    colors = TopAppBarDefaults.topAppBarColors(
-                        containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.85f)
-                    ),
-                    modifier = Modifier.appHazeHeader(hazeState),
-                    actions = {
-                        // Settlement History button
-                        IconButton(onClick = { rootNavController.navigate("settlement_history") }) {
-                            Icon(
-                                imageVector = OpenSplitIcons.History,
-                                contentDescription = "Settlement History"
-                            )
-                        }
-
-                        // Activity Bell with Badge
-                        IconButton(onClick = { rootNavController.navigate("activity") }) {
-                            BadgedBox(
-                                badge = {
-                                    if (unreadCount > 0) {
-                                        Badge(
-                                            containerColor = MaterialTheme.colorScheme.error,
-                                            contentColor = MaterialTheme.colorScheme.onError,
-                                            modifier = Modifier.offset(x = (-4).dp, y = 4.dp)
-                                        ) {
-                                            Text(
-                                                text = if (unreadCount > 9) "9+" else "$unreadCount",
-                                                style = MaterialTheme.typography.labelSmall.copy(
-                                                    fontSize = 9.sp,
-                                                    fontWeight = FontWeight.Bold,
-                                                    lineHeight = 9.sp
-                                                ),
-                                                modifier = Modifier.padding(horizontal = 2.dp)
-                                            )
-                                        }
-                                    }
-                                }
-                            ) {
-                                Icon(
-                                    imageVector = OpenSplitIcons.Activity,
-                                    contentDescription = "Activity Feed"
-                                )
-                            }
-                        }
-                    }
-                )
-            } else if (selectedTab in 1..3) {
-                TopAppBar(
-                    title = {
-                        Text(
-                            text = tabTitles[selectedTab],
-                            fontWeight = FontWeight.Bold,
-                            style = MaterialTheme.typography.titleLarge
-                        )
-                    },
+                    title = { Text(selectedTab.label, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleLarge) },
                     colors = TopAppBarDefaults.topAppBarColors(
                         containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.75f)
                     ),
                     modifier = Modifier.appHazeHeader(hazeState),
                     actions = {
-                        // Global Search Button
-                        IconButton(onClick = { showGlobalSearchSheet = true }) {
-                            Icon(
-                                imageVector = OpenSplitIcons.Search,
-                                contentDescription = "Search"
-                            )
-                        }
-
-                        // Activity bell with badge
-                        IconButton(onClick = { rootNavController.navigate("activity") }) {
-                            BadgedBox(
-                                badge = {
-                                    if (unreadCount > 0) {
-                                        Badge(
-                                            containerColor = MaterialTheme.colorScheme.errorContainer,
-                                            contentColor = MaterialTheme.colorScheme.onErrorContainer,
-                                            modifier = Modifier.offset(x = (-6).dp, y = 3.dp)
-                                        ) {
-                                            Text(
-                                                text = if (unreadCount > 10) "10+" else "$unreadCount",
-                                                style = MaterialTheme.typography.labelSmall.copy(
-                                                    fontSize = 10.sp,
-                                                    fontWeight = FontWeight.Bold,
-                                                    lineHeight = 10.sp
-                                                ),
-                                                modifier = Modifier.padding(horizontal = 3.dp)
-                                            )
-                                        }
-                                    }
-                                }
-                            ) {
-                                Icon(
-                                    imageVector = OpenSplitIcons.Activity,
-                                    contentDescription = "Activity Feed"
-                                )
+                        if (selectedTab == DashboardTab.GROUPS) {
+                            IconButton(shapes = IconButtonDefaults.shapes(), onClick = { showCreateGroup = true }) {
+                                SymbolIcon(OpenSplitIcons.GroupAdd, contentDescription = "New group")
                             }
+                            IconButton(shapes = IconButtonDefaults.shapes(), onClick = { rootNavController.navigate("settlement_history") }) {
+                                SymbolIcon(OpenSplitIcons.History, contentDescription = "Settlement history")
+                            }
+                        }
+                        if (selectedTab == DashboardTab.PEOPLE) {
+                            IconButton(shapes = IconButtonDefaults.shapes(), onClick = { mainViewModel.ensureFriendLink(); showQrSheet = true }) {
+                                SymbolIcon(OpenSplitIcons.QrCode, contentDescription = "Show or scan a QR code")
+                            }
+                        }
+                        IconButton(shapes = IconButtonDefaults.shapes(), onClick = { showGlobalSearch = true }) {
+                            SymbolIcon(OpenSplitIcons.Search, contentDescription = "Search")
                         }
                     }
                 )
             }
         },
-        floatingActionButton = {
-            if (quickActions.isNotEmpty()) {
-                Column(
-                    horizontalAlignment = Alignment.End,
-                    verticalArrangement = Arrangement.spacedBy(10.dp)
-                ) {
-                    AnimatedVisibility(
-                        visible = fabExpanded,
-                        enter = fadeIn() + expandVertically(),
-                        exit = fadeOut() + shrinkVertically()
-                    ) {
-                        Column(
-                            horizontalAlignment = Alignment.End,
-                            verticalArrangement = Arrangement.spacedBy(10.dp),
-                            modifier = Modifier.padding(bottom = 4.dp)
-                        ) {
-                            quickActions.forEach { action ->
-                                Row(
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                    modifier = Modifier.clickable {
-                                        fabExpanded = false
-                                        action.onClick()
-                                    }
-                                ) {
-                                    Surface(
-                                        shape = RoundedCornerShape(8.dp),
-                                        color = MaterialTheme.colorScheme.surfaceContainerHigh,
-                                        tonalElevation = 3.dp,
-                                        shadowElevation = 2.dp
-                                    ) {
-                                        Text(
-                                            text = action.label,
-                                            style = MaterialTheme.typography.labelMedium,
-                                            fontWeight = FontWeight.SemiBold,
-                                            color = MaterialTheme.colorScheme.onSurface,
-                                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
-                                        )
-                                    }
-
-                                    SmallFloatingActionButton(
-                                        onClick = {
-                                            fabExpanded = false
-                                            action.onClick()
-                                        },
-                                        containerColor = MaterialTheme.colorScheme.secondaryContainer,
-                                        contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
-                                        shape = CircleShape
-                                    ) {
-                                        Icon(action.icon, contentDescription = action.label, modifier = Modifier.size(18.dp))
-                                    }
-                                }
-                            }
-                        }
-                    }
-
-                    FloatingActionButton(
-                        onClick = {
-                            fabExpanded = !fabExpanded
-                        },
-                        containerColor = MaterialTheme.colorScheme.primary,
-                        contentColor = MaterialTheme.colorScheme.onPrimary,
-                        shape = RoundedCornerShape(16.dp),
-                        elevation = FloatingActionButtonDefaults.elevation(defaultElevation = 4.dp)
-                    ) {
-                        Icon(
-                            imageVector = if (fabExpanded) OpenSplitIcons.Close else Icons.Rounded.Add,
-                            contentDescription = if (fabExpanded) "Close quick actions" else "Quick actions",
-                            modifier = Modifier.size(24.dp)
-                        )
-                    }
-                }
-            }
-        },
+        floatingActionButton = { if (!wide) fab?.invoke() },
         bottomBar = {
-            Surface(
-                color = MaterialTheme.colorScheme.surfaceContainer,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .navigationBarsPadding()
-            ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(68.dp)
-                        .padding(horizontal = 8.dp, vertical = 6.dp),
-                    horizontalArrangement = Arrangement.SpaceAround,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    tabLabels.forEachIndexed { index, label ->
-                        val isSelected = selectedTab == index
-                        Surface(
-                            onClick = { selectedTab = index },
-                            shape = RoundedCornerShape(24.dp),
-                            color = if (isSelected) MaterialTheme.colorScheme.secondaryContainer else Color.Transparent,
-                            modifier = Modifier
-                                .weight(1f)
-                                .fillMaxHeight()
-                                .padding(horizontal = 2.dp)
-                        ) {
-                            Column(
-                                horizontalAlignment = Alignment.CenterHorizontally,
-                                verticalArrangement = Arrangement.Center,
-                                modifier = Modifier.fillMaxSize()
-                            ) {
-                                Icon(
-                                    imageVector = tabIcons[index],
-                                    contentDescription = label,
-                                    modifier = Modifier.size(22.dp),
-                                    tint = if (isSelected) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                                Spacer(modifier = Modifier.height(2.dp))
-                                Text(
-                                    text = label,
-                                    style = MaterialTheme.typography.labelSmall.copy(
-                                        fontSize = 11.sp,
-                                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
-                                    ),
-                                    color = if (isSelected) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onSurfaceVariant,
-                                    maxLines = 1
-                                )
-                            }
-                        }
+            if (!wide) {
+                // M3 Expressive short navigation bar: tighter than the classic one, pill indicator built in.
+                androidx.compose.material3.ShortNavigationBar {
+                    DashboardTab.entries.forEach { tab ->
+                        androidx.compose.material3.ShortNavigationBarItem(
+                            selected = selectedTab == tab,
+                            onClick = { selectedTab = tab },
+                            icon = { tabItem(tab) { SymbolIcon(tab.icon, contentDescription = null, filled = selectedTab == tab) } },
+                            label = { Text(tab.label) }
+                        )
                     }
                 }
             }
         }
     ) { padding ->
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(padding)
-                .appHazeSource(hazeState)
-        ) {
-            // M3 fade-through: bottom-nav destinations are peers with no spatial
-            // relationship, so they cross-fade rather than slide.
-            AnimatedContent(
-                targetState = selectedTab,
-                transitionSpec = { OpenSplitMotion.fadeThrough() },
-                label = "dashboardTab"
-            ) { tab ->
-                when (tab) {
-                    0 -> HomeScreen(
-                        viewModel = homeViewModel,
-                        mainViewModel = mainViewModel,
-                        onNavigateToGroupsTab = { selectedTab = 1 },
-                        onNavigateToGroupDetail = { groupId -> rootNavController.navigate("group_detail/$groupId") },
-                        onNavigateToActivity = { rootNavController.navigate("activity") },
-                        onNavigateToAddExpense = { groupId -> rootNavController.navigate("add_expense/$groupId") },
-                        onNavigateToSettleUp = { groupId -> rootNavController.navigate("settle_up/$groupId") },
-                        onNavigateToPersonBalance = { friendId -> rootNavController.navigate("person_balance/$friendId") }
+        Row(modifier = Modifier.fillMaxSize().padding(padding)) {
+            if (wide) {
+                // M3 Expressive wide navigation rail (collapsed): same items, expressive indicator and spacing.
+                androidx.compose.material3.WideNavigationRail(header = { fab?.let { Spacer(Modifier.height(8.dp)); it() } }) {
+                    // Short landscape windows can't fit five destinations; let the rail scroll.
+                    androidx.compose.foundation.layout.Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
+                        DashboardTab.entries.forEach { tab ->
+                            androidx.compose.material3.WideNavigationRailItem(
+                                railExpanded = false,
+                                selected = selectedTab == tab,
+                                onClick = { selectedTab = tab },
+                                icon = { tabItem(tab) { SymbolIcon(tab.icon, contentDescription = null, filled = selectedTab == tab) } },
+                                label = { Text(tab.label) }
+                            )
+                        }
+                    }
+                }
+            }
+            androidx.compose.foundation.layout.Column(modifier = Modifier.fillMaxSize()) {
+            com.opensplit.ui.components.OfflineBanner()
+            // Pull down on any tab to refresh. Firestore streams live, so a refresh means: flush queued
+            // writes to the server and re-subscribe any flow that is sitting in an error state.
+            // Healthy flows are left alone (re-subscribing them flashes their empty state).
+            var refreshing by remember { mutableStateOf(false) }
+            val refreshScope = androidx.compose.runtime.rememberCoroutineScope()
+            val pullState = androidx.compose.material3.pulltorefresh.rememberPullToRefreshState()
+            androidx.compose.material3.pulltorefresh.PullToRefreshBox(
+                isRefreshing = refreshing,
+                onRefresh = {
+                    refreshing = true
+                    if (mainViewModel.userGroups.value is ScreenState.Error || mainViewModel.friendsBalances.value is ScreenState.Error) mainViewModel.retry()
+                    if (activityViewModel.uiState.value is ScreenState.Error) activityViewModel.retry()
+                    if (analyticsViewModel.uiState.value is ScreenState.Error) analyticsViewModel.retry()
+                    if (accountViewModel.uiState.value is ScreenState.Error) accountViewModel.retry()
+                    refreshScope.launch {
+                        val flush = launch {
+                            kotlinx.coroutines.withTimeoutOrNull(2000) {
+                                kotlinx.coroutines.suspendCancellableCoroutine<Unit> { cont ->
+                                    com.google.firebase.firestore.FirebaseFirestore.getInstance().waitForPendingWrites()
+                                        .addOnCompleteListener { if (cont.isActive) cont.resume(Unit) {} }
+                                }
+                            }
+                        }
+                        kotlinx.coroutines.delay(700)
+                        flush.join()
+                        refreshing = false
+                    }
+                },
+                state = pullState,
+                indicator = {
+                    androidx.compose.material3.pulltorefresh.PullToRefreshDefaults.LoadingIndicator(
+                        state = pullState,
+                        isRefreshing = refreshing,
+                        modifier = Modifier.align(androidx.compose.ui.Alignment.TopCenter)
                     )
-                    1 -> GroupsScreen(
-                        viewModel = mainViewModel,
-                        onGroupClick = { groupId -> rootNavController.navigate("group_detail/$groupId") },
-                        onAddExpense = { groupId -> rootNavController.navigate("add_expense/$groupId") },
-                        onSettleUp = { groupId -> rootNavController.navigate("settle_up/$groupId") }
-                    )
-                    2 -> FriendsScreen(
-                        viewModel = mainViewModel,
-                        onFriendClick = { friendId -> rootNavController.navigate("person_balance/$friendId") }
-                    )
-                    3 -> AnalyticsScreen(
-                        viewModel = analyticsViewModel
-                    )
-                    4 -> {
-                        val accountViewModel: com.opensplit.ui.viewmodel.AccountViewModel = viewModel(factory = ViewModelFactory(appContainer))
-                        AccountScreen(
+                },
+                modifier = Modifier.fillMaxSize().appHazeSource(hazeState)
+            ) {
+                // Content follows the finger (Gmail-style): it slides down by the pull distance and the
+                // indicator sits in the gap it opens, instead of floating over the list.
+                val pullOffsetPx = with(androidx.compose.ui.platform.LocalDensity.current) {
+                    androidx.compose.material3.pulltorefresh.PullToRefreshDefaults.PositionalThreshold.toPx()
+                }
+                // Peers with no spatial relationship cross-fade (M3 fade-through).
+                AnimatedContent(
+                    targetState = selectedTab,
+                    transitionSpec = { OpenSplitMotion.fadeThrough() },
+                    label = "dashboardTab",
+                    modifier = Modifier.graphicsLayer {
+                        translationY = pullState.distanceFraction.coerceIn(0f, 1f) * pullOffsetPx
+                    }
+                ) { tab ->
+                    when (tab) {
+                        DashboardTab.GROUPS -> ListDetail(wide = wide, detailKey = detailGroupId,
+                            list = {
+                                GroupsScreen(
+                                    viewModel = mainViewModel,
+                                    homeViewModel = homeViewModel,
+                                    onGroupClick = { if (wide) detailGroupId = it else rootNavController.navigate("group_detail/$it") },
+                                    onAddExpense = { rootNavController.navigate("add_expense/$it") },
+                                    onSettleUp = { rootNavController.navigate("settle_up/$it") },
+                                    onPersonClick = { rootNavController.navigate("person_balance/$it") }
+                                )
+                            },
+                            detail = { gId ->
+                                val vm: com.opensplit.ui.viewmodel.GroupDetailViewModel = viewModel(key = "group_$gId", factory = com.opensplit.ui.viewmodel.GroupDetailViewModelFactory(gId, appContainer))
+                                GroupDetailScreen(
+                                    viewModel = vm,
+                                    onNavigateBack = { detailGroupId = null },
+                                    onNavigateToAddExpense = { rootNavController.navigate("add_expense/$gId") },
+                                    onNavigateToExpenseDetail = { g, e -> rootNavController.navigate("expense_detail/$g/$e") },
+                                    onNavigateToSettleUp = { rootNavController.navigate("settle_up/$gId") },
+                                    onNavigateToEditExpense = { g, e -> rootNavController.navigate("edit_expense/$g/$e") }
+                                )
+                            },
+                            placeholder = "Pick a group to see its expenses, balances and members here."
+                        )
+                        DashboardTab.PEOPLE -> ListDetail(wide = wide, detailKey = detailFriendId,
+                            list = {
+                                FriendsScreen(
+                                    viewModel = mainViewModel,
+                                    onFriendClick = { if (wide) detailFriendId = it else rootNavController.navigate("person_balance/$it") },
+                                    onAddExpense = { rootNavController.navigate("add_expense/$it") },
+                                    onSettleUp = { rootNavController.navigate("settle_up/$it") }
+                                )
+                            },
+                            detail = { fId ->
+                                val vm: com.opensplit.ui.viewmodel.PersonBalanceViewModel = viewModel(key = "person_$fId", factory = com.opensplit.ui.viewmodel.PersonBalanceViewModelFactory(fId, appContainer))
+                                PersonBalanceScreen(
+                                    viewModel = vm,
+                                    onNavigateBack = { detailFriendId = null },
+                                    onNavigateToSettleUp = { rootNavController.navigate("settle_up/$it") },
+                                    onNavigateToGroup = { rootNavController.navigate("group_detail/$it") },
+                                    onNavigateToAddExpense = { rootNavController.navigate("add_expense/$it") }
+                                )
+                            },
+                            placeholder = "Pick a person to see what you share and settle up."
+                        )
+                        DashboardTab.ACTIVITY -> ActivityScreen(
+                            viewModel = activityViewModel,
+                            onNavigateBack = {},
+                            showTopBar = false,
+                            onOpenExpense = { gId, eId -> rootNavController.navigate("expense_detail/$gId/$eId") }
+                        )
+                        DashboardTab.INSIGHTS -> AnalyticsScreen(viewModel = analyticsViewModel)
+                        DashboardTab.SETTINGS -> AccountScreen(
                             appContainer = appContainer,
                             rootNavController = rootNavController,
                             viewModel = accountViewModel
@@ -485,113 +334,73 @@ fun MainDashboard(
                     }
                 }
             }
-
-            // Faded Blue Radial Blur Overlay starting from bottom right when Speed Dial FAB is expanded
-            AnimatedVisibility(
-                visible = fabExpanded,
-                enter = fadeIn(animationSpec = tween(250)),
-                exit = fadeOut(animationSpec = tween(200))
-            ) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .hazeEffect(
-                            state = hazeState,
-                            style = HazeDefaults.style(
-                                backgroundColor = Color.Transparent,
-                                blurRadius = 24.dp
-                            )
-                        )
-                        .drawBehind {
-                            val center = Offset(size.width, size.height)
-                            val radius = size.maxDimension * 1.15f
-                            drawRect(
-                                brush = Brush.radialGradient(
-                                    colors = listOf(
-                                        Color(0xFF2563EB).copy(alpha = 0.45f), // Radiant vibrant blue at bottom-right FAB
-                                        Color(0xFF1E3A8A).copy(alpha = 0.55f), // Deep royal blue transition
-                                        Color(0xFF0F172A).copy(alpha = 0.65f), // Dark navy backdrop
-                                        Color.Black.copy(alpha = 0.60f)        // Deep dark shadow across screen
-                                    ),
-                                    center = center,
-                                    radius = radius
-                                )
-                            )
-                        }
-                        .clickable { fabExpanded = false }
-                )
             }
         }
     }
 
-    if (showGlobalSearchSheet) {
-        com.opensplit.ui.components.GlobalSearchSheet(
+    if (showGlobalSearch) {
+        GlobalSearchSheet(
             appContainer = appContainer,
-            onDismiss = { showGlobalSearchSheet = false },
-            onNavigateToGroup = { groupId ->
-                rootNavController.navigate("group_detail/$groupId")
-            },
-            onNavigateToExpense = { groupId, expenseId ->
-                rootNavController.navigate("expense_detail/$groupId/$expenseId")
-            },
-            onNavigateToFriend = { friendId ->
-                rootNavController.navigate("person_balance/$friendId")
-            },
-            onAddExpense = {
-                showFabAddExpensePicker = true
-            },
-            onCreateGroup = {
-                showFabCreateGroup = true
-            },
-            onSettleUp = {
-                showFabSettleUpPicker = true
-            },
-            onInviteFriend = {
-                showFabInviteFriend = true
-            }
+            onDismiss = { showGlobalSearch = false },
+            onNavigateToGroup = { rootNavController.navigate("group_detail/$it") },
+            onNavigateToExpense = { groupId, expenseId -> rootNavController.navigate("expense_detail/$groupId/$expenseId") },
+            onNavigateToFriend = { rootNavController.navigate("person_balance/$it") },
+            onAddExpense = { addExpense() },
+            onCreateGroup = { showCreateGroup = true },
+            onSettleUp = { showSettleUpPicker = true },
+            onInviteFriend = { showInviteFriend = true }
         )
     }
 
-    if (showFabAddExpensePicker) {
+    if (showAddExpensePicker) {
         GroupSelectionDialog(
             title = "Select Group for New Expense",
             groups = allGroups,
-            onDismiss = { showFabAddExpensePicker = false },
-            onSelectGroup = { groupId ->
-                showFabAddExpensePicker = false
-                rootNavController.navigate("add_expense/$groupId")
+            onDismiss = { showAddExpensePicker = false },
+            onSelectGroup = {
+                showAddExpensePicker = false
+                rootNavController.navigate("add_expense/$it")
             }
         )
     }
 
-    if (showFabSettleUpPicker) {
+    if (showSettleUpPicker) {
         GroupSelectionDialog(
             title = "Select Group to Settle Up",
-            groups = settleableGroups,
-            onDismiss = { showFabSettleUpPicker = false },
-            onSelectGroup = { groupId ->
-                showFabSettleUpPicker = false
-                rootNavController.navigate("settle_up/$groupId")
+            groups = allGroups.filter { it.memberIds.size > 1 },
+            onDismiss = { showSettleUpPicker = false },
+            onSelectGroup = {
+                showSettleUpPicker = false
+                rootNavController.navigate("settle_up/$it")
             }
         )
     }
 
-    if (showFabCreateGroup) {
-        com.opensplit.ui.components.CreateGroupDialog(
-            onDismiss = { showFabCreateGroup = false },
+    if (showCreateGroup) {
+        CreateGroupDialog(
+            defaultCurrency = currentUserState?.defaultCurrency?.ifBlank { null } ?: "INR",
+            onDismiss = { showCreateGroup = false },
             onCreate = { name, currency, avatarKey ->
-                mainViewModel.createGroup(name, currency, avatarKey)
-                snackbar.showMessage("Created $name")
-                showFabCreateGroup = false
+                showCreateGroup = false
+                busy.show("Creating group…")
+                mainViewModel.createGroup(name, currency, avatarKey) { busy.hide(); snackbar.showMessage("Created $name") }
             }
         )
     }
 
-    if (showFabInviteFriend) {
-        com.opensplit.ui.components.InviteMemberDialog(
+    if (showQrSheet) {
+        com.opensplit.ui.components.FriendQrSheet(
+            myLinkUrl = myFriendLink,
+            onDismiss = { showQrSheet = false },
+            onOpenLink = { kind, token -> rootNavController.navigate(if (kind == "join") "join/$token" else "friend/$token") }
+        )
+    }
+
+    if (showInviteFriend) {
+        InviteMemberDialog(
             title = "Invite a friend",
             description = "Pick them from your contacts, or invite over WhatsApp or SMS.",
-            onDismiss = { showFabInviteFriend = false },
+            onDismiss = { showInviteFriend = false },
             onSubmitEmail = { email ->
                 mainViewModel.sendFriendInvite(email) { success ->
                     snackbar.showMessage(if (success) "Invite sent" else "Couldn't send (already invited or invalid email)")
@@ -601,3 +410,25 @@ fun MainDashboard(
     }
 }
 
+/** Side-by-side list and detail on medium/expanded widths; the list alone on phones. */
+@Composable
+private fun ListDetail(
+    wide: Boolean,
+    detailKey: String?,
+    list: @Composable () -> Unit,
+    detail: @Composable (String) -> Unit,
+    placeholder: String
+) {
+    if (!wide) { list(); return }
+    Row(modifier = Modifier.fillMaxSize()) {
+        Box(modifier = Modifier.weight(0.42f).fillMaxSize()) { list() }
+        androidx.compose.material3.VerticalDivider()
+        Box(modifier = Modifier.weight(0.58f).fillMaxSize()) {
+            if (detailKey != null) detail(detailKey) else {
+                Box(modifier = Modifier.fillMaxSize().padding(32.dp), contentAlignment = androidx.compose.ui.Alignment.Center) {
+                    Text(placeholder, style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = androidx.compose.ui.text.style.TextAlign.Center)
+                }
+            }
+        }
+    }
+}

@@ -2,7 +2,7 @@ package com.opensplit.ui.viewmodel
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.opensplit.data.ai.GeminiInsightsGenerator
+import com.opensplit.data.ai.AiFeature
 import com.opensplit.di.AppContainer
 import com.opensplit.domain.model.Expense
 import com.opensplit.domain.model.Group
@@ -41,7 +41,11 @@ data class AnalyticsUiState(
     /** Total value of all expenses in scope (full amounts, not just your share). */
     val totalMoneyTracked: Double = 0.0,
     /** Your share across all expenses in scope. */
-    val yourShareTotal: Double = 0.0
+    val yourShareTotal: Double = 0.0,
+    /** This month vs last month, as a fraction (0.12 = up 12 percent); null when last month was empty. */
+    val monthOverMonth: Double? = null,
+    /** Rule-based takeaways that never need an API key. */
+    val localInsights: List<String> = emptyList()
 )
 
 /** State of the on-demand AI insights card. */
@@ -55,9 +59,13 @@ sealed interface InsightsState {
 class AnalyticsViewModel(private val appContainer: AppContainer) : ViewModel() {
 
     private val _selectedGroupId = MutableStateFlow<String?>(null)
+    private val retryTrigger = MutableStateFlow(0)
+
+    /** Re-subscribes every upstream flow (pull-to-refresh / error retry). */
+    fun retry() { retryTrigger.value++ }
 
     @OptIn(ExperimentalCoroutinesApi::class, FlowPreview::class)
-    val uiState: StateFlow<ScreenState<AnalyticsUiState>> = flow {
+    val uiState: StateFlow<ScreenState<AnalyticsUiState>> = retryTrigger.flatMapLatest { flow {
         emit(ScreenState.Loading)
         val uid = appContainer.authRepository.getCurrentUserId()
         if (uid == null) {
@@ -157,7 +165,11 @@ class AnalyticsViewModel(private val appContainer: AppContainer) : ViewModel() {
                         groupCount = scopedGroups.size,
                         peopleCount = peopleCount,
                         totalMoneyTracked = expenses.sumOf { it.amount },
-                        yourShareTotal = scopeTotal
+                        yourShareTotal = scopeTotal,
+                        monthOverMonth = monthBuckets.takeLast(2).let { if (it.size == 2 && it[0].amount > 0.009) (it[1].amount - it[0].amount) / it[0].amount else null },
+                        localInsights = com.opensplit.domain.logic.SpendingInsights.describe(
+                            currencySymbol, monthBuckets.map { it.amount }, categoryList.map { it.category to it.amount }, expenses.sumOf { it.amount }, scopeTotal
+                        )
                     )
                 )
             }
@@ -166,8 +178,15 @@ class AnalyticsViewModel(private val appContainer: AppContainer) : ViewModel() {
     }
         .catch { e ->
             emit(ScreenState.Error(e.message ?: "Failed to load analytics"))
-        }
+        } }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), ScreenState.Loading)
+
+    val budgets: StateFlow<Map<String, Double>> = appContainer.userPreferencesRepository.categoryBudgetsFlow
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyMap())
+
+    fun setBudget(category: String, amount: Double?) {
+        viewModelScope.launch { appContainer.userPreferencesRepository.setCategoryBudget(category, amount) }
+    }
 
     fun selectGroupScope(groupId: String?) {
         _selectedGroupId.value = groupId
@@ -178,8 +197,9 @@ class AnalyticsViewModel(private val appContainer: AppContainer) : ViewModel() {
     private val _insightsState = MutableStateFlow<InsightsState>(InsightsState.Idle)
     val insightsState: StateFlow<InsightsState> = _insightsState.asStateFlow()
 
-    /** Whether an API key is configured; the UI hides the AI card entirely when false. */
-    val isAiConfigured: Boolean get() = GeminiInsightsGenerator.isConfigured()
+    /** True while the Insights AI feature is switched on and the active provider has a key. */
+    val aiAvailable: StateFlow<Boolean> = appContainer.aiService.availability(AiFeature.INSIGHTS)
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
 
     fun generateInsights() {
         val data = (uiState.value as? ScreenState.Success)?.data ?: return
@@ -188,7 +208,7 @@ class AnalyticsViewModel(private val appContainer: AppContainer) : ViewModel() {
         _insightsState.value = InsightsState.Loading
         viewModelScope.launch {
             val summary = buildSummary(data)
-            val result = GeminiInsightsGenerator.generateInsights(summary)
+            val result = appContainer.aiService.insights(summary)
             _insightsState.value = if (result != null) {
                 InsightsState.Ready(result)
             } else {

@@ -41,8 +41,8 @@ class SettlementRepositoryImpl(
     override suspend fun addSettlement(groupId: String, settlement: Settlement): Result<String> {
         return try {
             val docRef = firestore.collection("groups").document(groupId)
-                .collection("settlements")
-                .add(settlement).await()
+                .collection("settlements").document()
+            docRef.set(settlement).awaitWrite()
 
             activityRepository.logActivity(
                 groupId,

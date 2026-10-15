@@ -20,6 +20,7 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 
@@ -69,12 +70,66 @@ class MainViewModel(
             if (friendInvites.value.any { it.email.equals(trimmed, ignoreCase = true) }) {
                 onResult(false); return@launch
             }
-            onResult(friendInviteRepository.sendInvite(uid, trimmed).isSuccess)
+            val name = authRepository.currentUser?.displayName ?: ""
+            onResult(friendInviteRepository.sendInvite(uid, trimmed, name).isSuccess)
         }
     }
 
     fun revokeFriendInvite(inviteId: String) {
         viewModelScope.launch { friendInviteRepository.revokeInvite(inviteId) }
+    }
+
+    /** The signed-in user's own add-me link, created on first use. */
+    private val _friendLinkUrl = MutableStateFlow<String?>(null)
+    val friendLinkUrl: StateFlow<String?> = _friendLinkUrl.asStateFlow()
+    fun ensureFriendLink() {
+        if (_friendLinkUrl.value != null) return
+        viewModelScope.launch {
+            val uid = authRepository.getCurrentUserId() ?: return@launch
+            val name = authRepository.currentUser?.displayName ?: ""
+            _friendLinkUrl.value = friendInviteRepository.getOrCreateFriendLink(uid, name).getOrNull()
+        }
+    }
+
+    /** Direct (1:1) group with a friend, created on first use; null when it can't be created. */
+    fun openDirectGroup(friendUid: String, onReady: (String?) -> Unit) {
+        viewModelScope.launch {
+            val uid = authRepository.getCurrentUserId() ?: return@launch onReady(null)
+            val currency = userRepository.getUser(uid)?.defaultCurrency ?: "INR"
+            onReady(groupRepository.getOrCreateDirectGroup(uid, friendUid, currency).getOrNull()?.id)
+        }
+    }
+
+    /** Opens a scanned/pasted friend link: creates the direct group, returns the friend's uid. */
+    fun acceptFriendLink(token: String, onResult: (Result<String>) -> Unit) {
+        viewModelScope.launch {
+            val uid = authRepository.getCurrentUserId() ?: return@launch onResult(Result.failure(IllegalStateException("Sign in first")))
+            val currency = userRepository.getUser(uid)?.defaultCurrency ?: "INR"
+            onResult(friendInviteRepository.acceptFriendLink(token, uid, currency))
+        }
+    }
+
+    /** Friend requests addressed to the signed-in user's email. */
+    val incomingFriendInvites: StateFlow<List<FriendInvite>> =
+        authRepository.getAuthState()
+            .flatMapLatest { state ->
+                val email = (state as? AuthState.LoggedIn)?.let { authRepository.currentUser?.email }
+                if (email.isNullOrBlank()) flowOf(emptyList()) else friendInviteRepository.getIncomingInvites(email)
+            }
+            .catch { emit(emptyList()) }
+            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    /** Accepting creates the hidden direct group, which makes the pair show in each other's People tab. */
+    fun respondToFriendInvite(invite: FriendInvite, accept: Boolean, onResult: (Boolean) -> Unit = {}) {
+        viewModelScope.launch {
+            val uid = authRepository.getCurrentUserId() ?: return@launch
+            val ok = friendInviteRepository.respond(invite.id, accept).isSuccess
+            if (ok && accept) {
+                val currency = userRepository.getUser(uid)?.defaultCurrency ?: "INR"
+                groupRepository.getOrCreateDirectGroup(uid, invite.inviterUid, currency)
+            }
+            onResult(ok)
+        }
     }
 
     val userGroups: StateFlow<ScreenState<List<Group>>> = combine(authRepository.getAuthState(), retryTrigger) { state, _ -> state }
@@ -92,6 +147,13 @@ class MainViewModel(
             started = SharingStarted.WhileSubscribed(5000),
             initialValue = ScreenState.Loading
         )
+
+    val archivedGroupIds: StateFlow<Set<String>> = userPreferencesRepository.archivedGroupIdsFlow
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptySet())
+
+    fun setGroupArchived(groupId: String, archived: Boolean) {
+        viewModelScope.launch { userPreferencesRepository.setGroupArchived(groupId, archived) }
+    }
 
     val pinnedGroupIds: StateFlow<Set<String>> = userPreferencesRepository.pinnedGroupIdsFlow
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptySet())
@@ -220,7 +282,7 @@ class MainViewModel(
         }
     }
 
-    fun createGroup(name: String, currency: String = "INR", avatarKey: String? = null) {
+    fun createGroup(name: String, currency: String = "INR", avatarKey: String? = null, onDone: () -> Unit = {}) {
         viewModelScope.launch {
             val uid = authRepository.getCurrentUserId() ?: return@launch
             val newGroup = Group(
@@ -231,6 +293,7 @@ class MainViewModel(
                 avatarKey = avatarKey
             )
             groupRepository.createGroup(newGroup)
+            onDone()
         }
     }
 

@@ -1,5 +1,8 @@
 package com.opensplit.ui.screens
 
+import com.opensplit.ui.theme.Symbol
+import com.opensplit.ui.theme.OpenSplitIcons
+import com.opensplit.ui.components.SymbolIcon
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
@@ -11,11 +14,6 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.rounded.ArrowBack
-import androidx.compose.material.icons.automirrored.rounded.List
-import androidx.compose.material.icons.automirrored.rounded.Send
-import androidx.compose.material.icons.rounded.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -96,7 +94,7 @@ fun M3ComponentsCatalogSubScreen(
                 },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Rounded.ArrowBack, contentDescription = "Back")
+                        SymbolIcon(OpenSplitIcons.ArrowBack, contentDescription = "Back")
                     }
                 },
                 windowInsets = WindowInsets(0, 0, 0, 0)
@@ -140,7 +138,7 @@ fun M3ComponentsCatalogSubScreen(
                                     modifier = Modifier.fillMaxWidth()
                                 ) {
                                     Button(onClick = { snackbarMessage = "Clicked Filled Button" }) {
-                                        Icon(Icons.Rounded.Check, contentDescription = null, modifier = Modifier.size(18.dp))
+                                        SymbolIcon(OpenSplitIcons.Check, contentDescription = null, modifier = Modifier.size(18.dp))
                                         Spacer(Modifier.width(8.dp))
                                         Text("Filled")
                                     }
@@ -188,20 +186,20 @@ fun M3ComponentsCatalogSubScreen(
                                 ) {
                                     ExtendedFloatingActionButton(
                                         onClick = { snackbarMessage = "Extended FAB clicked" },
-                                        icon = { Icon(Icons.Rounded.Add, contentDescription = null) },
+                                        icon = { SymbolIcon(OpenSplitIcons.Add, contentDescription = null) },
                                         text = { Text("Extended FAB") }
                                     )
 
                                     FloatingActionButton(
                                         onClick = { snackbarMessage = "Standard FAB clicked" }
                                     ) {
-                                        Icon(Icons.Rounded.Edit, contentDescription = null)
+                                        SymbolIcon(OpenSplitIcons.Edit, contentDescription = null)
                                     }
 
                                     SmallFloatingActionButton(
                                         onClick = { snackbarMessage = "Small FAB clicked" }
                                     ) {
-                                        Icon(Icons.Rounded.Share, contentDescription = null)
+                                        SymbolIcon(OpenSplitIcons.Share, contentDescription = null)
                                     }
                                 }
                             }
@@ -215,16 +213,16 @@ fun M3ComponentsCatalogSubScreen(
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
                                     IconButton(onClick = { snackbarMessage = "Standard IconButton" }) {
-                                        Icon(Icons.Rounded.FavoriteBorder, contentDescription = null)
+                                        SymbolIcon(OpenSplitIcons.FavoriteBorder, contentDescription = null)
                                     }
                                     FilledIconButton(onClick = { snackbarMessage = "Filled IconButton" }) {
-                                        Icon(Icons.Rounded.Favorite, contentDescription = null)
+                                        SymbolIcon(OpenSplitIcons.Favorite, contentDescription = null)
                                     }
                                     FilledTonalIconButton(onClick = { snackbarMessage = "Filled Tonal IconButton" }) {
-                                        Icon(Icons.Rounded.Bookmark, contentDescription = null)
+                                        SymbolIcon(OpenSplitIcons.Bookmark, contentDescription = null)
                                     }
                                     OutlinedIconButton(onClick = { snackbarMessage = "Outlined IconButton" }) {
-                                        Icon(Icons.Rounded.BookmarkBorder, contentDescription = null)
+                                        SymbolIcon(OpenSplitIcons.BookmarkBorder, contentDescription = null)
                                     }
                                 }
                             }
@@ -251,7 +249,7 @@ fun M3ComponentsCatalogSubScreen(
                                         Text(selectedDateText, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Bold)
                                     }
                                     Button(onClick = { showDatePicker = true }) {
-                                        Icon(Icons.Rounded.CalendarToday, contentDescription = null, modifier = Modifier.size(18.dp))
+                                        SymbolIcon(OpenSplitIcons.CalendarToday, contentDescription = null, modifier = Modifier.size(18.dp))
                                         Spacer(Modifier.width(8.dp))
                                         Text("Pick Date")
                                     }
@@ -273,7 +271,7 @@ fun M3ComponentsCatalogSubScreen(
                                         Text(String.format("%02d:%02d %s", formattedHour, timePickerState.minute, amPm), style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Bold)
                                     }
                                     Button(onClick = { showTimePicker = true }) {
-                                        Icon(Icons.Rounded.Schedule, contentDescription = null, modifier = Modifier.size(18.dp))
+                                        SymbolIcon(OpenSplitIcons.Schedule, contentDescription = null, modifier = Modifier.size(18.dp))
                                         Spacer(Modifier.width(8.dp))
                                         Text("Pick Time")
                                     }
@@ -365,10 +363,10 @@ fun M3ComponentsCatalogSubScreen(
                                         CenterAlignedTopAppBar(
                                             title = { Text("Center Aligned", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold) },
                                             navigationIcon = {
-                                                IconButton(onClick = {}) { Icon(Icons.Rounded.Menu, contentDescription = null) }
+                                                IconButton(onClick = {}) { SymbolIcon(OpenSplitIcons.Menu, contentDescription = null) }
                                             },
                                             actions = {
-                                                IconButton(onClick = {}) { Icon(Icons.Rounded.Search, contentDescription = null) }
+                                                IconButton(onClick = {}) { SymbolIcon(OpenSplitIcons.Search, contentDescription = null) }
                                             },
                                             colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent)
                                         )
@@ -381,13 +379,13 @@ fun M3ComponentsCatalogSubScreen(
                                     ) {
                                         BottomAppBar(
                                             actions = {
-                                                IconButton(onClick = {}) { Icon(Icons.Rounded.Check, contentDescription = null) }
-                                                IconButton(onClick = {}) { Icon(Icons.Rounded.Edit, contentDescription = null) }
-                                                IconButton(onClick = {}) { Icon(Icons.Rounded.Share, contentDescription = null) }
+                                                IconButton(onClick = {}) { SymbolIcon(OpenSplitIcons.Check, contentDescription = null) }
+                                                IconButton(onClick = {}) { SymbolIcon(OpenSplitIcons.Edit, contentDescription = null) }
+                                                IconButton(onClick = {}) { SymbolIcon(OpenSplitIcons.Share, contentDescription = null) }
                                             },
                                             floatingActionButton = {
                                                 FloatingActionButton(onClick = {}) {
-                                                    Icon(Icons.Rounded.Add, contentDescription = null)
+                                                    SymbolIcon(OpenSplitIcons.Add, contentDescription = null)
                                                 }
                                             },
                                             containerColor = Color.Transparent
@@ -407,19 +405,19 @@ fun M3ComponentsCatalogSubScreen(
                                     BadgedBox(
                                         badge = { Badge { Text("8") } }
                                     ) {
-                                        Icon(Icons.Rounded.Mail, contentDescription = null, modifier = Modifier.size(32.dp))
+                                        SymbolIcon(OpenSplitIcons.Mail, contentDescription = null, modifier = Modifier.size(32.dp))
                                     }
 
                                     BadgedBox(
                                         badge = { Badge { Text("99+") } }
                                     ) {
-                                        Icon(Icons.Rounded.Notifications, contentDescription = null, modifier = Modifier.size(32.dp))
+                                        SymbolIcon(OpenSplitIcons.Notifications, contentDescription = null, modifier = Modifier.size(32.dp))
                                     }
 
                                     BadgedBox(
                                         badge = { Badge() }
                                     ) {
-                                        Icon(Icons.Rounded.Chat, contentDescription = null, modifier = Modifier.size(32.dp))
+                                        SymbolIcon(OpenSplitIcons.Chat, contentDescription = null, modifier = Modifier.size(32.dp))
                                     }
                                 }
                             }
@@ -429,9 +427,9 @@ fun M3ComponentsCatalogSubScreen(
                             M3SectionCard(title = "Navigation Drawer Items", description = "Material 3 Drawer Items with active/inactive indicators") {
                                 var selectedDrawerItem by remember { mutableIntStateOf(0) }
                                 val drawerItems = listOf(
-                                    Triple("Inbox", Icons.Rounded.Inbox, "12"),
-                                    Triple("Outbox", Icons.AutoMirrored.Rounded.Send, null),
-                                    Triple("Favorites", Icons.Rounded.Favorite, "3")
+                                    Triple("Inbox", OpenSplitIcons.Inbox, "12"),
+                                    Triple("Outbox", OpenSplitIcons.Send, null),
+                                    Triple("Favorites", OpenSplitIcons.Favorite, "3")
                                 )
 
                                 Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
@@ -440,7 +438,7 @@ fun M3ComponentsCatalogSubScreen(
                                             label = { Text(label) },
                                             selected = selectedDrawerItem == index,
                                             onClick = { selectedDrawerItem = index },
-                                            icon = { Icon(icon, contentDescription = null) },
+                                            icon = { SymbolIcon(icon, contentDescription = null) },
                                             badge = badge?.let { { Text(it) } },
                                             modifier = Modifier.padding(horizontal = 4.dp)
                                         )
@@ -458,7 +456,7 @@ fun M3ComponentsCatalogSubScreen(
                                     onClick = { showBottomSheet = true },
                                     modifier = Modifier.fillMaxWidth()
                                 ) {
-                                    Icon(Icons.Rounded.Layers, contentDescription = null)
+                                    SymbolIcon(OpenSplitIcons.Layers, contentDescription = null)
                                     Spacer(Modifier.width(8.dp))
                                     Text("Open Modal Bottom Sheet")
                                 }
@@ -517,7 +515,7 @@ fun M3ComponentsCatalogSubScreen(
                                         value = filledText,
                                         onValueChange = { filledText = it },
                                         label = { Text("Filled Text Field") },
-                                        leadingIcon = { Icon(Icons.Rounded.Search, contentDescription = null) },
+                                        leadingIcon = { SymbolIcon(OpenSplitIcons.Search, contentDescription = null) },
                                         modifier = Modifier.fillMaxWidth()
                                     )
 
@@ -525,7 +523,7 @@ fun M3ComponentsCatalogSubScreen(
                                         value = outlinedText,
                                         onValueChange = { outlinedText = it },
                                         label = { Text("Outlined Text Field") },
-                                        leadingIcon = { Icon(Icons.Rounded.Person, contentDescription = null) },
+                                        leadingIcon = { SymbolIcon(OpenSplitIcons.Person, contentDescription = null) },
                                         supportingText = { Text("Helper text goes here") },
                                         modifier = Modifier.fillMaxWidth()
                                     )
@@ -550,8 +548,8 @@ fun M3ComponentsCatalogSubScreen(
                                             checked = switchChecked,
                                             onCheckedChange = { switchChecked = it },
                                             thumbContent = {
-                                                Icon(
-                                                    if (switchChecked) Icons.Rounded.Check else Icons.Rounded.Close,
+                                                SymbolIcon(
+                                                    if (switchChecked) OpenSplitIcons.Check else OpenSplitIcons.Close,
                                                     contentDescription = null,
                                                     modifier = Modifier.size(SwitchDefaults.IconSize)
                                                 )
@@ -691,7 +689,7 @@ fun M3ComponentsCatalogSubScreen(
                                     AssistChip(
                                         onClick = { snackbarMessage = "Assist chip clicked" },
                                         label = { Text("Assist Chip") },
-                                        leadingIcon = { Icon(Icons.Rounded.Star, contentDescription = null, modifier = Modifier.size(18.dp)) }
+                                        leadingIcon = { SymbolIcon(OpenSplitIcons.Star, contentDescription = null, modifier = Modifier.size(18.dp)) }
                                     )
 
                                     FilterChip(
@@ -699,7 +697,7 @@ fun M3ComponentsCatalogSubScreen(
                                         onClick = { filterSelected = !filterSelected },
                                         label = { Text("Filter Chip") },
                                         leadingIcon = if (filterSelected) {
-                                            { Icon(Icons.Rounded.Check, contentDescription = null, modifier = Modifier.size(18.dp)) }
+                                            { SymbolIcon(OpenSplitIcons.Check, contentDescription = null, modifier = Modifier.size(18.dp)) }
                                         } else null
                                     )
 
@@ -713,7 +711,7 @@ fun M3ComponentsCatalogSubScreen(
                                                     onClick = { chipDeleted = true },
                                                     modifier = Modifier.size(18.dp)
                                                 ) {
-                                                    Icon(Icons.Rounded.Close, contentDescription = "Delete")
+                                                    SymbolIcon(OpenSplitIcons.Close, contentDescription = "Delete")
                                                 }
                                             }
                                         )
@@ -739,7 +737,7 @@ fun M3ComponentsCatalogSubScreen(
                                             modifier = Modifier.size(40.dp)
                                         ) {
                                             Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                                                Icon(Icons.AutoMirrored.Rounded.List, contentDescription = null, tint = MaterialTheme.colorScheme.onSecondaryContainer)
+                                                SymbolIcon(OpenSplitIcons.List, contentDescription = null, tint = MaterialTheme.colorScheme.onSecondaryContainer)
                                             }
                                         }
                                     },
@@ -763,7 +761,7 @@ fun M3ComponentsCatalogSubScreen(
                                         state = rememberTooltipState()
                                     ) {
                                         IconButton(onClick = {}) {
-                                            Icon(Icons.Rounded.Info, contentDescription = "Plain tooltip info")
+                                            SymbolIcon(OpenSplitIcons.Info, contentDescription = "Plain tooltip info")
                                         }
                                     }
 

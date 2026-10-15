@@ -93,10 +93,11 @@ private val LightColorScheme =
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 fun OpenSplitTheme(
   darkTheme: Boolean = isSystemInDarkTheme(),
+  amoled: Boolean = false,
   dynamicColor: Boolean = true,
   content: @Composable () -> Unit,
 ) {
-  val colorScheme =
+  val baseScheme =
     when {
       dynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {
         val context = LocalContext.current
@@ -106,6 +107,22 @@ fun OpenSplitTheme(
       darkTheme -> DarkColorScheme
       else -> LightColorScheme
     }
+  // AMOLED only replaces surface tokens, so brand or dynamic accents stay intact.
+  val colorScheme =
+    if (darkTheme && amoled) {
+      baseScheme.copy(
+        surface = SurfaceAmoled,
+        background = SurfaceAmoled,
+        surfaceDim = SurfaceDimAmoled,
+        surfaceBright = SurfaceBrightAmoled,
+        surfaceContainerLowest = SurfaceContainerLowestAmoled,
+        surfaceContainerLow = SurfaceContainerLowAmoled,
+        surfaceContainer = SurfaceContainerAmoled,
+        surfaceContainerHigh = SurfaceContainerHighAmoled,
+        surfaceContainerHighest = SurfaceContainerHighestAmoled,
+        surfaceVariant = SurfaceVariantAmoled
+      )
+    } else baseScheme
 
   MaterialExpressiveTheme(
     colorScheme = colorScheme,

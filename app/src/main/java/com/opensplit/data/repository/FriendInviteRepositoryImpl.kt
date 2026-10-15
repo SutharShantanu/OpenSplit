@@ -9,7 +9,8 @@ import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.tasks.await
 
 class FriendInviteRepositoryImpl(
-    private val firestore: FirebaseFirestore
+    private val firestore: FirebaseFirestore,
+    private val groupRepository: com.opensplit.domain.repository.GroupRepository? = null
 ) : FriendInviteRepository {
 
     private val invitesCollection = firestore.collection("invites")
@@ -35,15 +36,15 @@ class FriendInviteRepositoryImpl(
         awaitClose { listener.remove() }
     }
 
-    override suspend fun sendInvite(inviterUid: String, email: String): Result<String> {
-        val trimmed = email.trim()
+    override suspend fun sendInvite(inviterUid: String, email: String, inviterName: String): Result<String> {
+        val trimmed = email.trim().lowercase()
         if (inviterUid.isBlank() || trimmed.isBlank()) {
             return Result.failure(IllegalArgumentException("Missing inviter or email"))
         }
         return try {
             val docRef = invitesCollection.document()
-            val invite = FriendInvite(id = docRef.id, inviterUid = inviterUid, email = trimmed)
-            docRef.set(invite).await()
+            val invite = FriendInvite(id = docRef.id, inviterUid = inviterUid, email = trimmed, inviterName = inviterName)
+            docRef.set(invite).awaitWrite()
             Result.success(docRef.id)
         } catch (e: Exception) {
             Result.failure(e)
@@ -52,10 +53,56 @@ class FriendInviteRepositoryImpl(
 
     override suspend fun revokeInvite(inviteId: String): Result<Unit> {
         return try {
-            invitesCollection.document(inviteId).delete().await()
+            invitesCollection.document(inviteId).delete().awaitWrite()
             Result.success(Unit)
         } catch (e: Exception) {
             Result.failure(e)
         }
     }
+
+    override fun getIncomingInvites(email: String): Flow<List<FriendInvite>> = callbackFlow {
+        val normalized = email.trim().lowercase()
+        if (normalized.isBlank()) { trySend(emptyList()); awaitClose {}; return@callbackFlow }
+        val reg = invitesCollection.whereEqualTo("email", normalized).whereEqualTo("status", "pending")
+            .addSnapshotListener { snap, e ->
+                if (e != null) { trySend(emptyList()); return@addSnapshotListener }
+                val now = com.google.firebase.Timestamp.now()
+                trySend(snap?.documents?.mapNotNull { it.toObject(FriendInvite::class.java)?.copy(id = it.id) }
+                    ?.filter { it.expiresAt > now } ?: emptyList())
+            }
+        awaitClose { reg.remove() }
+    }
+
+    override suspend fun respond(inviteId: String, accept: Boolean): Result<Unit> = try {
+        invitesCollection.document(inviteId).update("status", if (accept) "accepted" else "declined").awaitWrite()
+        Result.success(Unit)
+    } catch (e: Exception) { Result.failure(e) }
+
+    private val friendLinks = firestore.collection("friendLinks")
+
+    override suspend fun getOrCreateFriendLink(uid: String, displayName: String): Result<String> = try {
+        val now = com.google.firebase.Timestamp.now()
+        val existing = friendLinks.whereEqualTo("uid", uid).get().await().documents
+            .firstOrNull { (it.getTimestamp("expiresAt") ?: now).seconds > now.seconds + 86400 }
+        val token = existing?.id ?: run {
+            val alphabet = "abcdefghijkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789"
+            val rnd = java.security.SecureRandom()
+            val t = (1..20).map { alphabet[rnd.nextInt(alphabet.length)] }.joinToString("")
+            friendLinks.document(t).set(
+                mapOf("uid" to uid, "name" to displayName, "createdAt" to now, "expiresAt" to com.google.firebase.Timestamp(now.seconds + 30L * 86400, 0))
+            ).awaitWrite()
+            t
+        }
+        Result.success(com.opensplit.domain.model.InviteLink.FRIEND_BASE_URL + token)
+    } catch (e: Exception) { Result.failure(e) }
+
+    override suspend fun acceptFriendLink(token: String, me: String, currency: String): Result<String> = try {
+        val doc = friendLinks.document(token).get().await()
+        val owner = doc.getString("uid") ?: throw IllegalStateException("This friend link is invalid or expired.")
+        val expires = doc.getTimestamp("expiresAt")
+        if (expires != null && expires.seconds <= com.google.firebase.Timestamp.now().seconds) throw IllegalStateException("This friend link has expired. Ask for a fresh one.")
+        if (owner == me) throw IllegalStateException("That's your own link.")
+        groupRepository?.getOrCreateDirectGroup(me, owner, currency)?.getOrThrow()
+        Result.success(owner)
+    } catch (e: Exception) { Result.failure(e) }
 }

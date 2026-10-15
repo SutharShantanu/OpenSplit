@@ -1,3 +1,5 @@
+@file:OptIn(androidx.compose.material3.ExperimentalMaterial3ExpressiveApi::class)
+
 package com.opensplit.ui.components
 
 import android.content.Intent
@@ -85,7 +87,7 @@ fun AccountDropdownMenu(
         // 2. My Account
         DropdownMenuItem(
             text = { Text("My account") },
-            leadingIcon = { Icon(OpenSplitIcons.Account, contentDescription = null) },
+            leadingIcon = { SymbolIcon(OpenSplitIcons.Account, contentDescription = null) },
             onClick = {
                 onDismissRequest()
                 onNavigateToAccount()
@@ -95,7 +97,7 @@ fun AccountDropdownMenu(
         // 3. Theme
         DropdownMenuItem(
             text = { Text("Theme") },
-            leadingIcon = { Icon(OpenSplitIcons.Theme, contentDescription = null) },
+            leadingIcon = { SymbolIcon(OpenSplitIcons.Theme, contentDescription = null) },
             onClick = {
                 onDismissRequest()
                 showThemeDialog = true
@@ -107,7 +109,7 @@ fun AccountDropdownMenu(
         // 4. Help & feedback
         DropdownMenuItem(
             text = { Text("Help & feedback") },
-            leadingIcon = { Icon(OpenSplitIcons.Help, contentDescription = null) },
+            leadingIcon = { SymbolIcon(OpenSplitIcons.Help, contentDescription = null) },
             onClick = {
                 onDismissRequest()
                 val intent = Intent(Intent.ACTION_SENDTO).apply {
@@ -125,7 +127,7 @@ fun AccountDropdownMenu(
         // 5. About
         DropdownMenuItem(
             text = { Text("About OpenSplit") },
-            leadingIcon = { Icon(OpenSplitIcons.Info, contentDescription = null) },
+            leadingIcon = { SymbolIcon(OpenSplitIcons.Info, contentDescription = null) },
             onClick = {
                 onDismissRequest()
                 showAboutDialog = true
@@ -137,7 +139,7 @@ fun AccountDropdownMenu(
         // 6. Sign out
         DropdownMenuItem(
             text = { Text("Sign out", color = MaterialTheme.colorScheme.error) },
-            leadingIcon = { Icon(OpenSplitIcons.Leave, contentDescription = null, tint = MaterialTheme.colorScheme.error) },
+            leadingIcon = { SymbolIcon(OpenSplitIcons.Leave, contentDescription = null, tint = MaterialTheme.colorScheme.error) },
             onClick = {
                 onDismissRequest()
                 showSignOutDialog = true
@@ -151,7 +153,7 @@ fun AccountDropdownMenu(
             title = { Text("Sign out of OpenSplit?") },
             text = { Text("You will need to sign in again to access your groups and balances.") },
             confirmButton = {
-                Button(onClick = {
+                Button(shapes = ButtonDefaults.shapes(), onClick = {
                     showSignOutDialog = false
                     onSignOut()
                 }) {
@@ -159,7 +161,7 @@ fun AccountDropdownMenu(
                 }
             },
             dismissButton = {
-                TextButton(onClick = { showSignOutDialog = false }) {
+                TextButton(shapes = ButtonDefaults.shapes(), onClick = { showSignOutDialog = false }) {
                     Text("Cancel")
                 }
             }
@@ -174,7 +176,7 @@ fun AccountDropdownMenu(
                 Text("OpenSplit v1.0.0\n\nA modern, real-time expense splitter built with Jetpack Compose, Material 3, and Firebase.\n\nKeep track of shared expenses, balances, settlements, and export financial summaries seamlessly.")
             },
             confirmButton = {
-                TextButton(onClick = { showAboutDialog = false }) {
+                TextButton(shapes = ButtonDefaults.shapes(), onClick = { showAboutDialog = false }) {
                     Text("Close")
                 }
             }
@@ -189,7 +191,7 @@ fun AccountDropdownMenu(
                 Text("Manage theme preferences under My Account -> Preferences for light, dark, or system default mode.")
             },
             confirmButton = {
-                Button(onClick = {
+                Button(shapes = ButtonDefaults.shapes(), onClick = {
                     showThemeDialog = false
                     onNavigateToAccount()
                 }) {
@@ -197,7 +199,7 @@ fun AccountDropdownMenu(
                 }
             },
             dismissButton = {
-                TextButton(onClick = { showThemeDialog = false }) {
+                TextButton(shapes = ButtonDefaults.shapes(), onClick = { showThemeDialog = false }) {
                     Text("Cancel")
                 }
             }

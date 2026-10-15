@@ -8,6 +8,7 @@ import com.opensplit.domain.model.Expense
 import com.opensplit.domain.model.User
 import com.opensplit.util.CurrencyFormatter
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.*
 
 data class PersonBalanceUiState(
@@ -105,6 +106,15 @@ class PersonBalanceViewModel(
         }.collect { emit(it) }
     }.catch { emit(ScreenState.Error(it.message ?: "Failed to load balance")) }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), ScreenState.Loading)
+
+    /** Resolves (creating if needed) the hidden direct group with this friend, then hands back its id. */
+    fun openDirectGroup(onReady: (groupId: String?) -> Unit) {
+        viewModelScope.launch {
+            val me = appContainer.authRepository.getCurrentUserId() ?: return@launch onReady(null)
+            val currency = appContainer.userRepository.getUser(me)?.defaultCurrency ?: "INR"
+            onReady(appContainer.groupRepository.getOrCreateDirectGroup(me, friendId, currency).getOrNull()?.id)
+        }
+    }
 }
 
 class PersonBalanceViewModelFactory(

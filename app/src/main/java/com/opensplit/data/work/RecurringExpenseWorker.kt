@@ -4,11 +4,9 @@ import android.content.Context
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
 import com.opensplit.OpenSplitApp
-import com.opensplit.domain.model.RecurrenceFrequency
 import com.opensplit.domain.model.RecurrenceRule
 import com.google.firebase.Timestamp
 import kotlinx.coroutines.flow.first
-import java.util.Calendar
 
 /**
  * Materializes due recurring expenses once a day.
@@ -36,6 +34,7 @@ class RecurringExpenseWorker(
                 val due = expenseRepository.getDueRecurringExpenses(group.id, nowSeconds)
                 for (template in due) {
                     val rule = template.recurrence ?: continue
+                    if (rule.paused) continue
                     // Only the creator's device materializes, so members don't duplicate it.
                     if (template.createdBy != uid) continue
 
@@ -47,7 +46,7 @@ class RecurringExpenseWorker(
                     )
                     expenseRepository.addExpense(instance)
 
-                    val advanced = advance(rule.nextOccurrence, rule.frequency)
+                    val advanced = com.opensplit.domain.logic.RecurrenceScheduler.next(rule.nextOccurrence, rule.frequency)
                     expenseRepository.updateExpense(
                         template.copy(recurrence = rule.copy(nextOccurrence = advanced))
                     )
@@ -64,17 +63,6 @@ class RecurringExpenseWorker(
         } catch (e: Exception) {
             Result.retry()
         }
-    }
-
-    private fun advance(from: Timestamp, frequency: RecurrenceFrequency): Timestamp {
-        val cal = Calendar.getInstance().apply { time = from.toDate() }
-        when (frequency) {
-            RecurrenceFrequency.DAILY -> cal.add(Calendar.DAY_OF_YEAR, 1)
-            RecurrenceFrequency.WEEKLY -> cal.add(Calendar.WEEK_OF_YEAR, 1)
-            RecurrenceFrequency.MONTHLY -> cal.add(Calendar.MONTH, 1)
-            RecurrenceFrequency.NONE -> Unit
-        }
-        return Timestamp(cal.time)
     }
 
     companion object {

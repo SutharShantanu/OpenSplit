@@ -1,5 +1,9 @@
+@file:OptIn(androidx.compose.material3.ExperimentalMaterial3ExpressiveApi::class)
+
 package com.opensplit.ui.screens
 
+import com.opensplit.ui.theme.Symbol
+import com.opensplit.ui.components.SymbolIcon
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -7,8 +11,6 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -31,17 +33,19 @@ fun PersonBalanceScreen(
     viewModel: PersonBalanceViewModel,
     onNavigateBack: () -> Unit,
     onNavigateToSettleUp: ((groupId: String) -> Unit)? = null,
-    onNavigateToGroup: ((groupId: String) -> Unit)? = null
+    onNavigateToGroup: ((groupId: String) -> Unit)? = null,
+    onNavigateToAddExpense: ((groupId: String) -> Unit)? = null
 ) {
     val state by viewModel.uiState.collectAsState()
+    val snackbar = com.opensplit.ui.components.LocalSnackbarController.current
 
     Scaffold(
         topBar = {
             TopAppBar(
                 title = { Text("Friend Balance", fontWeight = FontWeight.Bold) },
                 navigationIcon = {
-                    IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                    IconButton(shapes = IconButtonDefaults.shapes(), onClick = onNavigateBack) {
+                        SymbolIcon(OpenSplitIcons.ArrowBack, contentDescription = "Back")
                     }
                 }
             )
@@ -140,22 +144,30 @@ fun PersonBalanceScreen(
                                 modifier = Modifier.fillMaxWidth()
                             ) {
                                 OutlinedButton(
-                                    onClick = { /* Remind friend */ },
+                                    onClick = {
+                                        viewModel.openDirectGroup { gId ->
+                                            if (gId != null) onNavigateToAddExpense?.invoke(gId) else snackbar.showMessage("Couldn't start a direct expense")
+                                        }
+                                    },
                                     shape = CircleShape,
                                     modifier = Modifier
                                         .weight(1f)
                                         .height(48.dp)
                                 ) {
-                                    Icon(com.opensplit.ui.theme.OpenSplitIcons.Notification, contentDescription = null, modifier = Modifier.size(18.dp))
+                                    SymbolIcon(OpenSplitIcons.AddExpense, contentDescription = null, modifier = Modifier.size(18.dp))
                                     Spacer(modifier = Modifier.width(6.dp))
-                                    Text("Remind", fontWeight = FontWeight.SemiBold)
+                                    Text("Add expense", fontWeight = FontWeight.SemiBold)
                                 }
 
                                 Button(
                                     onClick = {
-                                        val firstGroup = uiState.sharedGroups.firstOrNull()?.id ?: ""
-                                        if (firstGroup.isNotEmpty()) {
-                                            onNavigateToSettleUp?.invoke(firstGroup)
+                                        // Prefer the direct group so a 1:1 settlement doesn't land in an unrelated trip.
+                                        val target = uiState.sharedGroups.firstOrNull { it.isDirect }?.id
+                                            ?: uiState.sharedGroups.firstOrNull()?.id ?: ""
+                                        if (target.isNotEmpty()) {
+                                            onNavigateToSettleUp?.invoke(target)
+                                        } else {
+                                            viewModel.openDirectGroup { gId -> if (gId != null) onNavigateToSettleUp?.invoke(gId) }
                                         }
                                     },
                                     shape = CircleShape,
@@ -167,7 +179,7 @@ fun PersonBalanceScreen(
                                         contentColor = MaterialTheme.colorScheme.onPrimary
                                     )
                                 ) {
-                                    Icon(com.opensplit.ui.theme.OpenSplitIcons.Settle, contentDescription = null, modifier = Modifier.size(18.dp))
+                                    SymbolIcon(OpenSplitIcons.Settle, contentDescription = null, modifier = Modifier.size(18.dp))
                                     Spacer(modifier = Modifier.width(6.dp))
                                     Text("Settle Up", fontWeight = FontWeight.Bold)
                                 }
@@ -175,7 +187,8 @@ fun PersonBalanceScreen(
                         }
                     }
 
-                    if (uiState.sharedGroups.isNotEmpty()) {
+                    val visibleSharedGroups = uiState.sharedGroups.filterNot { it.isDirect }
+                    if (visibleSharedGroups.isNotEmpty()) {
                         Spacer(modifier = Modifier.height(16.dp))
                         Text(
                             text = "Shared Groups",
@@ -186,7 +199,7 @@ fun PersonBalanceScreen(
                         LazyRow(
                             horizontalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
-                            items(uiState.sharedGroups, key = { it.id }) { group ->
+                            items(visibleSharedGroups, key = { it.id }) { group ->
                                 Card(
                                     modifier = Modifier
                                         .width(180.dp)
@@ -207,7 +220,7 @@ fun PersonBalanceScreen(
                                             modifier = Modifier.size(36.dp)
                                         ) {
                                             Box(contentAlignment = Alignment.Center) {
-                                                Icon(
+                                                SymbolIcon(
                                                     OpenSplitIcons.Groups,
                                                     contentDescription = null,
                                                     tint = MaterialTheme.colorScheme.onSecondaryContainer,
@@ -252,8 +265,8 @@ fun PersonBalanceScreen(
                             contentAlignment = Alignment.Center
                         ) {
                             Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                Icon(
-                                    imageVector = com.opensplit.ui.theme.OpenSplitIcons.ReceiptLong,
+                                SymbolIcon(
+                                    symbol = com.opensplit.ui.theme.OpenSplitIcons.ReceiptLong,
                                     contentDescription = null,
                                     modifier = Modifier.size(48.dp),
                                     tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)

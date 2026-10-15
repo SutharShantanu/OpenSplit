@@ -1,5 +1,8 @@
+@file:OptIn(androidx.compose.material3.ExperimentalMaterial3ExpressiveApi::class)
+
 package com.opensplit.ui.components
 
+import com.opensplit.ui.theme.Symbol
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
@@ -16,7 +19,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -36,15 +39,24 @@ fun InviteMemberDialog(
     onDismiss: () -> Unit,
     onSubmitEmail: (String) -> Unit,
     shareMessage: String = "Join me on OpenSplit to split expenses easily!",
-    inviteUrl: String = "https://opensplit.app/invite"
+    /** Current group invite link, when inviting into a group. */
+    inviteLink: com.opensplit.domain.model.InviteLink? = null,
+    /** Creates a link that lasts [expiresInSeconds] (null = never) with [maxUses] (0 = unlimited). */
+    onGenerateLink: ((expiresInSeconds: Long?, maxUses: Int) -> Unit)? = null,
+    /** Personal "add me" link when inviting a friend rather than into a group. */
+    friendInviteUrl: String? = null
 ) {
     val context = LocalContext.current
     val snackbar = LocalSnackbarController.current
     val scope = rememberCoroutineScope()
+    val inviteUrl = inviteLink?.url ?: friendInviteUrl ?: ""
 
     val fullInviteMessage = remember(shareMessage, inviteUrl) {
         "$shareMessage\n\nJoin link: $inviteUrl"
     }
+    val expiryOptions = listOf("1 hour" to 3600L, "1 day" to 86400L, "7 days" to 7 * 86400L, "30 days" to 30 * 86400L, "Never" to null)
+    var expiryChoice by remember { mutableStateOf(2) }
+    var singleUse by remember { mutableStateOf(false) }
 
     fun copyToClipboard(text: String) {
         try {
@@ -84,8 +96,8 @@ fun InviteMemberDialog(
         shape = RoundedCornerShape(28.dp),
         containerColor = MaterialTheme.colorScheme.surfaceContainerHighest,
         icon = {
-            Icon(
-                imageVector = OpenSplitIcons.Invite,
+            SymbolIcon(
+                symbol = OpenSplitIcons.Invite,
                 contentDescription = null,
                 tint = MaterialTheme.colorScheme.primary,
                 modifier = Modifier.size(32.dp)
@@ -110,32 +122,53 @@ fun InviteMemberDialog(
                     textAlign = androidx.compose.ui.text.style.TextAlign.Center
                 )
 
-                // QR Code Card (SCREEN 09)
-                Surface(
-                    shape = RoundedCornerShape(20.dp),
-                    color = MaterialTheme.colorScheme.surface,
-                    border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
-                    modifier = Modifier.size(160.dp)
-                ) {
-                    Box(contentAlignment = Alignment.Center) {
-                        Column(
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                            verticalArrangement = Arrangement.Center
+                if (onGenerateLink != null) {
+                    // Expiry picker + generate; the QR encodes the live link.
+                    Column(modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Text("Link expires in", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        androidx.compose.foundation.layout.FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                            expiryOptions.forEachIndexed { i, (label, _) ->
+                                FilterChip(selected = expiryChoice == i, onClick = { expiryChoice = i }, label = { Text(label) })
+                            }
+                        }
+                        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
+                            Text("Single use", style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
+                            Switch(checked = singleUse, onCheckedChange = { singleUse = it })
+                        }
+                        Button(shapes = ButtonDefaults.shapes(), 
+                            onClick = { onGenerateLink(expiryOptions[expiryChoice].second, if (singleUse) 1 else 0) },
+                            modifier = Modifier.fillMaxWidth()
                         ) {
-                            Icon(
-                                imageVector = OpenSplitIcons.QrCode,
-                                contentDescription = "QR Code",
-                                tint = MaterialTheme.colorScheme.primary,
-                                modifier = Modifier.size(100.dp)
-                            )
-                            Text(
-                                text = "Scan to Join",
-                                style = MaterialTheme.typography.labelSmall,
-                                fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
+                            SymbolIcon(OpenSplitIcons.Link, contentDescription = null, modifier = Modifier.size(18.dp))
+                            Spacer(Modifier.width(6.dp))
+                            Text(if (inviteLink == null) "Create invite link" else "Create a new link")
                         }
                     }
+                }
+
+                if (inviteUrl.isNotBlank()) {
+                    val qr = remember(inviteUrl) { qrBitmap(inviteUrl, 512) }
+                    Surface(
+                        shape = RoundedCornerShape(20.dp),
+                        color = androidx.compose.ui.graphics.Color.White,
+                        modifier = Modifier.size(180.dp)
+                    ) {
+                        androidx.compose.foundation.Image(
+                            bitmap = qr.asImageBitmap(),
+                            contentDescription = "QR code for the invite link",
+                            modifier = Modifier.padding(10.dp)
+                        )
+                    }
+                    val expiryText = when {
+                        inviteLink == null -> "Scan to add you as a friend"
+                        inviteLink.expiresAt != null -> "Expires " + java.text.SimpleDateFormat("MMM d, h:mm a", java.util.Locale.getDefault()).format(inviteLink.expiresAt.toDate())
+                        else -> "Never expires"
+                    }
+                    Text(
+                        expiryText + if (inviteLink?.maxUses == 1) " · single use" else "",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
                 }
 
                 // Default Invite Link Box with Copy Button
@@ -156,8 +189,8 @@ fun InviteMemberDialog(
                             verticalAlignment = Alignment.CenterVertically,
                             modifier = Modifier.weight(1f)
                         ) {
-                            Icon(
-                                imageVector = OpenSplitIcons.Link,
+                            SymbolIcon(
+                                symbol = OpenSplitIcons.Link,
                                 contentDescription = null,
                                 tint = MaterialTheme.colorScheme.primary,
                                 modifier = Modifier.size(18.dp)
@@ -173,11 +206,11 @@ fun InviteMemberDialog(
                             )
                         }
 
-                        IconButton(
+                        IconButton(shapes = IconButtonDefaults.shapes(), 
                             onClick = { copyToClipboard(inviteUrl) }
                         ) {
-                            Icon(
-                                imageVector = OpenSplitIcons.Copy,
+                            SymbolIcon(
+                                symbol = OpenSplitIcons.Copy,
                                 contentDescription = "Copy Invite Link",
                                 tint = MaterialTheme.colorScheme.primary,
                                 modifier = Modifier.size(20.dp)
@@ -192,7 +225,7 @@ fun InviteMemberDialog(
                     horizontalArrangement = Arrangement.SpaceEvenly
                 ) {
                     // WhatsApp
-                    IconButton(
+                    IconButton(shapes = IconButtonDefaults.shapes(), 
                         onClick = {
                             val whatsappIntent = Intent(Intent.ACTION_SEND).apply {
                                 type = "text/plain"
@@ -217,13 +250,13 @@ fun InviteMemberDialog(
                     ) {
                         Surface(shape = CircleShape, color = MaterialTheme.colorScheme.secondaryContainer, modifier = Modifier.size(44.dp)) {
                             Box(contentAlignment = Alignment.Center) {
-                                Icon(OpenSplitIcons.Whatsapp, contentDescription = "WhatsApp", modifier = Modifier.size(22.dp), tint = MaterialTheme.colorScheme.onSecondaryContainer)
+                                SymbolIcon(OpenSplitIcons.Whatsapp, contentDescription = "WhatsApp", modifier = Modifier.size(22.dp), tint = MaterialTheme.colorScheme.onSecondaryContainer)
                             }
                         }
                     }
 
                     // SMS
-                    IconButton(
+                    IconButton(shapes = IconButtonDefaults.shapes(), 
                         onClick = {
                             try {
                                 context.startActivity(
@@ -239,24 +272,24 @@ fun InviteMemberDialog(
                     ) {
                         Surface(shape = CircleShape, color = MaterialTheme.colorScheme.secondaryContainer, modifier = Modifier.size(44.dp)) {
                             Box(contentAlignment = Alignment.Center) {
-                                Icon(OpenSplitIcons.Sms, contentDescription = "SMS", modifier = Modifier.size(22.dp), tint = MaterialTheme.colorScheme.onSecondaryContainer)
+                                SymbolIcon(OpenSplitIcons.Sms, contentDescription = "SMS", modifier = Modifier.size(22.dp), tint = MaterialTheme.colorScheme.onSecondaryContainer)
                             }
                         }
                     }
 
                     // Contacts
-                    IconButton(
+                    IconButton(shapes = IconButtonDefaults.shapes(), 
                         onClick = { contactsPermissionLauncher.launch(android.Manifest.permission.READ_CONTACTS) }
                     ) {
                         Surface(shape = CircleShape, color = MaterialTheme.colorScheme.secondaryContainer, modifier = Modifier.size(44.dp)) {
                             Box(contentAlignment = Alignment.Center) {
-                                Icon(OpenSplitIcons.Contacts, contentDescription = "Contacts", modifier = Modifier.size(22.dp), tint = MaterialTheme.colorScheme.onSecondaryContainer)
+                                SymbolIcon(OpenSplitIcons.Contacts, contentDescription = "Contacts", modifier = Modifier.size(22.dp), tint = MaterialTheme.colorScheme.onSecondaryContainer)
                             }
                         }
                     }
 
                     // System Share
-                    IconButton(
+                    IconButton(shapes = IconButtonDefaults.shapes(), 
                         onClick = {
                             val shareIntent = Intent(Intent.ACTION_SEND).apply {
                                 type = "text/plain"
@@ -268,7 +301,7 @@ fun InviteMemberDialog(
                     ) {
                         Surface(shape = CircleShape, color = MaterialTheme.colorScheme.secondaryContainer, modifier = Modifier.size(44.dp)) {
                             Box(contentAlignment = Alignment.Center) {
-                                Icon(OpenSplitIcons.Share, contentDescription = "Share", modifier = Modifier.size(22.dp), tint = MaterialTheme.colorScheme.onSecondaryContainer)
+                                SymbolIcon(OpenSplitIcons.Share, contentDescription = "Share", modifier = Modifier.size(22.dp), tint = MaterialTheme.colorScheme.onSecondaryContainer)
                             }
                         }
                     }
@@ -277,14 +310,14 @@ fun InviteMemberDialog(
         },
         confirmButton = {},
         dismissButton = {
-            TextButton(onClick = onDismiss) { Text("Close") }
+            TextButton(shapes = ButtonDefaults.shapes(), onClick = onDismiss) { Text("Close") }
         }
     )
 }
 
 @Composable
 private fun InviteChannelRow(
-    icon: ImageVector,
+    icon: Symbol,
     label: String,
     subtitle: String,
     onClick: () -> Unit
@@ -302,7 +335,7 @@ private fun InviteChannelRow(
                 modifier = Modifier.size(40.dp)
             ) {
                 Box(contentAlignment = Alignment.Center) {
-                    Icon(
+                    SymbolIcon(
                         icon,
                         contentDescription = null,
                         modifier = Modifier.size(20.dp),
@@ -330,3 +363,14 @@ private suspend fun resolveContactEmail(context: android.content.Context, contac
             null
         )?.use { c -> if (c.moveToFirst()) c.getString(0) else null }
     }
+
+/** Renders [text] as a QR code bitmap of [size] px using ZXing. */
+fun qrBitmap(text: String, size: Int): android.graphics.Bitmap {
+    val hints = mapOf(com.google.zxing.EncodeHintType.MARGIN to 1)
+    val matrix = com.google.zxing.qrcode.QRCodeWriter().encode(text, com.google.zxing.BarcodeFormat.QR_CODE, size, size, hints)
+    val bmp = android.graphics.Bitmap.createBitmap(size, size, android.graphics.Bitmap.Config.RGB_565)
+    for (x in 0 until size) for (y in 0 until size) {
+        bmp.setPixel(x, y, if (matrix.get(x, y)) android.graphics.Color.BLACK else android.graphics.Color.WHITE)
+    }
+    return bmp
+}
