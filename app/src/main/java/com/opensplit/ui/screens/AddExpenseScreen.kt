@@ -59,6 +59,7 @@ import com.opensplit.domain.model.SplitType
 import com.opensplit.ui.components.CategoryChipRow
 import com.opensplit.ui.components.StateLayout
 import com.opensplit.ui.theme.OpenSplitIcons
+import com.opensplit.ui.viewmodel.ScreenState
 import com.opensplit.ui.theme.OpenSplitTokens
 import com.opensplit.ui.viewmodel.GroupDetailViewModel
 import com.google.firebase.Timestamp
@@ -77,26 +78,20 @@ fun AddExpenseScreen(
     // Add Expense is the one full-height sheet in the app; a half-open form reads as cut off.
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
-    // This screen is reached via a NavHost `dialog()` destination, so the previous screen (Home,
-    // GroupDetail, ...) stays visible behind it instead of being disposed. Blur it through the
-    // outer dialog window (API 31+) so the sheet reads as "floating over" the app instead of a
-    // flat scrim — the ModalBottomSheet's own scrim below still provides the dim/opacity.
-    if (android.os.Build.VERSION.SDK_INT >= 31) {
-        val dialogWindowProvider = androidx.compose.ui.platform.LocalView.current.parent as? androidx.compose.ui.window.DialogWindowProvider
-        LaunchedEffect(dialogWindowProvider) {
-            dialogWindowProvider?.window?.apply {
-                setBackgroundBlurRadius(48)
-                setDimAmount(0f)
-            }
-        }
-    }
-
     ModalBottomSheet(
         onDismissRequest = onNavigateBack,
         sheetState = sheetState,
         containerColor = MaterialTheme.colorScheme.surface
     ) {
-        StateLayout(state = uiState) { data ->
+        // Inline state handling (StateLayout fills the whole sheet, which forced it full-height).
+        when (val st = uiState) {
+            is ScreenState.Loading -> Box(Modifier.fillMaxWidth().padding(48.dp), contentAlignment = Alignment.Center) { androidx.compose.material3.ContainedLoadingIndicator() }
+            is ScreenState.Empty -> Box(Modifier.fillMaxWidth().padding(48.dp), contentAlignment = Alignment.Center) { Text(st.message.ifBlank { "Nothing here yet" }) }
+            is ScreenState.Error -> Column(Modifier.fillMaxWidth().padding(32.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                Text(st.message, color = MaterialTheme.colorScheme.error, textAlign = TextAlign.Center)
+                TextButton(shapes = ButtonDefaults.shapes(), onClick = st.retry) { Text("Retry") }
+            }
+            is ScreenState.Success -> { val data = st.data
             val group = data.group
             val members = data.members
 
@@ -105,13 +100,14 @@ fun AddExpenseScreen(
             var description by remember { mutableStateOf(editingExpense?.description ?: "") }
             var isDescriptionEditing by remember { mutableStateOf(false) }
             val descriptionFocusRequester = remember { FocusRequester() }
-            var amountText by remember { mutableStateOf(editingExpense?.amount?.takeIf { it > 0 }?.toString() ?: "") }
+            var amountText by remember { mutableStateOf(editingExpense?.amount?.takeIf { it > 0 }?.let { if (it % 1.0 == 0.0) it.toLong().toString() else "%.2f".format(java.util.Locale.US, it) } ?: "") }
             var category by remember { mutableStateOf(editingExpense?.category ?: "Food") }
             // True once the user picks a category by hand; suggestions then stop overriding it.
             var categoryTouched by remember { mutableStateOf(isEditing) }
             var categoryFromAi by remember { mutableStateOf(false) }
             val aiService = LocalAiService.current
             val categorizeAvailable by aiService.availability(AiFeature.CATEGORIZE).collectAsState(initial = false)
+            val aiUnlocked by aiService.unlocked.collectAsState(initial = true)
             LaunchedEffect(description, categorizeAvailable) {
                 if (categoryTouched || description.isBlank()) return@LaunchedEffect
                 kotlinx.coroutines.delay(500)
@@ -124,6 +120,7 @@ fun AddExpenseScreen(
             }
             var paidBy by remember { mutableStateOf(editingExpense?.paidBy ?: members.firstOrNull()?.uid ?: "") }
             var isSaving by remember { mutableStateOf(false) }
+            var saveError by remember { mutableStateOf<String?>(null) }
 
             // 0: Equal, 1: Exact, 2: Percentage, 3: Shares, 4: Itemized
             var selectedSplitIndex by remember {
@@ -216,15 +213,23 @@ fun AddExpenseScreen(
             // Receipt scanning via the user's AI provider; prefills merchant, total and items.
             val scope = rememberCoroutineScope()
             var isScanning by remember { mutableStateOf(false) }
-            val receiptPicker = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
+            var scanStatus by remember { mutableStateOf<String?>(null) }
+            // One scan path for every source: camera shot, gallery photo or a picked file. The image
+            // is also attached to the expense so the receipt is kept, not just read.
+            val scanReceipt: (android.net.Uri?) -> Unit = { uri ->
+                android.util.Log.i("ReceiptScan", "scan uri=$uri")
                 if (uri != null) {
-                    isScanning = true
+                    pickedReceiptUri = uri
+                    pickedReceiptName = "Receipt"
+                    existingReceiptUrl = null
+                    isScanning = true; scanStatus = null
                     scope.launch {
                         val bytes = withContext(Dispatchers.IO) {
                             context.contentResolver.openInputStream(uri)?.use { it.readBytes() }
                         }
                         val mime = context.contentResolver.getType(uri) ?: "image/jpeg"
                         val receipt = if (bytes != null) aiService.parseReceipt(bytes, mime) else null
+                        android.util.Log.i("ReceiptScan", "bytes=${bytes?.size} mime=$mime parsed=${receipt != null} aiAvailable=${aiService.isAvailable(AiFeature.RECEIPT_SCAN)}")
                         isScanning = false
                         if (receipt != null) {
                             if (description.isBlank()) receipt.merchant?.let { description = it }
@@ -234,16 +239,57 @@ fun AddExpenseScreen(
                                 selectedSplitIndex = 4
                             }
                             selectedEntryTab = 1
-                            snackbar.showMessage(
-                                if (receipt.lowConfidence) "Low confidence: the photo was hard to read. Check every field."
+                            scanStatus = if (receipt.lowConfidence) "Low confidence: the photo was hard to read. Check every field."
                                 else "Read ${receipt.items.size} items from receipt. Review and save."
-                            )
+                            snackbar.showMessage(scanStatus!!)
                         } else if (!aiService.isAvailable(AiFeature.RECEIPT_SCAN)) {
-                            snackbar.showMessage("Receipt attached. Add an AI key in Settings to read it automatically.")
+                            scanStatus = "Receipt attached. Add an AI key in Settings to read it automatically."
                         } else {
-                            snackbar.showMessage("Couldn't read the receipt. Try a clearer photo.")
+                            scanStatus = "Couldn't read the receipt" + (aiService.lastError?.let { ": $it" } ?: ". Try a clearer photo.")
                         }
                     }
+                }
+            }
+            val galleryPicker = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { scanReceipt(it) }
+            val filePicker = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { scanReceipt(it) }
+            // Saveable: the camera app can push this activity out of memory; the URI must survive.
+            var cameraReceiptUri by androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf<android.net.Uri?>(null) }
+            val cameraCapture = rememberLauncherForActivityResult(ActivityResultContracts.TakePicture()) { ok ->
+                android.util.Log.i("ReceiptScan", "camera result ok=$ok uri=$cameraReceiptUri")
+                if (ok) scanReceipt(cameraReceiptUri) else snackbar.showMessage("No photo taken.")
+            }
+            val openCamera = {
+                val file = java.io.File(context.cacheDir, "receipt_${System.currentTimeMillis()}.jpg")
+                val uri = androidx.core.content.FileProvider.getUriForFile(context, "${context.packageName}.provider", file)
+                cameraReceiptUri = uri
+                cameraCapture.launch(uri)
+            }
+            val cameraPermission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+                if (granted) openCamera() else snackbar.showMessage("Camera permission is needed to scan a receipt.")
+            }
+            var showReceiptSource by remember { mutableStateOf(false) }
+            if (showReceiptSource) {
+                androidx.compose.material3.ModalBottomSheet(onDismissRequest = { showReceiptSource = false }) {
+                    Text("Add receipt", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp))
+                    listOf(
+                        Triple(OpenSplitIcons.CameraAlt, "Take a photo", {
+                            showReceiptSource = false
+                            if (androidx.core.content.ContextCompat.checkSelfPermission(context, android.Manifest.permission.CAMERA) == android.content.pm.PackageManager.PERMISSION_GRANTED) openCamera()
+                            else cameraPermission.launch(android.Manifest.permission.CAMERA)
+                        }),
+                        Triple(OpenSplitIcons.PhotoLibrary, "Choose from gallery", {
+                            showReceiptSource = false
+                            galleryPicker.launch(androidx.activity.result.PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
+                        }),
+                        Triple(OpenSplitIcons.AttachFile, "Browse files", { showReceiptSource = false; filePicker.launch("image/*") })
+                    ).forEach { (icon, label, action) ->
+                        androidx.compose.material3.ListItem(
+                            headlineContent = { Text(label) },
+                            leadingContent = { SymbolIcon(icon, contentDescription = null) },
+                            modifier = Modifier.clickable(onClick = action)
+                        )
+                    }
+                    Spacer(Modifier.height(24.dp))
                 }
             }
 
@@ -334,6 +380,7 @@ fun AddExpenseScreen(
             var aiNaturalInput by remember { mutableStateOf("") }
             var isParsingText by remember { mutableStateOf(false) }
 
+            com.opensplit.ui.components.FormLock(locked = isSaving) {
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -408,7 +455,7 @@ fun AddExpenseScreen(
                     }
                 }
 
-                if (selectedEntryTab == 0) {
+                if (selectedEntryTab == 0) { com.opensplit.ui.components.AiLocked(unlocked = aiUnlocked) { Column {
                     // ---- AI ENTRY VIEW ----
                     Card(
                         modifier = Modifier.fillMaxWidth(),
@@ -470,7 +517,7 @@ fun AddExpenseScreen(
 
                     // Receipt Upload Button / Card
                     Surface(
-                        onClick = { receiptPicker.launch("image/*") },
+                        onClick = { showReceiptSource = true },
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(16.dp),
                         color = MaterialTheme.colorScheme.surfaceContainerLowest,
@@ -510,6 +557,18 @@ fun AddExpenseScreen(
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 textAlign = TextAlign.Center
                             )
+                            if (isScanning) {
+                                Spacer(modifier = Modifier.height(12.dp))
+                                com.opensplit.ui.components.InlineBusy("Reading receipt…")
+                            } else scanStatus?.let {
+                                Spacer(modifier = Modifier.height(12.dp))
+                                Text(
+                                    text = it,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = if (it.startsWith("Couldn't")) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary,
+                                    textAlign = TextAlign.Center
+                                )
+                            }
                         }
                     }
 
@@ -562,57 +621,71 @@ fun AddExpenseScreen(
                         Spacer(modifier = Modifier.width(8.dp))
                         Text("Process with AI", fontWeight = FontWeight.Bold)
                     }
-                } else {
+                } } } else {
                     // ---- MANUAL ENTRY VIEW ----
 
 
-                // Amount Card
+                // Amount: symbol + big number, auto-focused, digits with at most one dot and two decimals.
+                val amountFocus = remember { FocusRequester() }
+                LaunchedEffect(selectedEntryTab) { if (selectedEntryTab == 1 && amountText.isBlank()) runCatching { amountFocus.requestFocus() } }
                 Card(
                     modifier = Modifier.fillMaxWidth(),
                     shape = MaterialTheme.shapes.extraLarge,
-                    colors = CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
-                    )
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh)
                 ) {
                     Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(OpenSplitTokens.SpaceMD),
+                        modifier = Modifier.fillMaxWidth().padding(horizontal = OpenSplitTokens.SpaceMD, vertical = OpenSplitTokens.SpaceLG),
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
                         Text(
-                            text = "AMOUNT (${group.currency})",
+                            text = "Amount · ${group.currency}",
                             style = MaterialTheme.typography.labelMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
-                        Spacer(modifier = Modifier.height(OpenSplitTokens.SpaceXS))
-                        OutlinedTextField(
-                            value = amountText,
-                            onValueChange = { new -> amountText = new.filter { it.isDigit() || it == '.' } },
-                            placeholder = { Text("0.00", style = MaterialTheme.typography.displayMedium.copy(fontFamily = com.opensplit.ui.theme.MoneyFontFamily), textAlign = TextAlign.Center) },
-                            textStyle = MaterialTheme.typography.displayMedium.copy(
-                                textAlign = TextAlign.Center,
-                                fontWeight = FontWeight.Bold,
-                                fontFamily = com.opensplit.ui.theme.MoneyFontFamily,
-                                color = MaterialTheme.colorScheme.primary
-                            ),
-                            singleLine = true,
-                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                            visualTransformation = remember(group.currency) { CurrencyAmountVisualTransformation(group.currency) },
-                            suffix = if (amountText.isNotBlank()) {
-                                {
-                                    Text(
-                                        text = "/- ${com.opensplit.util.CurrencyFormatter.getCurrencySymbol(group.currency)}",
-                                        style = MaterialTheme.typography.titleMedium,
-                                        color = MaterialTheme.colorScheme.primary
-                                    )
-                                }
-                            } else null,
-                            modifier = Modifier.fillMaxWidth(),
-                            colors = OutlinedTextFieldDefaults.colors(
-                                focusedBorderColor = androidx.compose.ui.graphics.Color.Transparent,
-                                unfocusedBorderColor = androidx.compose.ui.graphics.Color.Transparent
+                        Spacer(modifier = Modifier.height(OpenSplitTokens.SpaceSM))
+                        val moneyStyle = MaterialTheme.typography.displayMedium.copy(
+                            fontWeight = FontWeight.Bold,
+                            fontFamily = com.opensplit.ui.theme.MoneyFontFamily,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.Center, modifier = Modifier.fillMaxWidth()) {
+                            Text(
+                                text = com.opensplit.util.CurrencyFormatter.getCurrencySymbol(group.currency),
+                                style = MaterialTheme.typography.displaySmall.copy(fontFamily = com.opensplit.ui.theme.MoneyFontFamily),
+                                color = MaterialTheme.colorScheme.primary.copy(alpha = 0.7f)
                             )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            androidx.compose.foundation.text.BasicTextField(
+                                value = amountText,
+                                onValueChange = { new ->
+                                    val cleaned = buildString {
+                                        var dot = false
+                                        for (c in new) {
+                                            if (c.isDigit()) { if (dot && length - indexOf('.') > 2) continue; append(c) }
+                                            else if (c == '.' && !dot && length > 0) { dot = true; append(c) }
+                                        }
+                                    }
+                                    amountText = cleaned.take(12)
+                                },
+                                textStyle = moneyStyle,
+                                singleLine = true,
+                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                                visualTransformation = remember(group.currency) { CurrencyAmountVisualTransformation(group.currency) },
+                                cursorBrush = androidx.compose.ui.graphics.SolidColor(MaterialTheme.colorScheme.primary),
+                                modifier = Modifier.focusRequester(amountFocus).width(IntrinsicSize.Min).widthIn(min = 72.dp),
+                                decorationBox = { inner ->
+                                    Box(contentAlignment = Alignment.CenterStart) {
+                                        if (amountText.isEmpty()) Text("0", style = moneyStyle.copy(color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f)))
+                                        inner()
+                                    }
+                                }
+                            )
+                        }
+                        Spacer(modifier = Modifier.height(OpenSplitTokens.SpaceXS))
+                        Text(
+                            text = if (totalAmount > 0) com.opensplit.util.CurrencyFormatter.format(totalAmount, group.currency) else "Type the total; the rest appears as you go",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
                 }
@@ -1036,8 +1109,8 @@ fun AddExpenseScreen(
                     4 -> { // Itemized
                         Column(verticalArrangement = Arrangement.spacedBy(OpenSplitTokens.SpaceSM)) {
                             OutlinedButton(shapes = ButtonDefaults.shapes(), 
-                                onClick = { receiptPicker.launch("image/*") },
-                                enabled = !isScanning,
+                                onClick = { showReceiptSource = true },
+                                enabled = !isScanning && aiUnlocked,
                                 modifier = Modifier.fillMaxWidth()
                             ) {
                                 if (isScanning) {
@@ -1160,23 +1233,39 @@ fun AddExpenseScreen(
                             val onDone: () -> Unit = {
                                 isSaving = false
                                 busy.hide()
-                                snackbar.showMessage(if (isEditing) "Expense updated!" else "Expense saved successfully!")
                                 onNavigateBack()
+                                // After the sheet is gone, so the host underneath is visible.
+                                snackbar.showMessage(if (isEditing) "Expense updated" else "Expense saved")
                             }
-                            if (isEditing) viewModel.updateExpense(builtExpense, pickedReceiptUri, onDone)
-                            else viewModel.addExpense(builtExpense, pickedReceiptUri, onDone)
+                            val onError: (String) -> Unit = { msg ->
+                                isSaving = false
+                                busy.hide()
+                                saveError = msg
+                            }
+                            if (isEditing) viewModel.updateExpense(builtExpense, pickedReceiptUri, onDone, onError)
+                            else viewModel.addExpense(builtExpense, pickedReceiptUri, onDone, onError)
                         }
                     },
-                    modifier = Modifier.fillMaxWidth(),
-                    enabled = isFormValid
+                    modifier = Modifier.fillMaxWidth().height(52.dp),
+                    // Stays in the primary colour while saving so the spinner reads clearly; the click guard above prevents double saves.
+                    enabled = isFormValid || isSaving
                 ) {
                     if (isSaving) {
-                        AppLoadingIndicator(size = 20.dp, color = MaterialTheme.colorScheme.onPrimary)
+                        AppLoadingIndicator(size = 22.dp, color = MaterialTheme.colorScheme.onPrimary)
                         Spacer(modifier = Modifier.width(OpenSplitTokens.SpaceSM))
-                        Text("Saving...")
+                        Text(if (isEditing) "Updating…" else "Saving…", fontWeight = FontWeight.Bold)
                     } else {
                         Text(if (isEditing) "Update Expense" else "Save Expense", fontWeight = FontWeight.Bold)
                     }
+                }
+                saveError?.let {
+                    Text(
+                        text = "Couldn't save: $it",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.error,
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.fillMaxWidth().padding(top = OpenSplitTokens.SpaceSM)
+                    )
                 }
                 } // end Split-mode/Save stage Column
                 } // end AnimatedVisibility(showAfterSplitBetween)
@@ -1212,7 +1301,7 @@ fun AddExpenseScreen(
                     )
                 }
             }
-        }
+        } } }
     }
 }
 

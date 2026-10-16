@@ -26,9 +26,15 @@ data class ActivityUiState(
     val sortOrder: ActivitySortOrder = ActivitySortOrder.NEWEST_FIRST,
     val dateRangeStartMillis: Long? = null,
     val dateRangeEndMillis: Long? = null,
+    val actorFilter: ActivityActorFilter = ActivityActorFilter.ANYONE,
+    val unreadOnly: Boolean = false,
     /** Read/unread boundary: anything newer than this was unseen when this screen was opened. */
     val lastSeenBeforeThisVisit: Timestamp? = null
-)
+) {
+    val hasActiveFilters: Boolean
+        get() = selectedGroupId != null || selectedTypeFilter != ActivityCategoryFilter.ALL || searchQuery.isNotBlank() ||
+            dateRangeStartMillis != null || dateRangeEndMillis != null || actorFilter != ActivityActorFilter.ANYONE || unreadOnly
+}
 
 enum class ActivityCategoryFilter(val label: String) {
     ALL("All"),
@@ -38,8 +44,17 @@ enum class ActivityCategoryFilter(val label: String) {
 }
 
 enum class ActivitySortOrder(val label: String) {
-    NEWEST_FIRST("Newest First"),
-    OLDEST_FIRST("Oldest First")
+    NEWEST_FIRST("Newest first"),
+    OLDEST_FIRST("Oldest first"),
+    GROUP_NAME("Group A–Z"),
+    TYPE("By type")
+}
+
+/** Who did it: everyone, only you, or only other members. */
+enum class ActivityActorFilter(val label: String) {
+    ANYONE("Anyone"),
+    ME("By you"),
+    OTHERS("By others")
 }
 
 class ActivityViewModel(private val appContainer: AppContainer) : ViewModel() {
@@ -49,7 +64,11 @@ class ActivityViewModel(private val appContainer: AppContainer) : ViewModel() {
     private val _searchQuery = MutableStateFlow("")
     private val _sortOrder = MutableStateFlow(ActivitySortOrder.NEWEST_FIRST)
     private val _dateRange = MutableStateFlow<Pair<Long?, Long?>>(null to null)
+    private val _actorFilter = MutableStateFlow(ActivityActorFilter.ANYONE)
+    private val _unreadOnly = MutableStateFlow(false)
     private val _retryTrigger = MutableStateFlow(0)
+    private var visitLastSeen: Timestamp? = null
+    private var visitLastSeenCaptured = false
 
     fun retry() {
         _retryTrigger.value += 1
@@ -75,6 +94,15 @@ class ActivityViewModel(private val appContainer: AppContainer) : ViewModel() {
         _dateRange.value = startMillis to endMillis
     }
 
+    fun setActorFilter(filter: ActivityActorFilter) { _actorFilter.value = filter }
+    fun setUnreadOnly(on: Boolean) { _unreadOnly.value = on }
+
+    fun clearFilters() {
+        _selectedGroupId.value = null; _selectedTypeFilter.value = ActivityCategoryFilter.ALL; _searchQuery.value = ""
+        _sortOrder.value = ActivitySortOrder.NEWEST_FIRST; _dateRange.value = null to null
+        _actorFilter.value = ActivityActorFilter.ANYONE; _unreadOnly.value = false
+    }
+
     @OptIn(ExperimentalCoroutinesApi::class, FlowPreview::class)
     val uiState: StateFlow<ScreenState<ActivityUiState>> = _retryTrigger
         .flatMapLatest {
@@ -89,14 +117,13 @@ class ActivityViewModel(private val appContainer: AppContainer) : ViewModel() {
                 // Capture the read/unread boundary before overwriting it, so items can still be
                 // shown as unread for the duration of this visit. Bounded by a timeout so a slow
                 // or unreachable backend can't hang the whole feed on this one-shot read.
-                val previousLastSeen = try {
-                    kotlinx.coroutines.withTimeoutOrNull(3000) {
-                        appContainer.userRepository.getUser(uid)?.lastSeenActivityTimestamp
-                    }
-                } catch (_: Exception) { null }
-                try {
-                    appContainer.userRepository.updateLastSeenActivity(uid, Timestamp.now())
-                } catch (_: Exception) {}
+                // Unread boundary = what this device had seen before this visit. Captured once so a
+                // pull-to-refresh retry doesn't mark everything read mid-visit; the dashboard advances
+                // the marker itself while the tab is open.
+                val previousLastSeen: Timestamp? = visitLastSeen ?: run {
+                    val secs = appContainer.userPreferencesRepository.lastSeenActivityFlow.first()
+                    (if (secs > 0) Timestamp(secs, 0) else null).also { visitLastSeen = it; visitLastSeenCaptured = true }
+                }
 
                 appContainer.groupRepository.getGroupsForUser(uid).flatMapLatest { groups ->
                     val groupIds = groups.map { it.id }
@@ -173,14 +200,15 @@ class ActivityViewModel(private val appContainer: AppContainer) : ViewModel() {
                         allActivities.distinctBy { "${it.type}_${it.message}_${it.timestamp.seconds}" }
                     }
 
+                    val extraFilters = combine(_actorFilter, _unreadOnly) { actor, unread -> actor to unread }
                     val filtersFlow = combine(
                         _selectedGroupId,
                         _selectedTypeFilter,
                         _searchQuery,
                         _sortOrder,
-                        _dateRange
-                    ) { selectedGroup, selectedType, query, sort, dateRange ->
-                        listOf(selectedGroup, selectedType, query, sort, dateRange)
+                        combine(_dateRange, extraFilters) { range, extra -> range to extra }
+                    ) { selectedGroup, selectedType, query, sort, rest ->
+                        listOf(selectedGroup, selectedType, query, sort, rest.first, rest.second)
                     }
 
                     combine(rawActivitiesFlow, filtersFlow) { distinctActivities, filterList ->
@@ -190,10 +218,26 @@ class ActivityViewModel(private val appContainer: AppContainer) : ViewModel() {
                         val sort = filterList[3] as ActivitySortOrder
                         @Suppress("UNCHECKED_CAST")
                         val dateRangePair = filterList[4] as Pair<Long?, Long?>
+                        @Suppress("UNCHECKED_CAST")
+                        val extra = filterList[5] as Pair<ActivityActorFilter, Boolean>
+                        val actorFilter = extra.first
+                        val unreadOnly = extra.second
                         val rangeStart = dateRangePair.first
                         val rangeEnd = dateRangePair.second
 
                         var filtered = distinctActivities
+
+                        // Who did it
+                        filtered = when (actorFilter) {
+                            ActivityActorFilter.ANYONE -> filtered
+                            ActivityActorFilter.ME -> filtered.filter { it.actorUid == uid }
+                            ActivityActorFilter.OTHERS -> filtered.filter { it.actorUid != uid }
+                        }
+                        // Unread only: newer than the marker captured when this visit began
+                        if (unreadOnly) {
+                            val seen = previousLastSeen?.seconds ?: 0L
+                            filtered = filtered.filter { it.timestamp.seconds > seen }
+                        }
 
                         // Filter by date range
                         if (rangeStart != null) {
@@ -242,9 +286,12 @@ class ActivityViewModel(private val appContainer: AppContainer) : ViewModel() {
                         }
 
                         // Sorting
+                        val groupName: (Activity) -> String = { a -> groups.firstOrNull { it.id == a.groupId }?.name ?: "" }
                         filtered = when (sort) {
                             ActivitySortOrder.NEWEST_FIRST -> filtered.sortedByDescending { it.timestamp.seconds }
                             ActivitySortOrder.OLDEST_FIRST -> filtered.sortedBy { it.timestamp.seconds }
+                            ActivitySortOrder.GROUP_NAME -> filtered.sortedWith(compareBy<Activity> { groupName(it).lowercase() }.thenByDescending { it.timestamp.seconds })
+                            ActivitySortOrder.TYPE -> filtered.sortedWith(compareBy<Activity> { it.type.ordinal }.thenByDescending { it.timestamp.seconds })
                         }
 
                         ScreenState.Success(
@@ -257,6 +304,8 @@ class ActivityViewModel(private val appContainer: AppContainer) : ViewModel() {
                                 sortOrder = sort,
                                 dateRangeStartMillis = rangeStart,
                                 dateRangeEndMillis = rangeEnd,
+                                actorFilter = actorFilter,
+                                unreadOnly = unreadOnly,
                                 lastSeenBeforeThisVisit = previousLastSeen
                             )
                         )

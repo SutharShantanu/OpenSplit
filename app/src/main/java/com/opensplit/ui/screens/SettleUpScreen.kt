@@ -92,7 +92,8 @@ fun SettleUpScreen(
     val currencySymbol = remember(currency) { CurrencyFormatter.getCurrencySymbol(currency) }
 
     val rawAmount = amountText.toDoubleOrNull() ?: 0.0
-    val canSubmit = fromUid.isNotBlank() && toUid.isNotBlank() && fromUid != toUid && rawAmount > 0
+    var isRecording by remember { mutableStateOf(false) }
+    val canSubmit = fromUid.isNotBlank() && toUid.isNotBlank() && fromUid != toUid && rawAmount > 0 && !isRecording
 
     // Dynamic Indian Rupee formatting with proper commas
     val formattedDisplayAmount = remember(amountText) {
@@ -126,6 +127,7 @@ fun SettleUpScreen(
                 // If no UPI app installed or intent fails, fall back gracefully
             }
 
+            isRecording = true
             busy.show("Recording payment…")
             viewModel.addSettlement(
                 fromUid = fromUid,
@@ -134,6 +136,7 @@ fun SettleUpScreen(
                 method = method,
                 note = note.ifBlank { null },
                 onSuccess = {
+                    isRecording = false
                     busy.hide()
                     recordedSettlementAmount = rawAmount
                     isSuccessScreenShown = true
@@ -170,10 +173,10 @@ fun SettleUpScreen(
                 )
             }
         ) { padding ->
+            com.opensplit.ui.components.FormLock(locked = isRecording, modifier = Modifier.fillMaxSize().padding(padding)) {
             Column(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(padding)
                     .verticalScroll(rememberScrollState())
                     .padding(OpenSplitTokens.SpaceLG),
                 verticalArrangement = Arrangement.spacedBy(OpenSplitTokens.SpaceLG)
@@ -411,7 +414,7 @@ fun SettleUpScreen(
                         fontWeight = FontWeight.Bold
                     )
                 }
-            }
+            } }
         }
     }
 }

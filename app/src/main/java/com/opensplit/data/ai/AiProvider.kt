@@ -22,6 +22,9 @@ data class AiRequest(
 
 class AiException(message: String, val status: Int? = null) : Exception(message)
 
+/** One answer plus the tokens the provider billed for it (null when the API doesn't report usage). */
+data class AiReply(val text: String, val tokens: Int?)
+
 /**
  * A chat-completion backend. [buildBody] and [extractText] are pure so the wire format can be
  * unit-tested; [complete] does the HTTP round trip.
@@ -31,8 +34,25 @@ abstract class AiProvider {
     abstract fun headers(config: AiConfig): Map<String, String>
     abstract fun buildBody(config: AiConfig, request: AiRequest): JSONObject
     abstract fun extractText(body: JSONObject): String
+    /** Billed tokens for one reply, from the provider's usage block. */
+    abstract fun extractTokens(body: JSONObject): Int?
+    /** Endpoint that lists the models this key can use. */
+    abstract fun modelsUrl(config: AiConfig): String
+    /** Model ids from a [modelsUrl] response, in display order. Pure, so unit-testable. */
+    abstract fun parseModels(body: JSONObject): List<String>
 
-    fun complete(client: OkHttpClient, config: AiConfig, request: AiRequest): String {
+    /** Live model list for this key; never a hardcoded catalogue. */
+    fun listModels(client: OkHttpClient, config: AiConfig): List<String> {
+        val builder = Request.Builder().url(modelsUrl(config)).get()
+        headers(config).forEach { (k, v) -> builder.header(k, v) }
+        client.newCall(builder.build()).execute().use { response ->
+            val text = response.body?.string().orEmpty()
+            if (!response.isSuccessful) throw AiException(errorMessage(text, response.code), response.code)
+            return parseModels(JSONObject(text))
+        }
+    }
+
+    fun complete(client: OkHttpClient, config: AiConfig, request: AiRequest): AiReply {
         val builder = Request.Builder().url(url(config))
             .post(buildBody(config, request).toString().toRequestBody(JSON))
         headers(config).forEach { (k, v) -> builder.header(k, v) }
@@ -41,7 +61,8 @@ abstract class AiProvider {
             if (!response.isSuccessful) {
                 throw AiException(errorMessage(text, response.code), response.code)
             }
-            return extractText(JSONObject(text))
+            val json = JSONObject(text)
+            return AiReply(extractText(json), extractTokens(json))
         }
     }
 
@@ -80,10 +101,26 @@ object GeminiProvider : AiProvider() {
             .put("contents", JSONArray().put(JSONObject().put("parts", parts)))
             .put("generationConfig", JSONObject().put("maxOutputTokens", request.maxTokens))
     }
-    override fun extractText(body: JSONObject): String = body
-        .getJSONArray("candidates").getJSONObject(0)
-        .getJSONObject("content").getJSONArray("parts").getJSONObject(0)
-        .getString("text")
+    override fun extractText(body: JSONObject): String {
+        // Thinking models can return a candidate with no parts when the output budget is spent.
+        val candidate = body.optJSONArray("candidates")?.optJSONObject(0)
+            ?: throw AiException(body.optJSONObject("promptFeedback")?.optString("blockReason")?.takeIf { it.isNotBlank() }?.let { "Blocked: $it" } ?: "No candidates in response")
+        val parts = candidate.optJSONObject("content")?.optJSONArray("parts")
+        for (i in 0 until (parts?.length() ?: 0)) {
+            val text = parts!!.getJSONObject(i).optString("text")
+            if (text.isNotBlank()) return text
+        }
+        throw AiException("Empty reply (finishReason=${candidate.optString("finishReason").ifBlank { "unknown" }})")
+    }
+    override fun extractTokens(body: JSONObject): Int? = body.optJSONObject("usageMetadata")?.optInt("totalTokenCount")?.takeIf { it > 0 }
+    override fun modelsUrl(config: AiConfig) = "${config.baseUrl.trimEnd('/')}/models?pageSize=200"
+    /** Only models that can answer `generateContent`; embedding/image-only models are skipped. */
+    override fun parseModels(body: JSONObject): List<String> {
+        val models = body.optJSONArray("models") ?: JSONArray()
+        return (0 until models.length()).map { models.getJSONObject(it) }
+            .filter { m -> val methods = m.optJSONArray("supportedGenerationMethods"); methods == null || (0 until methods.length()).any { methods.getString(it) == "generateContent" } }
+            .map { it.getString("name").removePrefix("models/") }
+    }
 }
 
 /** OpenAI `chat/completions`; also serves Groq, Mistral, DeepSeek and custom endpoints. */
@@ -108,7 +145,14 @@ object OpenAiCompatibleProvider : AiProvider() {
     override fun extractText(body: JSONObject): String = body
         .getJSONArray("choices").getJSONObject(0)
         .getJSONObject("message").getString("content")
+    override fun extractTokens(body: JSONObject): Int? = body.optJSONObject("usage")?.optInt("total_tokens")?.takeIf { it > 0 }
+    override fun modelsUrl(config: AiConfig) = "${config.baseUrl.trimEnd('/')}/models"
+    override fun parseModels(body: JSONObject): List<String> = idsOf(body.optJSONArray("data")).sorted()
 }
+
+/** `{ "data": [ { "id": ... } ] }`, the shape OpenAI, Groq, Mistral, DeepSeek, Ollama and Anthropic share. */
+internal fun idsOf(data: JSONArray?): List<String> =
+    if (data == null) emptyList() else (0 until data.length()).mapNotNull { data.getJSONObject(it).optString("id").takeIf { id -> id.isNotBlank() } }
 
 /** Anthropic Messages API. Image blocks go before the text block, per the API docs. */
 object AnthropicProvider : AiProvider() {
@@ -142,4 +186,7 @@ object AnthropicProvider : AiProvider() {
         }
         throw AiException("No text in response")
     }
+    override fun extractTokens(body: JSONObject): Int? = body.optJSONObject("usage")?.let { it.optInt("input_tokens") + it.optInt("output_tokens") }?.takeIf { it > 0 }
+    override fun modelsUrl(config: AiConfig) = "${config.baseUrl.trimEnd('/')}/models?limit=1000"
+    override fun parseModels(body: JSONObject): List<String> = idsOf(body.optJSONArray("data"))
 }

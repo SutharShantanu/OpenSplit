@@ -78,6 +78,7 @@ fun CreateGroupDialog(
     var showAvatars by remember { mutableStateOf(false) }
     var currency by remember { mutableStateOf(defaultCurrency) }
     var currencyMenu by remember { mutableStateOf(false) }
+    var submitting by remember { mutableStateOf(false) }
     val focus = remember { FocusRequester() }
     val aiService = LocalAiService.current
     val canCreate = name.trim().length >= 2
@@ -107,7 +108,9 @@ fun CreateGroupDialog(
             Row(verticalAlignment = Alignment.CenterVertically) {
                 IconButton(shapes = IconButtonDefaults.shapes(), onClick = onDismiss) { SymbolIcon(OpenSplitIcons.Close, contentDescription = "Close") }
                 Text("New group", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
-                Button(enabled = canCreate, shapes = androidx.compose.material3.ButtonDefaults.shapes(), onClick = { onCreate(name.trim(), currency, avatarKey) }) { Text("Create") }
+                Button(enabled = canCreate && !submitting, shapes = androidx.compose.material3.ButtonDefaults.shapes(), onClick = { if (!submitting) { submitting = true; onCreate(name.trim(), currency, avatarKey) } }) {
+                    if (submitting) InlineBusy("Creating…") else Text("Create")
+                }
             }
 
             // Avatar + name side by side

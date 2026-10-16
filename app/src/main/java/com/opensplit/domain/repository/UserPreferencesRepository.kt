@@ -24,8 +24,13 @@ interface UserPreferencesRepository {
     val mutedGroupIdsFlow: Flow<Set<String>>
     suspend fun setGroupMuted(groupId: String, muted: Boolean)
 
-    val pinnedGroupIdsFlow: Flow<Set<String>>
-    suspend fun togglePinnedGroup(groupId: String)
+    /** Pinned groups in display order; at most [MAX_PINNED]. */
+    val pinnedGroupIdsFlow: Flow<List<String>>
+    /** Returns false when the pin limit is reached (nothing changes). */
+    suspend fun togglePinnedGroup(groupId: String): Boolean
+    suspend fun setPinnedGroups(ordered: List<String>)
+
+    companion object { const val MAX_PINNED = 3 }
 
     /** Groups hidden from this user's list; balances still count. */
     val archivedGroupIdsFlow: Flow<Set<String>>
@@ -66,5 +71,11 @@ interface UserPreferencesRepository {
 
     /** providerId -> number of successful AI calls made from this device. */
     val aiUsageFlow: Flow<Map<String, Int>>
-    suspend fun incrementAiUsage(providerId: String)
+    /** providerId -> tokens billed across those calls (as reported by the provider). */
+    val aiTokensFlow: Flow<Map<String, Int>>
+    suspend fun incrementAiUsage(providerId: String, tokens: Int = 0)
+
+    /** Epoch seconds of the last time the Activity tab was viewed on this device (0 = never). */
+    val lastSeenActivityFlow: Flow<Long>
+    suspend fun setLastSeenActivity(epochSeconds: Long)
 }

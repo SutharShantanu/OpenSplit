@@ -39,6 +39,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.material3.pulltorefresh.pullToRefresh
+import androidx.compose.ui.zIndex
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.text.font.FontWeight
@@ -104,20 +106,26 @@ fun MainDashboard(
         appContainer.activityRepository.getActivityForUser(currentUid, groupIds)
     }
     val activities by activitiesFlow.collectAsState(initial = emptyList())
-    val unreadCount = remember(activities, currentUserState) {
-        val lastSeen = currentUserState?.lastSeenActivityTimestamp
-        if (lastSeen == null) activities.size else activities.count { it.timestamp.seconds > lastSeen.seconds }
+    val lastSeenLocal by mainViewModel.lastSeenActivity.collectAsState()
+    val unreadCount = remember(activities, currentUserState, lastSeenLocal) {
+        val lastSeen = maxOf(lastSeenLocal, currentUserState?.lastSeenActivityTimestamp?.seconds ?: 0L)
+        // Your own actions are never "unread"; only other members' activity counts.
+        activities.count { it.timestamp.seconds > lastSeen && it.actorUid != currentUid }
+    }
+    // Opening the Activity tab (or new items arriving while it is open) marks everything read.
+    androidx.compose.runtime.LaunchedEffect(selectedTab, activities.firstOrNull()?.id) {
+        if (selectedTab == DashboardTab.ACTIVITY) mainViewModel.markActivitySeen()
     }
 
     var showGlobalSearch by remember { mutableStateOf(false) }
     var showAddExpensePicker by remember { mutableStateOf(false) }
     var showSettleUpPicker by remember { mutableStateOf(false) }
     var showCreateGroup by remember { mutableStateOf(false) }
-    var showInviteFriend by remember { mutableStateOf(false) }
     var showQrSheet by remember { mutableStateOf(false) }
     val friendsState by mainViewModel.friendsBalances.collectAsState()
     val hasFriends = ((friendsState as? ScreenState.Success)?.data?.isNotEmpty() == true)
-    val myFriendLink by mainViewModel.friendLinkUrl.collectAsState()
+    val myFriendLink by mainViewModel.friendLink.collectAsState()
+    val myFriendLinkError by mainViewModel.friendLinkError.collectAsState()
     // On wide layouts Groups and People keep their detail open beside the list.
     var detailGroupId by rememberSaveable { mutableStateOf<String?>(null) }
     var detailFriendId by rememberSaveable { mutableStateOf<String?>(null) }
@@ -140,7 +148,7 @@ fun MainDashboard(
         })
         DashboardTab.PEOPLE -> if (!hasFriends) null else ({
             FloatingActionButton(
-                onClick = { showInviteFriend = true },
+                onClick = { mainViewModel.ensureFriendLink(); showQrSheet = true },
                 containerColor = MaterialTheme.colorScheme.primaryContainer,
                 contentColor = MaterialTheme.colorScheme.onPrimaryContainer
             ) { SymbolIcon(OpenSplitIcons.PersonAdd, contentDescription = "Add friend") }
@@ -184,7 +192,16 @@ fun MainDashboard(
                 )
             }
         },
-        floatingActionButton = { if (!wide) fab?.invoke() },
+        floatingActionButton = {
+            // Keep the last FAB around so it can scale out instead of vanishing.
+            val lastFab = remember { mutableStateOf(fab) }
+            if (fab != null) lastFab.value = fab
+            androidx.compose.animation.AnimatedVisibility(
+                visible = !wide && fab != null,
+                enter = androidx.compose.animation.scaleIn(OpenSplitMotion.ExpressiveSpring) + androidx.compose.animation.fadeIn(),
+                exit = androidx.compose.animation.scaleOut() + androidx.compose.animation.fadeOut()
+            ) { lastFab.value?.invoke() }
+        },
         bottomBar = {
             if (!wide) {
                 // M3 Expressive short navigation bar: tighter than the classic one, pill indicator built in.
@@ -227,8 +244,13 @@ fun MainDashboard(
             var refreshing by remember { mutableStateOf(false) }
             val refreshScope = androidx.compose.runtime.rememberCoroutineScope()
             val pullState = androidx.compose.material3.pulltorefresh.rememberPullToRefreshState()
-            androidx.compose.material3.pulltorefresh.PullToRefreshBox(
+            val pullRefreshEnabled = remember { mutableStateOf(true) }
+            androidx.compose.runtime.CompositionLocalProvider(com.opensplit.ui.components.LocalPullRefreshEnabled provides pullRefreshEnabled) {
+            androidx.compose.foundation.layout.Box(
+                modifier = Modifier.fillMaxSize().appHazeSource(hazeState).pullToRefresh(
                 isRefreshing = refreshing,
+                state = pullState,
+                enabled = pullRefreshEnabled.value,
                 onRefresh = {
                     refreshing = true
                     if (mainViewModel.userGroups.value is ScreenState.Error || mainViewModel.friendsBalances.value is ScreenState.Error) mainViewModel.retry()
@@ -248,17 +270,13 @@ fun MainDashboard(
                         flush.join()
                         refreshing = false
                     }
-                },
-                state = pullState,
-                indicator = {
-                    androidx.compose.material3.pulltorefresh.PullToRefreshDefaults.LoadingIndicator(
-                        state = pullState,
-                        isRefreshing = refreshing,
-                        modifier = Modifier.align(androidx.compose.ui.Alignment.TopCenter)
-                    )
-                },
-                modifier = Modifier.fillMaxSize().appHazeSource(hazeState)
+                })
             ) {
+                androidx.compose.material3.pulltorefresh.PullToRefreshDefaults.LoadingIndicator(
+                    state = pullState,
+                    isRefreshing = refreshing,
+                    modifier = Modifier.align(androidx.compose.ui.Alignment.TopCenter).zIndex(1f)
+                )
                 // Content follows the finger (Gmail-style): it slides down by the pull distance and the
                 // indicator sits in the gap it opens, instead of floating over the list.
                 val pullOffsetPx = with(androidx.compose.ui.platform.LocalDensity.current) {
@@ -302,6 +320,7 @@ fun MainDashboard(
                             list = {
                                 FriendsScreen(
                                     viewModel = mainViewModel,
+                                    onAddFriend = { mainViewModel.ensureFriendLink(); showQrSheet = true },
                                     onFriendClick = { if (wide) detailFriendId = it else rootNavController.navigate("person_balance/$it") },
                                     onAddExpense = { rootNavController.navigate("add_expense/$it") },
                                     onSettleUp = { rootNavController.navigate("settle_up/$it") }
@@ -335,6 +354,7 @@ fun MainDashboard(
                 }
             }
             }
+            }
         }
     }
 
@@ -348,7 +368,7 @@ fun MainDashboard(
             onAddExpense = { addExpense() },
             onCreateGroup = { showCreateGroup = true },
             onSettleUp = { showSettleUpPicker = true },
-            onInviteFriend = { showInviteFriend = true }
+            onInviteFriend = { mainViewModel.ensureFriendLink(); showQrSheet = true }
         )
     }
 
@@ -389,23 +409,12 @@ fun MainDashboard(
     }
 
     if (showQrSheet) {
-        com.opensplit.ui.components.FriendQrSheet(
-            myLinkUrl = myFriendLink,
+        com.opensplit.ui.components.InviteFriendSheet(
+            link = myFriendLink,
+            linkError = myFriendLinkError,
+            onRetry = { mainViewModel.ensureFriendLink(force = true) },
             onDismiss = { showQrSheet = false },
             onOpenLink = { kind, token -> rootNavController.navigate(if (kind == "join") "join/$token" else "friend/$token") }
-        )
-    }
-
-    if (showInviteFriend) {
-        InviteMemberDialog(
-            title = "Invite a friend",
-            description = "Pick them from your contacts, or invite over WhatsApp or SMS.",
-            onDismiss = { showInviteFriend = false },
-            onSubmitEmail = { email ->
-                mainViewModel.sendFriendInvite(email) { success ->
-                    snackbar.showMessage(if (success) "Invite sent" else "Couldn't send (already invited or invalid email)")
-                }
-            }
         )
     }
 }

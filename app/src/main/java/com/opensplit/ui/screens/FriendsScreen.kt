@@ -27,7 +27,6 @@ import com.google.firebase.Timestamp
 import com.opensplit.domain.model.FriendInvite
 import com.opensplit.ui.components.AppSearchBar
 import com.opensplit.ui.components.HandshakeIllustration
-import com.opensplit.ui.components.InviteMemberDialog
 import com.opensplit.ui.components.StateLayout
 import com.opensplit.ui.theme.OpenSplitIcons
 import com.opensplit.ui.theme.OpenSplitTokens
@@ -45,6 +44,7 @@ enum class FriendFilterOption(val label: String) {
 @Composable
 fun FriendsScreen(
     viewModel: MainViewModel,
+    onAddFriend: () -> Unit = {},
     onFriendClick: (String) -> Unit,
     onAddExpense: (groupId: String) -> Unit = {},
     onSettleUp: (groupId: String) -> Unit = {}
@@ -55,7 +55,8 @@ fun FriendsScreen(
     val incomingInvites by viewModel.incomingFriendInvites.collectAsState()
     var searchQuery by rememberSaveable { mutableStateOf("") }
     var selectedFilter by rememberSaveable { mutableStateOf(FriendFilterOption.ALL) }
-    var showInviteDialog by rememberSaveable { mutableStateOf(false) }
+    val myLink by viewModel.friendLink.collectAsState()
+    androidx.compose.runtime.LaunchedEffect(Unit) { viewModel.ensureFriendLink() }
     val context = LocalContext.current
     val snackbar = LocalSnackbarController.current
 
@@ -105,11 +106,12 @@ fun FriendsScreen(
             }
         }
 
-        // Pending invites
-        if (friendInvites.isNotEmpty()) {
+        // Invites you've sent: your live link (with its expiry) and any older email invites with their status.
+        val openInvites = friendInvites.filter { it.status != "accepted" && it.status != "declined" }
+        if (myLink != null || openInvites.isNotEmpty()) {
             Spacer(modifier = Modifier.height(OpenSplitTokens.SpaceMD))
             Text(
-                text = "Pending invites (${friendInvites.size})",
+                text = "Invites",
                 style = MaterialTheme.typography.titleSmall,
                 fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.primary
@@ -121,14 +123,22 @@ fun FriendsScreen(
                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer)
             ) {
                 Column {
-                    friendInvites.forEachIndexed { index, invite ->
+                    myLink?.let { link ->
+                        ListItem(
+                            colors = ListItemDefaults.colors(containerColor = androidx.compose.ui.graphics.Color.Transparent),
+                            leadingContent = { SymbolIcon(OpenSplitIcons.QrCode, contentDescription = null, tint = MaterialTheme.colorScheme.primary) },
+                            headlineContent = { Text("Your invite link", fontWeight = FontWeight.Medium) },
+                            supportingContent = { Text(expiryLabel(link.expiresAt) + " · friends who join appear above", style = MaterialTheme.typography.bodySmall) },
+                            trailingContent = { TextButton(shapes = ButtonDefaults.shapes(), onClick = onAddFriend) { Text("Share") } },
+                            modifier = Modifier.clickable(onClick = onAddFriend)
+                        )
+                    }
+                    openInvites.forEach { invite ->
+                        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f))
                         InviteRow(invite = invite, onRevoke = {
                             viewModel.revokeFriendInvite(invite.id)
-                            snackbar.showUndo("Invite to ${invite.email} revoked") {
-                                viewModel.sendFriendInvite(invite.email)
-                            }
+                            snackbar.showMessage(if (invite.expiresAt.seconds <= System.currentTimeMillis() / 1000) "Expired invite removed" else "Invite to ${invite.email} revoked")
                         })
-                        if (index < friendInvites.lastIndex) HorizontalDivider()
                     }
                 }
             }
@@ -138,6 +148,7 @@ fun FriendsScreen(
 
         StateLayout(state = friendsState) { balances ->
             if (balances.isEmpty()) {
+                com.opensplit.ui.components.AppearOnEnter {
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
@@ -165,13 +176,14 @@ fun FriendsScreen(
                         )
                         Spacer(modifier = Modifier.height(24.dp))
                         Button(shapes = ButtonDefaults.shapes(), 
-                            onClick = { showInviteDialog = true },
+                            onClick = onAddFriend,
                         ) {
                             SymbolIcon(OpenSplitIcons.PersonAdd, contentDescription = null, modifier = Modifier.size(20.dp))
                             Spacer(modifier = Modifier.width(8.dp))
                             Text("Add a Friend", fontWeight = FontWeight.Bold)
                         }
                     }
+                }
                 }
             } else {
                 Column(modifier = Modifier.fillMaxSize()) {
@@ -298,6 +310,7 @@ fun FriendsScreen(
                                 }
                             }
                             com.opensplit.ui.components.SwipeActionRow(
+                                modifier = Modifier.animateItem(),
                                 startAction = com.opensplit.ui.components.SwipeAction(
                                     icon = OpenSplitIcons.AddExpense, label = "Expense",
                                     container = MaterialTheme.colorScheme.primaryContainer,
@@ -370,21 +383,6 @@ fun FriendsScreen(
 
     }
 
-    if (showInviteDialog) {
-        val myLink by viewModel.friendLinkUrl.collectAsState()
-        androidx.compose.runtime.LaunchedEffect(Unit) { viewModel.ensureFriendLink() }
-        InviteMemberDialog(
-            title = "Invite a friend",
-            description = "Share your link or QR, pick a contact, or send an email request.",
-            friendInviteUrl = myLink,
-            onDismiss = { showInviteDialog = false },
-            onSubmitEmail = { email ->
-                viewModel.sendFriendInvite(email) { success ->
-                    snackbar.showMessage(if (success) "Invite sent" else "Couldn't send (already invited or invalid email)")
-                }
-            }
-        )
-    }
 }
 
 @Composable
@@ -416,8 +414,9 @@ private fun InviteRow(invite: FriendInvite, onRevoke: () -> Unit) {
             }
         },
         trailingContent = {
+            val expired = invite.expiresAt.seconds <= System.currentTimeMillis() / 1000
             TextButton(shapes = ButtonDefaults.shapes(), onClick = onRevoke) {
-                Text("Revoke", color = MaterialTheme.colorScheme.error)
+                Text(if (expired) "Remove" else "Revoke", color = MaterialTheme.colorScheme.error)
             }
         }
     )
@@ -430,6 +429,6 @@ private fun expiryLabel(expiresAt: Timestamp): String {
         diff <= 0 -> "Expired"
         diff < 3600 -> "Expires in under an hour"
         diff < 86400 -> "Expires in ${diff / 3600}h"
-        else -> "Expires in ${diff / 86400}d"
+        else -> "Valid for ${diff / 86400} more days"
     }
 }

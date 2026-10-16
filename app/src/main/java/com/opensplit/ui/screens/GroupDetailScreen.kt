@@ -18,6 +18,7 @@ import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.animation.animateContentSize
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
@@ -176,6 +177,7 @@ fun GroupDetailScreen(
                                     Card(
                                         modifier = Modifier
                                             .fillMaxWidth()
+                                            .animateContentSize()
                                             .padding(bottom = OpenSplitTokens.SpaceMD),
                                         shape = RoundedCornerShape(28.dp),
                                         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
@@ -195,12 +197,7 @@ fun GroupDetailScreen(
                                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                                 )
                                                 Spacer(modifier = Modifier.height(4.dp))
-                                                Text(
-                                                    text = "$currencySymbol${com.opensplit.util.CurrencyFormatter.format(totalSpending, showSymbol = false)}",
-                                                    style = MaterialTheme.typography.headlineLarge,
-                                                    fontWeight = FontWeight.Bold,
-                                                    color = MaterialTheme.colorScheme.onSurface
-                                                )
+                                                com.opensplit.ui.components.AnimatedNumberText(text = "$currencySymbol${com.opensplit.util.CurrencyFormatter.format(totalSpending, showSymbol = false)}", style = MaterialTheme.typography.headlineLarge, color = MaterialTheme.colorScheme.onSurface)
                                                 Spacer(modifier = Modifier.height(2.dp))
                                                 Text(
                                                     text = "This month",
@@ -319,6 +316,7 @@ fun GroupDetailScreen(
                                             }
 
                                             com.opensplit.ui.components.SwipeActionRow(
+                                                modifier = Modifier.animateItem(),
                                                 startAction = com.opensplit.ui.components.SwipeAction(
                                                     icon = OpenSplitIcons.Edit, label = "Edit",
                                                     container = MaterialTheme.colorScheme.primaryContainer,
@@ -327,7 +325,8 @@ fun GroupDetailScreen(
                                                 endAction = com.opensplit.ui.components.SwipeAction(
                                                     icon = OpenSplitIcons.Delete, label = "Delete",
                                                     container = MaterialTheme.colorScheme.errorContainer,
-                                                    onContainer = MaterialTheme.colorScheme.onErrorContainer
+                                                    onContainer = MaterialTheme.colorScheme.onErrorContainer,
+                                                    primary = false
                                                 ) {
                                                     busy.show("Deleting expense…")
                                                     viewModel.deleteExpense(exp.id) { ok ->

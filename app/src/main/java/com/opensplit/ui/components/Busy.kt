@@ -19,6 +19,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.semantics
@@ -81,3 +84,26 @@ fun InlineBusy(text: String, modifier: Modifier = Modifier) {
         Text(text, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }
+
+/**
+ * Wraps a form while its save/submit runs: content dims, every touch is swallowed and a wavy
+ * progress strip shows on top. Pair with a `return` guard in the click handler so the action
+ * can't fire twice.
+ */
+@Composable
+fun FormLock(locked: Boolean, modifier: Modifier = Modifier, content: @Composable () -> Unit) {
+    androidx.compose.foundation.layout.Box(modifier) {
+        androidx.compose.foundation.layout.Box(Modifier.alpha(if (locked) 0.55f else 1f)) { content() }
+        if (locked) {
+            androidx.compose.material3.LinearWavyProgressIndicator(modifier = Modifier.fillMaxWidth().align(Alignment.TopCenter))
+            androidx.compose.foundation.layout.Box(
+                Modifier.matchParentSize().pointerInput(Unit) {
+                    awaitPointerEventScope { while (true) awaitPointerEvent().changes.forEach { it.consume() } }
+                }
+            )
+        }
+    }
+}
+
+/** True while pull-to-refresh may run. Screens set it false during their own vertical drags (row reorder). */
+val LocalPullRefreshEnabled = androidx.compose.runtime.compositionLocalOf<androidx.compose.runtime.MutableState<Boolean>> { androidx.compose.runtime.mutableStateOf(true) }

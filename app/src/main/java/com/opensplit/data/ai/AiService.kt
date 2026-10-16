@@ -67,36 +67,118 @@ class AiService(private val prefs: UserPreferencesRepository) {
         return AiConfig(providerId, key, model, baseUrl)
     }
 
-    /** Emits true while [feature] can run: master on, feature on, active provider has a key. */
+    /** Emits true while [feature] can run: master on, feature on, at least one provider usable. */
     fun availability(feature: AiFeature): Flow<Boolean> = combine(
         prefs.aiEnabledFlow, prefs.aiDisabledFeaturesFlow, prefs.aiProviderFlow, prefs.providerApiKeysFlow
     ) { enabled, disabled, provider, keys ->
-        enabled && feature.name !in disabled && (provider == "custom" || !keys[provider].isNullOrBlank())
+        enabled && feature.name !in disabled && hasAnyKey(provider, keys)
+    }
+
+    private fun hasAnyKey(activeProvider: String, keys: Map<String, String>) =
+        activeProvider == "custom" || keys.any { (id, k) -> id != "custom" && k.isNotBlank() }
+
+    /**
+     * Providers to try, in order: the active one first, then every other provider that has a key
+     * (catalogue order). Custom endpoints only take part when they are the active provider.
+     */
+    suspend fun fallbackOrder(): List<String> {
+        val active = prefs.aiProviderFlow.first()
+        val keys = prefs.providerApiKeysFlow.first()
+        val others = AI_PROVIDERS_CATALOG.map { it.id }.filter { it != active && it != "custom" && !keys[it].isNullOrBlank() }
+        return (if (active == "custom" || !keys[active].isNullOrBlank()) listOf(active) else emptyList()) + others
     }
 
     suspend fun isAvailable(feature: AiFeature): Boolean = availability(feature).first()
 
     /** Runs one request on the active provider. Null when unavailable or on any failure. */
+    /** Message of the most recent provider failure, for inline UI status. */
+    @Volatile var lastError: String? = null
+        private set
+
+    /** Provider that answered the most recent successful call (for "used fallback" hints). */
+    @Volatile var lastProviderUsed: String? = null
+        private set
+
     private suspend fun ask(feature: AiFeature, request: AiRequest): String? {
+        lastError = null
         if (!isAvailable(feature)) return null
-        val config = activeConfig() ?: return null
+        // One key running out (quota, outage, retired model) must not take every AI feature down:
+        // walk the configured keys until one answers.
+        for (id in fallbackOrder()) {
+            val config = configFor(id) ?: continue
+            val reply = withContext(Dispatchers.IO) {
+                runCatching { AiProvider.forProvider(config.providerId).complete(AiProvider.httpClient, config, request) }
+            }
+            reply.onSuccess {
+                prefs.incrementAiUsage(config.providerId, it.tokens ?: 0)
+                lastProviderUsed = config.providerId
+                return it.text
+            }.onFailure { e ->
+                lastError = e.message
+                android.util.Log.w("AiService", "${feature.name} via ${config.providerId}/${config.model} failed: ${e.message}; trying next key")
+                // Retired model: adopt the replacement the provider names and retry this key once.
+                val next = suggestedModel(e.message)
+                if (next != null && next != config.model) {
+                    val healed = withContext(Dispatchers.IO) {
+                        runCatching { AiProvider.forProvider(config.providerId).complete(AiProvider.httpClient, config.copy(model = next), request) }
+                    }
+                    healed.onSuccess {
+                        if (config.providerId == "custom") prefs.setCustomModel(next) else prefs.setProviderModel(config.providerId, next)
+                        prefs.incrementAiUsage(config.providerId, it.tokens ?: 0)
+                        lastProviderUsed = config.providerId
+                        return it.text
+                    }
+                }
+            }
+        }
+        return null
+    }
+
+    /** True while the master switch is on and the active provider has a key: the UI lock gate. */
+    val unlocked: Flow<Boolean> = combine(prefs.aiEnabledFlow, prefs.aiProviderFlow, prefs.providerApiKeysFlow) { enabled, provider, keys ->
+        enabled && hasAnyKey(provider, keys)
+    }
+
+    /** Models the given key can use right now, fetched from the provider. */
+    suspend fun listModels(providerId: String, key: String, baseUrl: String?): Result<List<String>> {
+        val info = AI_PROVIDERS_CATALOG.firstOrNull { it.id == providerId }
+            ?: return Result.failure(AiException("Unknown provider"))
+        val config = AiConfig(providerId, key, info.defaultModel, baseUrl ?: info.defaultBaseUrl)
         return withContext(Dispatchers.IO) {
-            runCatching { AiProvider.forProvider(config.providerId).complete(AiProvider.httpClient, config, request) }
-                .onSuccess { prefs.incrementAiUsage(config.providerId) }
-                .getOrNull()
+            runCatching { AiProvider.forProvider(providerId).listModels(AiProvider.httpClient, config) }
         }
     }
 
-    /** One cheap round trip to prove a key works. Returns the model's reply or the error text. */
-    suspend fun testKey(providerId: String, key: String, baseUrl: String?, model: String?): Result<String> {
+    /** Outcome of a key test: the model the service settled on and what it replied. */
+    data class AiTestResult(val model: String, val reply: String)
+
+    /** Replacement model named in a provider error such as "...use models/gemini-x...". */
+    fun suggestedModel(message: String?): String? =
+        message?.let { Regex("use (?:models/)?([A-Za-z0-9._-]+)").find(it)?.groupValues?.get(1) }
+
+    /**
+     * Proves a key works and picks its model, so the user never chooses one: the provider's live
+     * model list is fetched, a sensible candidate is tried, and a "retired, use X" error is followed once.
+     */
+    suspend fun testKey(providerId: String, key: String, baseUrl: String?, model: String?): Result<AiTestResult> {
         val info = AI_PROVIDERS_CATALOG.firstOrNull { it.id == providerId }
             ?: return Result.failure(AiException("Unknown provider"))
-        val config = AiConfig(providerId, key, model ?: info.testModel, baseUrl ?: info.defaultBaseUrl)
+        val base = baseUrl ?: info.defaultBaseUrl
+        val provider = AiProvider.forProvider(providerId)
         return withContext(Dispatchers.IO) {
             runCatching {
-                AiProvider.forProvider(providerId).complete(
-                    AiProvider.httpClient, config, AiRequest("Reply with the single word OK.", maxTokens = 16)
-                ).trim()
+                val live = runCatching { provider.listModels(AiProvider.httpClient, AiConfig(providerId, key, info.defaultModel, base)) }
+                    .getOrElse { if (providerId == "custom") emptyList() else throw it }
+                val candidate = model?.takeIf { it.isNotBlank() }
+                    ?: live.firstOrNull { it == info.defaultModel } ?: live.firstOrNull { it == info.testModel }
+                    ?: live.firstOrNull() ?: info.defaultModel
+                val ask = AiRequest("Reply with the single word OK.", maxTokens = 512) // thinking models spend budget before answering
+                try {
+                    AiTestResult(candidate, provider.complete(AiProvider.httpClient, AiConfig(providerId, key, candidate, base), ask).text.trim())
+                } catch (e: AiException) {
+                    val next = suggestedModel(e.message)?.takeIf { it != candidate } ?: throw e
+                    AiTestResult(next, provider.complete(AiProvider.httpClient, AiConfig(providerId, key, next, base), ask).text.trim())
+                }
             }
         }
     }

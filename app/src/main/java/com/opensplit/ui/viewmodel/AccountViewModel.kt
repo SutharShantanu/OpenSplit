@@ -74,14 +74,21 @@ class AccountViewModel(
     val aiDisabledFeaturesFlow = userPreferencesRepository.aiDisabledFeaturesFlow
     val providerModelsFlow = userPreferencesRepository.providerModelsFlow
     val aiUsageFlow = userPreferencesRepository.aiUsageFlow
+    val aiTokensFlow = userPreferencesRepository.aiTokensFlow
 
     fun setAiEnabled(enabled: Boolean) { viewModelScope.launch { userPreferencesRepository.setAiEnabled(enabled) } }
     fun setAiFeatureEnabled(featureId: String, enabled: Boolean) { viewModelScope.launch { userPreferencesRepository.setAiFeatureEnabled(featureId, enabled) } }
     fun setProviderModel(providerId: String, model: String) { viewModelScope.launch { userPreferencesRepository.setProviderModel(providerId, model) } }
-    fun testAiKey(providerId: String, key: String, endpoint: String?, model: String?, onResult: (Result<String>) -> Unit) {
+    fun testAiKey(providerId: String, key: String, endpoint: String?, model: String?, onResult: (Result<com.opensplit.data.ai.AiService.AiTestResult>) -> Unit) {
         viewModelScope.launch {
             val result = com.opensplit.data.ai.AiService(userPreferencesRepository).testKey(providerId, key, endpoint, model)
             onResult(result)
+        }
+    }
+
+    fun listAiModels(providerId: String, key: String, endpoint: String?, onResult: (Result<List<String>>) -> Unit) {
+        viewModelScope.launch {
+            onResult(com.opensplit.data.ai.AiService(userPreferencesRepository).listModels(providerId, key, endpoint))
         }
     }
 

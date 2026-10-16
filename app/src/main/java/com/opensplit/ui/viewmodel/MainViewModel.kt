@@ -80,14 +80,31 @@ class MainViewModel(
     }
 
     /** The signed-in user's own add-me link, created on first use. */
-    private val _friendLinkUrl = MutableStateFlow<String?>(null)
-    val friendLinkUrl: StateFlow<String?> = _friendLinkUrl.asStateFlow()
-    fun ensureFriendLink() {
-        if (_friendLinkUrl.value != null) return
+    /** Read marker for the Activity badge. Local pref is the source of truth; the user doc is synced best-effort. */
+    val lastSeenActivity: StateFlow<Long> = userPreferencesRepository.lastSeenActivityFlow
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0L)
+    fun markActivitySeen() {
+        viewModelScope.launch {
+            val now = com.google.firebase.Timestamp.now()
+            userPreferencesRepository.setLastSeenActivity(now.seconds)
+            authRepository.getCurrentUserId()?.let { runCatching { userRepository.updateLastSeenActivity(it, now) } }
+        }
+    }
+
+    private val _friendLink = MutableStateFlow<com.opensplit.domain.model.FriendLink?>(null)
+    val friendLink: StateFlow<com.opensplit.domain.model.FriendLink?> = _friendLink.asStateFlow()
+    private val _friendLinkError = MutableStateFlow<String?>(null)
+    val friendLinkError: StateFlow<String?> = _friendLinkError.asStateFlow()
+    /** Loads (or reuses) the user's add-me link; [force] re-fetches after a failure. */
+    fun ensureFriendLink(force: Boolean = false) {
+        if (_friendLink.value != null && !force) return
         viewModelScope.launch {
             val uid = authRepository.getCurrentUserId() ?: return@launch
             val name = authRepository.currentUser?.displayName ?: ""
-            _friendLinkUrl.value = friendInviteRepository.getOrCreateFriendLink(uid, name).getOrNull()
+            _friendLinkError.value = null
+            friendInviteRepository.getOrCreateFriendLink(uid, name)
+                .onSuccess { _friendLink.value = it }
+                .onFailure { _friendLinkError.value = it.message ?: "Couldn't create your invite link" }
         }
     }
 
@@ -155,11 +172,16 @@ class MainViewModel(
         viewModelScope.launch { userPreferencesRepository.setGroupArchived(groupId, archived) }
     }
 
-    val pinnedGroupIds: StateFlow<Set<String>> = userPreferencesRepository.pinnedGroupIdsFlow
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptySet())
+    val pinnedGroupIds: StateFlow<List<String>> = userPreferencesRepository.pinnedGroupIdsFlow
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
-    fun togglePinnedGroup(groupId: String) {
-        viewModelScope.launch { userPreferencesRepository.togglePinnedGroup(groupId) }
+    /** [onResult] gets false when the 3-pin limit blocked the change. */
+    fun togglePinnedGroup(groupId: String, onResult: (Boolean) -> Unit = {}) {
+        viewModelScope.launch { onResult(userPreferencesRepository.togglePinnedGroup(groupId)) }
+    }
+
+    fun reorderPinned(ordered: List<String>) {
+        viewModelScope.launch { userPreferencesRepository.setPinnedGroups(ordered) }
     }
 
     // Activity has no groupId of its own, so per-group recency is derived by combining each

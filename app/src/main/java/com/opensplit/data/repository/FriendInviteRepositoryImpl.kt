@@ -80,20 +80,21 @@ class FriendInviteRepositoryImpl(
 
     private val friendLinks = firestore.collection("friendLinks")
 
-    override suspend fun getOrCreateFriendLink(uid: String, displayName: String): Result<String> = try {
+    override suspend fun getOrCreateFriendLink(uid: String, displayName: String): Result<com.opensplit.domain.model.FriendLink> = try {
         val now = com.google.firebase.Timestamp.now()
-        val existing = friendLinks.whereEqualTo("uid", uid).get().await().documents
-            .firstOrNull { (it.getTimestamp("expiresAt") ?: now).seconds > now.seconds + 86400 }
+        val existing = kotlinx.coroutines.withTimeoutOrNull(2500) { friendLinks.whereEqualTo("uid", uid).get().await().documents }
+            ?.firstOrNull { (it.getTimestamp("expiresAt") ?: now).seconds > now.seconds + 86400 }
+        val expires = existing?.getTimestamp("expiresAt") ?: com.google.firebase.Timestamp(now.seconds + 30L * 86400, 0)
         val token = existing?.id ?: run {
             val alphabet = "abcdefghijkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789"
             val rnd = java.security.SecureRandom()
             val t = (1..20).map { alphabet[rnd.nextInt(alphabet.length)] }.joinToString("")
             friendLinks.document(t).set(
-                mapOf("uid" to uid, "name" to displayName, "createdAt" to now, "expiresAt" to com.google.firebase.Timestamp(now.seconds + 30L * 86400, 0))
+                mapOf("uid" to uid, "name" to displayName, "createdAt" to now, "expiresAt" to expires)
             ).awaitWrite()
             t
         }
-        Result.success(com.opensplit.domain.model.InviteLink.FRIEND_BASE_URL + token)
+        Result.success(com.opensplit.domain.model.FriendLink(com.opensplit.domain.model.InviteLink.FRIEND_BASE_URL + token, token, expires))
     } catch (e: Exception) { Result.failure(e) }
 
     override suspend fun acceptFriendLink(token: String, me: String, currency: String): Result<String> = try {

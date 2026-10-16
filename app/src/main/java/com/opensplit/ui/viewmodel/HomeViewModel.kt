@@ -15,7 +15,12 @@ import kotlinx.coroutines.launch
 
 data class GroupWithBalance(
     val group: Group,
-    val balance: Double
+    val balance: Double,
+    /** Live (non-deleted) expenses in the group; 0 means "nothing happened here yet". */
+    val expenseCount: Int = 0,
+    /** Recorded settlements; "Settled" is only claimed when someone actually paid. */
+    val settlementCount: Int = 0,
+    val totalSpent: Double = 0.0
 )
 
 data class HomeUiState(
@@ -59,7 +64,8 @@ class HomeViewModel(private val appContainer: AppContainer) : ViewModel() {
                 val settlementsFlow = appContainer.settlementRepository.getSettlementsForGroup(group.id)
                 combine(expensesFlow, settlementsFlow) { expenses, settlements ->
                     val groupBal = calculateUserGroupBalance(currentUserId, expenses, settlements)
-                    GroupWithBalance(group, groupBal)
+                    val live = expenses.filter { !it.isDeleted }
+                    GroupWithBalance(group, groupBal, live.size, settlements.size, live.sumOf { it.amount })
                 }
             }
 

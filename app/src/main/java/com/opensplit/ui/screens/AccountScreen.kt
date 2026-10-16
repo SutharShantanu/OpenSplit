@@ -130,6 +130,7 @@ fun AccountScreen(
     val aiDisabledFeatures by viewModel.aiDisabledFeaturesFlow.collectAsState(initial = emptySet())
     val providerModels by viewModel.providerModelsFlow.collectAsState(initial = emptyMap())
     val aiUsage by viewModel.aiUsageFlow.collectAsState(initial = emptyMap())
+    val aiTokens by viewModel.aiTokensFlow.collectAsState(initial = emptyMap())
 
     var selectedCategory by rememberSaveable { mutableStateOf<AccountCategory?>(null) }
 
@@ -170,6 +171,8 @@ fun AccountScreen(
                             dynamicColor = dynamicColor,
                             aiProvider = aiProvider,
                             providerApiKeys = providerApiKeys,
+                            aiUsage = aiUsage,
+                            aiTokens = aiTokens,
                             onSelectCategory = { selectedCategory = it },
                             onSignOutClick = { showSignOutDialog = true },
                             onDeleteAccountClick = { showDeleteAccountDialog = true },
@@ -206,7 +209,8 @@ fun AccountScreen(
                                 },
                                 onSaveProviderKey = { providerId, key ->
                                     viewModel.setProviderApiKey(providerId, key)
-                                    snackbar.showMessage("API Key saved for ${AI_PROVIDERS_CATALOG.find { p -> p.id == providerId }?.name ?: providerId}")
+                                    val name = AI_PROVIDERS_CATALOG.find { p -> p.id == providerId }?.name ?: providerId
+                                    snackbar.showMessage(if (key.isBlank()) "API key removed for $name" else "API key saved for $name")
                                 },
                                 onSaveCustomSettings = { endpoint, model ->
                                     viewModel.setCustomEndpoint(endpoint)
@@ -217,6 +221,7 @@ fun AccountScreen(
                                 disabledFeatures = aiDisabledFeatures,
                                 providerModels = providerModels,
                                 usage = aiUsage,
+                                tokens = aiTokens,
                                 onToggleAi = { viewModel.setAiEnabled(it) },
                                 onToggleFeature = { f, on -> viewModel.setAiFeatureEnabled(f, on) },
                                 onSetModel = { providerId, model -> viewModel.setProviderModel(providerId, model) },
@@ -349,6 +354,8 @@ fun AccountOverviewScreen(
     dynamicColor: Boolean,
     aiProvider: String,
     providerApiKeys: Map<String, String>,
+    aiUsage: Map<String, Int> = emptyMap(),
+    aiTokens: Map<String, Int> = emptyMap(),
     onSelectCategory: (AccountCategory) -> Unit,
     onSignOutClick: () -> Unit,
     onDeleteAccountClick: () -> Unit,
@@ -434,7 +441,14 @@ fun AccountOverviewScreen(
                     "${CurrencyFormatter.getCurrencyFlag(data.defaultCurrency)} ${data.defaultCurrency} (${CurrencyFormatter.getCurrencySymbol(data.defaultCurrency)})"
                 }
                 AccountCategory.AI_PROVIDERS -> {
-                    AI_PROVIDERS_CATALOG.find { it.id == aiProvider }?.name ?: aiProvider.replaceFirstChar { it.uppercase() }
+                    // Locked until a key exists; afterwards the badge is a live usage meter.
+                    val hasKey = aiProvider == "custom" || !providerApiKeys[aiProvider].isNullOrBlank()
+                    if (!hasKey) "No key · locked" else {
+                        val calls = aiUsage[aiProvider] ?: 0
+                        val tokens = aiTokens[aiProvider] ?: 0
+                        val t = when { tokens >= 1_000_000 -> "%.1fM".format(tokens / 1e6); tokens >= 1000 -> "%.1fk".format(tokens / 1e3); else -> "$tokens" }
+                        "$calls calls · $t tokens"
+                    }
                 }
                 AccountCategory.NOTIFICATIONS -> "Enabled"
                 AccountCategory.DATA_BACKUP -> "${data.allExpenses.size} expenses"

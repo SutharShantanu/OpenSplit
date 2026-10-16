@@ -75,10 +75,11 @@ class UserPreferencesRepositoryImpl(private val context: Context) : UserPreferen
         }
     }
 
-    override val pinnedGroupIdsFlow: Flow<Set<String>> = context.dataStore.data
-        .map { preferences ->
-            preferences[PINNED_GROUPS_KEY] ?: emptySet()
-        }
+    // Order matters now, so pins live in an ordered string; the old set is read once as a fallback.
+    private val PINNED_ORDER_KEY = androidx.datastore.preferences.core.stringPreferencesKey("pinned_group_order")
+    private fun pinnedOrder(prefs: androidx.datastore.preferences.core.Preferences): List<String> =
+        prefs[PINNED_ORDER_KEY]?.split(',')?.filter { it.isNotBlank() } ?: (prefs[PINNED_GROUPS_KEY]?.toList() ?: emptyList())
+    override val pinnedGroupIdsFlow: Flow<List<String>> = context.dataStore.data.map { pinnedOrder(it).take(UserPreferencesRepository.MAX_PINNED) }
 
     override val disabledNotificationTypesFlow: Flow<Set<String>> = context.dataStore.data.map { it[DISABLED_NOTIF_TYPES_KEY] ?: emptySet() }
     override suspend fun setNotificationTypeEnabled(typeId: String, enabled: Boolean) {
@@ -119,11 +120,22 @@ class UserPreferencesRepositoryImpl(private val context: Context) : UserPreferen
         }
     }
 
-    override suspend fun togglePinnedGroup(groupId: String) {
+    override suspend fun togglePinnedGroup(groupId: String): Boolean {
+        var ok = true
         context.dataStore.edit { preferences ->
-            val current = preferences[PINNED_GROUPS_KEY] ?: emptySet()
-            preferences[PINNED_GROUPS_KEY] = if (groupId in current) current - groupId else current + groupId
+            val current = pinnedOrder(preferences)
+            val next = when {
+                groupId in current -> current - groupId
+                current.size >= UserPreferencesRepository.MAX_PINNED -> { ok = false; current }
+                else -> current + groupId
+            }
+            preferences[PINNED_ORDER_KEY] = next.joinToString(",")
         }
+        return ok
+    }
+
+    override suspend fun setPinnedGroups(ordered: List<String>) {
+        context.dataStore.edit { it[PINNED_ORDER_KEY] = ordered.distinct().take(UserPreferencesRepository.MAX_PINNED).joinToString(",") }
     }
 
     override val openAiApiKeyFlow: Flow<String> get() = providerApiKeysFlow.map { it["openai"] ?: "" }
@@ -259,10 +271,21 @@ class UserPreferencesRepositoryImpl(private val context: Context) : UserPreferen
     override val aiUsageFlow: Flow<Map<String, Int>> = context.dataStore.data.map { prefs ->
         knownProviders.mapNotNull { id -> prefs[intPreferencesKey("ai_usage_$id")]?.let { id to it } }.toMap()
     }
-    override suspend fun incrementAiUsage(providerId: String) {
+    override val aiTokensFlow: Flow<Map<String, Int>> = context.dataStore.data.map { prefs ->
+        knownProviders.mapNotNull { id -> prefs[intPreferencesKey("ai_tokens_$id")]?.let { id to it } }.toMap()
+    }
+    override suspend fun incrementAiUsage(providerId: String, tokens: Int) {
         context.dataStore.edit { prefs ->
             val key = intPreferencesKey("ai_usage_$providerId")
             prefs[key] = (prefs[key] ?: 0) + 1
+            val tKey = intPreferencesKey("ai_tokens_$providerId")
+            prefs[tKey] = (prefs[tKey] ?: 0) + tokens
         }
+    }
+
+    private val LAST_SEEN_ACTIVITY_KEY = androidx.datastore.preferences.core.longPreferencesKey("last_seen_activity")
+    override val lastSeenActivityFlow: Flow<Long> = context.dataStore.data.map { it[LAST_SEEN_ACTIVITY_KEY] ?: 0L }
+    override suspend fun setLastSeenActivity(epochSeconds: Long) {
+        context.dataStore.edit { it[LAST_SEEN_ACTIVITY_KEY] = epochSeconds }
     }
 }

@@ -125,24 +125,22 @@ class GroupDetailViewModel(
         return if (uploaded != null) expense.copy(receiptImageUrl = uploaded) else expense
     }
 
-    fun addExpense(expense: Expense, receiptUri: android.net.Uri? = null, onSuccess: () -> Unit = {}) {
+    fun addExpense(expense: Expense, receiptUri: android.net.Uri? = null, onSuccess: () -> Unit = {}, onError: (String) -> Unit = {}) {
         viewModelScope.launch {
             val finalExpense = withUploadedReceipt(expense, receiptUri)
-            val res = expenseRepository.addExpense(finalExpense)
-            if (res.isSuccess) {
-                onSuccess()
-            }
+            expenseRepository.addExpense(finalExpense)
+                .onSuccess { onSuccess() }
+                .onFailure { onError(it.message ?: "Couldn't save the expense") }
         }
     }
 
-    fun updateExpense(expense: Expense, receiptUri: android.net.Uri? = null, onSuccess: () -> Unit = {}) {
+    fun updateExpense(expense: Expense, receiptUri: android.net.Uri? = null, onSuccess: () -> Unit = {}, onError: (String) -> Unit = {}) {
         viewModelScope.launch {
             val finalExpense = withUploadedReceipt(expense, receiptUri)
             val actor = authRepository?.getCurrentUserId() ?: expense.createdBy
-            val res = expenseRepository.updateExpense(finalExpense, actor)
-            if (res.isSuccess) {
-                onSuccess()
-            }
+            expenseRepository.updateExpense(finalExpense, actor)
+                .onSuccess { onSuccess() }
+                .onFailure { onError(it.message ?: "Couldn't update the expense") }
         }
     }
 

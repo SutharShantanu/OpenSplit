@@ -506,11 +506,13 @@ fun AnalyticsScreen(
                 }
 
                 // 5. AI Insights Card
-                if (aiAvailable && analyticsState.totalExpenseCount > 0) {
-                    AiInsightsCard(
-                        state = insights,
-                        onGenerate = { viewModel.generateInsights() }
-                    )
+                if (analyticsState.totalExpenseCount > 0) {
+                    com.opensplit.ui.components.AiLocked(unlocked = aiAvailable) {
+                        AiInsightsCard(
+                            state = insights,
+                            onGenerate = { viewModel.generateInsights() }
+                        )
+                    }
                 }
 
                 // 6. Top Expenses List

@@ -171,6 +171,7 @@ object OpenSplitIcons {
     val BookmarkBorder         = Symbol(0xe8e7) // bookmark
     val List                   = Symbol(0xe896) // list
     val Menu                   = Symbol(0xe5d2) // menu
+    val DragIndicator          = Symbol(0xe945) // drag_indicator
     val Palette                = Symbol(0xe40a) // palette
     val Group                  = Symbol(0xea21) // group
     val People                 = Symbol(0xea21) // people

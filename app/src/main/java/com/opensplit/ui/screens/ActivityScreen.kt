@@ -42,9 +42,39 @@ import java.util.Locale
 private enum class DateRangePreset(val label: String) {
     ALL_TIME("All time"),
     TODAY("Today"),
+    LAST_7_DAYS("Last 7 days"),
     THIS_WEEK("This week"),
     THIS_MONTH("This month"),
+    LAST_30_DAYS("Last 30 days"),
     CUSTOM("Custom range")
+}
+
+private fun DateRangePreset.icon() = when (this) {
+    DateRangePreset.ALL_TIME -> OpenSplitIcons.History
+    DateRangePreset.TODAY -> OpenSplitIcons.CalendarToday
+    DateRangePreset.LAST_7_DAYS, DateRangePreset.THIS_WEEK -> OpenSplitIcons.DateRange
+    DateRangePreset.THIS_MONTH, DateRangePreset.LAST_30_DAYS -> OpenSplitIcons.CalendarToday
+    DateRangePreset.CUSTOM -> OpenSplitIcons.Tune
+}
+
+private fun ActivitySortOrder.icon() = when (this) {
+    ActivitySortOrder.NEWEST_FIRST -> OpenSplitIcons.ArrowDownward
+    ActivitySortOrder.OLDEST_FIRST -> OpenSplitIcons.ArrowUpward
+    ActivitySortOrder.GROUP_NAME -> OpenSplitIcons.Groups
+    ActivitySortOrder.TYPE -> OpenSplitIcons.Layers
+}
+
+private fun ActivityCategoryFilter.icon() = when (this) {
+    ActivityCategoryFilter.ALL -> null
+    ActivityCategoryFilter.EXPENSES -> OpenSplitIcons.Receipt
+    ActivityCategoryFilter.SETTLEMENTS -> OpenSplitIcons.Handshake
+    ActivityCategoryFilter.MEMBERS -> OpenSplitIcons.People
+}
+
+private fun com.opensplit.ui.viewmodel.ActivityActorFilter.icon() = when (this) {
+    com.opensplit.ui.viewmodel.ActivityActorFilter.ANYONE -> OpenSplitIcons.People
+    com.opensplit.ui.viewmodel.ActivityActorFilter.ME -> OpenSplitIcons.Person
+    com.opensplit.ui.viewmodel.ActivityActorFilter.OTHERS -> OpenSplitIcons.Group
 }
 
 /** "Today" / "Yesterday" / "MMM d, yyyy" section header for a timestamp. */
@@ -125,6 +155,7 @@ fun ActivityScreen(
                                 selected = uiState.selectedGroupId != null,
                                 onClick = { groupDropdownExpanded = true },
                                 label = { Text(currentGroupName) },
+                                leadingIcon = { SymbolIcon(OpenSplitIcons.Groups, contentDescription = null, modifier = Modifier.size(16.dp)) },
                                 trailingIcon = { SymbolIcon(OpenSplitIcons.Dropdown, contentDescription = null, modifier = Modifier.size(16.dp)) },
                                 shape = MaterialTheme.shapes.medium
                             )
@@ -166,10 +197,12 @@ fun ActivityScreen(
                         // Sort Order
                         var sortDropdownExpanded by remember { mutableStateOf(false) }
                         Box {
-                            AssistChip(
+                            FilterChip(
+                                selected = uiState.sortOrder != ActivitySortOrder.NEWEST_FIRST,
                                 onClick = { sortDropdownExpanded = true },
                                 label = { Text(uiState.sortOrder.label) },
-                                leadingIcon = { SymbolIcon(OpenSplitIcons.Sort, contentDescription = "Sort", modifier = Modifier.size(16.dp)) },
+                                leadingIcon = { SymbolIcon(uiState.sortOrder.icon(), contentDescription = "Sort order", modifier = Modifier.size(16.dp)) },
+                                trailingIcon = { SymbolIcon(OpenSplitIcons.Dropdown, contentDescription = null, modifier = Modifier.size(16.dp)) },
                                 shape = MaterialTheme.shapes.medium
                             )
 
@@ -185,11 +218,8 @@ fun ActivityScreen(
                                             viewModel.setSortOrder(order)
                                             sortDropdownExpanded = false
                                         },
-                                        leadingIcon = {
-                                            if (uiState.sortOrder == order) {
-                                                SymbolIcon(OpenSplitIcons.Check, contentDescription = null)
-                                            }
-                                        }
+                                        leadingIcon = { SymbolIcon(order.icon(), contentDescription = null) },
+                                        trailingIcon = { if (uiState.sortOrder == order) SymbolIcon(OpenSplitIcons.Check, contentDescription = null) }
                                     )
                                 }
                             }
@@ -197,11 +227,13 @@ fun ActivityScreen(
 
                         // Date range
                         var datePreset by remember { mutableStateOf(DateRangePreset.ALL_TIME) }
+                        var customRangeLabel by remember { mutableStateOf<String?>(null) }
                         var dateDropdownExpanded by remember { mutableStateOf(false) }
                         var showCustomRangeDialog by remember { mutableStateOf(false) }
 
                         fun applyPreset(preset: DateRangePreset) {
-                            datePreset = preset
+                            // Custom only becomes the active preset once a range is actually applied.
+                            if (preset != DateRangePreset.CUSTOM) datePreset = preset
                             val now = Calendar.getInstance()
                             when (preset) {
                                 DateRangePreset.ALL_TIME -> viewModel.setDateRange(null, null)
@@ -211,6 +243,8 @@ fun ActivityScreen(
                                     }
                                     viewModel.setDateRange(start.timeInMillis, now.timeInMillis)
                                 }
+                                DateRangePreset.LAST_7_DAYS -> viewModel.setDateRange(now.timeInMillis - 7L * 86_400_000, now.timeInMillis)
+                                DateRangePreset.LAST_30_DAYS -> viewModel.setDateRange(now.timeInMillis - 30L * 86_400_000, now.timeInMillis)
                                 DateRangePreset.THIS_WEEK -> {
                                     val start = (now.clone() as Calendar).apply {
                                         set(Calendar.DAY_OF_WEEK, firstDayOfWeek)
@@ -233,8 +267,9 @@ fun ActivityScreen(
                             FilterChip(
                                 selected = datePreset != DateRangePreset.ALL_TIME,
                                 onClick = { dateDropdownExpanded = true },
-                                label = { Text(datePreset.label) },
-                                leadingIcon = { SymbolIcon(OpenSplitIcons.DateRange, contentDescription = "Date range", modifier = Modifier.size(16.dp)) },
+                                label = { Text(if (datePreset == DateRangePreset.CUSTOM && customRangeLabel != null) customRangeLabel!! else datePreset.label) },
+                                leadingIcon = { SymbolIcon(datePreset.icon(), contentDescription = "Date range", modifier = Modifier.size(16.dp)) },
+                                trailingIcon = { SymbolIcon(OpenSplitIcons.Dropdown, contentDescription = null, modifier = Modifier.size(16.dp)) },
                                 shape = MaterialTheme.shapes.medium
                             )
 
@@ -250,26 +285,77 @@ fun ActivityScreen(
                                             dateDropdownExpanded = false
                                             applyPreset(preset)
                                         },
-                                        leadingIcon = {
-                                            if (datePreset == preset) {
-                                                SymbolIcon(OpenSplitIcons.Check, contentDescription = null)
-                                            }
-                                        }
+                                        leadingIcon = { SymbolIcon(preset.icon(), contentDescription = null) },
+                                        trailingIcon = { if (datePreset == preset) SymbolIcon(OpenSplitIcons.Check, contentDescription = null) }
                                     )
                                 }
                             }
                         }
 
+                        // Who did it
+                        var actorDropdownExpanded by remember { mutableStateOf(false) }
+                        Box {
+                            FilterChip(
+                                selected = uiState.actorFilter != com.opensplit.ui.viewmodel.ActivityActorFilter.ANYONE,
+                                onClick = { actorDropdownExpanded = true },
+                                label = { Text(uiState.actorFilter.label) },
+                                leadingIcon = { SymbolIcon(uiState.actorFilter.icon(), contentDescription = "Who", modifier = Modifier.size(16.dp)) },
+                                trailingIcon = { SymbolIcon(OpenSplitIcons.Dropdown, contentDescription = null, modifier = Modifier.size(16.dp)) },
+                                shape = MaterialTheme.shapes.medium
+                            )
+                            DropdownMenu(expanded = actorDropdownExpanded, onDismissRequest = { actorDropdownExpanded = false }, shape = MaterialTheme.shapes.large) {
+                                com.opensplit.ui.viewmodel.ActivityActorFilter.values().forEach { who ->
+                                    DropdownMenuItem(
+                                        text = { Text(who.label) },
+                                        onClick = { viewModel.setActorFilter(who); actorDropdownExpanded = false },
+                                        leadingIcon = { SymbolIcon(who.icon(), contentDescription = null) },
+                                        trailingIcon = { if (uiState.actorFilter == who) SymbolIcon(OpenSplitIcons.Check, contentDescription = null) }
+                                    )
+                                }
+                            }
+                        }
+
+                        // Unread toggle
+                        FilterChip(
+                            selected = uiState.unreadOnly,
+                            onClick = { viewModel.setUnreadOnly(!uiState.unreadOnly) },
+                            label = { Text("Unread") },
+                            leadingIcon = { SymbolIcon(if (uiState.unreadOnly) OpenSplitIcons.Notifications else OpenSplitIcons.Notification, contentDescription = null, modifier = Modifier.size(16.dp)) },
+                            shape = MaterialTheme.shapes.medium
+                        )
+
+                        // Reset, only when something is active
+                        androidx.compose.animation.AnimatedVisibility(visible = uiState.hasActiveFilters || datePreset != DateRangePreset.ALL_TIME) {
+                            AssistChip(
+                                onClick = { viewModel.clearFilters(); datePreset = DateRangePreset.ALL_TIME },
+                                label = { Text("Reset") },
+                                leadingIcon = { SymbolIcon(OpenSplitIcons.Close, contentDescription = null, modifier = Modifier.size(16.dp)) },
+                                shape = MaterialTheme.shapes.medium
+                            )
+                        }
+
                         if (showCustomRangeDialog) {
-                            val rangeState = rememberDateRangePickerState()
+                            // Activity can't be in the future: only up to today is selectable.
+                            val todayUtcMidnight = remember {
+                                val local = Calendar.getInstance()
+                                Calendar.getInstance(java.util.TimeZone.getTimeZone("UTC")).apply {
+                                    set(local.get(Calendar.YEAR), local.get(Calendar.MONTH), local.get(Calendar.DAY_OF_MONTH), 0, 0, 0); set(Calendar.MILLISECOND, 0)
+                                }.timeInMillis
+                            }
+                            val rangeState = rememberDateRangePickerState(selectableDates = object : androidx.compose.material3.SelectableDates {
+                                override fun isSelectableDate(utcTimeMillis: Long) = utcTimeMillis <= todayUtcMidnight
+                                override fun isSelectableYear(year: Int) = year <= Calendar.getInstance().get(Calendar.YEAR)
+                            })
                             DatePickerDialog(
                                 onDismissRequest = { showCustomRangeDialog = false },
                                 confirmButton = {
                                     TextButton(shapes = ButtonDefaults.shapes(), onClick = {
                                         val start = rangeState.selectedStartDateMillis
-                                        val end = rangeState.selectedEndDateMillis
-                                        if (start != null) {
-                                            viewModel.setDateRange(start, end ?: start)
+                                        val end = rangeState.selectedEndDateMillis ?: start
+                                        if (start != null && end != null) {
+                                            // Picker days are UTC midnights; cover the whole local day on both ends.
+                                            viewModel.setDateRange(localDayStart(start), localDayEnd(end))
+                                            customRangeLabel = rangeLabel(start, end)
                                             datePreset = DateRangePreset.CUSTOM
                                         }
                                         showCustomRangeDialog = false
@@ -300,10 +386,12 @@ fun ActivityScreen(
                         )
 
                         ActivityCategoryFilter.values().forEach { filter ->
+                            val icon = filter.icon()
                             FilterChip(
                                 selected = uiState.selectedTypeFilter == filter,
                                 onClick = { viewModel.setTypeFilter(filter) },
                                 label = { Text(filter.label, maxLines = 1) },
+                                leadingIcon = if (icon != null) ({ SymbolIcon(icon, contentDescription = null, modifier = Modifier.size(16.dp)) }) else null,
                                 shape = MaterialTheme.shapes.extraLarge
                             )
                         }
@@ -345,7 +433,14 @@ fun ActivityScreen(
                             uiState.activities.groupBy { dayLabel(it.timestamp.toDate()) }
                         }
 
+                        // New items arrive at the top; keep the list at the top unless the user has scrolled.
+                        val listState = androidx.compose.foundation.lazy.rememberLazyListState()
+                        val newestId = uiState.activities.firstOrNull()?.id
+                        androidx.compose.runtime.LaunchedEffect(newestId) {
+                            if (listState.firstVisibleItemIndex <= 1) listState.scrollToItem(0)
+                        }
                         LazyColumn(
+                            state = listState,
                             modifier = Modifier.fillMaxSize(),
                             verticalArrangement = Arrangement.spacedBy(OpenSplitTokens.SpaceXS),
                             contentPadding = PaddingValues(bottom = OpenSplitTokens.SpaceLG)
@@ -362,7 +457,9 @@ fun ActivityScreen(
                                 }
                                 items(activitiesForDay, key = { it.id }) { act ->
                                     val isUnread = lastSeen != null && act.timestamp.seconds > lastSeen.seconds
+                                    androidx.compose.foundation.layout.Box(Modifier.animateItem()) {
                                     ActivityRow(act = act, isUnread = isUnread, onOpen = { onOpenExpense(it.groupId, it.relatedExpenseId ?: return@ActivityRow) })
+                                    }
                                     HorizontalDivider(color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
                                 }
                             }
@@ -438,3 +535,19 @@ private fun ActivityRow(act: Activity, isUnread: Boolean, onOpen: (Activity) -> 
     )
 }
 
+/** The picker returns UTC midnight for a day; map that calendar day to the local zone's start / end. */
+private fun utcDayToLocal(utcMillis: Long): Calendar {
+    val utc = Calendar.getInstance(java.util.TimeZone.getTimeZone("UTC")).apply { timeInMillis = utcMillis }
+    return Calendar.getInstance().apply {
+        set(utc.get(Calendar.YEAR), utc.get(Calendar.MONTH), utc.get(Calendar.DAY_OF_MONTH), 0, 0, 0); set(Calendar.MILLISECOND, 0)
+    }
+}
+private fun localDayStart(utcMillis: Long): Long = utcDayToLocal(utcMillis).timeInMillis
+private fun localDayEnd(utcMillis: Long): Long = utcDayToLocal(utcMillis).apply { add(Calendar.DAY_OF_MONTH, 1); add(Calendar.MILLISECOND, -1) }.timeInMillis
+private fun rangeLabel(startUtc: Long, endUtc: Long): String {
+    val a = utcDayToLocal(startUtc); val b = utcDayToLocal(endUtc)
+    val day = java.text.SimpleDateFormat("d MMM", Locale.getDefault())
+    return if (a.timeInMillis == b.timeInMillis) day.format(a.time)
+    else if (a.get(Calendar.MONTH) == b.get(Calendar.MONTH) && a.get(Calendar.YEAR) == b.get(Calendar.YEAR)) "${a.get(Calendar.DAY_OF_MONTH)}–${day.format(b.time)}"
+    else "${day.format(a.time)} – ${day.format(b.time)}"
+}

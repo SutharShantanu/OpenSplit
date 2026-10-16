@@ -43,6 +43,9 @@ data class InviteLink(
     }
 }
 
+/** The signed-in user's shareable "add me" link. Reused until it nears expiry. */
+data class FriendLink(val url: String, val token: String, val expiresAt: com.google.firebase.Timestamp)
+
 enum class JoinError(val message: String) {
     NOT_FOUND("This invite link is invalid or was revoked."),
     EXPIRED("This invite link has expired. Ask for a fresh one."),

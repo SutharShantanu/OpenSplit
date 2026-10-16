@@ -14,6 +14,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.animation.animateContentSize
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
@@ -157,14 +158,14 @@ fun HeroBalanceCard(
             Spacer(modifier = Modifier.height(8.dp))
 
             // Large Hero Amount
-            Text(
+            com.opensplit.ui.components.AnimatedNumberText(
                 text = "$symbol$formattedNumber",
                 style = MaterialTheme.typography.displayMedium.copy(
                     fontSize = 38.sp,
                     fontWeight = FontWeight.Bold,
-                    fontFamily = MoneyFontFamily,
-                    color = MaterialTheme.colorScheme.onPrimaryContainer
-                )
+                    fontFamily = MoneyFontFamily
+                ),
+                color = MaterialTheme.colorScheme.onPrimaryContainer
             )
 
             if (!isSpendTotal && (youAreOwed > 0.01 || youOwe > 0.01)) {

@@ -97,7 +97,7 @@ interface FriendInviteRepository {
     fun getIncomingInvites(email: String): Flow<List<com.opensplit.domain.model.FriendInvite>>
     suspend fun respond(inviteId: String, accept: Boolean): Result<Unit>
     /** A shareable "add me" link for [uid]; reused while valid, 30-day expiry. Returns the full URL. */
-    suspend fun getOrCreateFriendLink(uid: String, displayName: String): Result<String>
+    suspend fun getOrCreateFriendLink(uid: String, displayName: String): Result<com.opensplit.domain.model.FriendLink>
     /** Resolves a friend link and creates the direct group; returns the link owner's uid. */
     suspend fun acceptFriendLink(token: String, me: String, currency: String): Result<String>
 }

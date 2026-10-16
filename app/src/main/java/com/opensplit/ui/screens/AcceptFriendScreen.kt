@@ -40,11 +40,19 @@ import com.opensplit.ui.theme.OpenSplitTokens
 fun AcceptFriendScreen(token: String, appContainer: AppContainer, onNavigateBack: () -> Unit, onAccepted: (uid: String) -> Unit) {
     var error by remember { mutableStateOf<String?>(null) }
     val busy = com.opensplit.ui.components.LocalBusy.current
+    val snackbar = com.opensplit.ui.components.LocalSnackbarController.current
     LaunchedEffect(token) {
-        val me = appContainer.authRepository.getCurrentUserId() ?: return@LaunchedEffect
+        val me = appContainer.authRepository.getCurrentUserId() ?: run { error = "Sign in first, then open the invite again."; return@LaunchedEffect }
         val currency = appContainer.userRepository.getUser(me)?.defaultCurrency ?: "INR"
         busy.run("Adding friend…") { appContainer.friendInviteRepository.acceptFriendLink(token, me, currency) }
-            .fold(onSuccess = { onAccepted(it) }, onFailure = { error = it.message ?: "This friend link doesn't work." })
+            .fold(
+                onSuccess = { uid ->
+                    val name = appContainer.userRepository.getUser(uid)?.displayName?.takeIf { it.isNotBlank() }
+                    snackbar.showMessage(if (name != null) "You're now friends with $name" else "Friend added")
+                    onAccepted(uid)
+                },
+                onFailure = { error = it.message ?: "This friend link doesn't work." }
+            )
     }
     Scaffold(topBar = {
         TopAppBar(title = { Text("Add friend", fontWeight = FontWeight.Bold) }, navigationIcon = { IconButton(shapes = IconButtonDefaults.shapes(), onClick = onNavigateBack) { SymbolIcon(OpenSplitIcons.Back, contentDescription = "Back") } })
