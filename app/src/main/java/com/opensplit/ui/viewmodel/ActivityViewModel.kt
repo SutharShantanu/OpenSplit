@@ -142,7 +142,9 @@ class ActivityViewModel(private val appContainer: AppContainer) : ViewModel() {
                     val expensesFlows = groupIds.map { appContainer.expenseRepository.getExpensesForGroup(it) }
                     val combinedExpensesFlow = if (expensesFlows.isEmpty()) flowOf(emptyList()) else combine(expensesFlows) { arrays -> arrays.flatMap { it } }
 
-                    val settlementsFlows = groupIds.map { appContainer.settlementRepository.getSettlementsForGroup(it) }
+                    val settlementsFlows = groupIds.map { gId ->
+                        appContainer.settlementRepository.getSettlementsForGroup(gId).map { list -> list.map { it to gId } }
+                    }
                     val combinedSettlementsFlow = if (settlementsFlows.isEmpty()) flowOf(emptyList()) else combine(settlementsFlows) { arrays -> arrays.flatMap { it } }
 
                     val rawActivitiesFlow = combine(
@@ -164,7 +166,8 @@ class ActivityViewModel(private val appContainer: AppContainer) : ViewModel() {
                                     type = ActivityType.GROUP_CREATED,
                                     actorUid = group.createdBy,
                                     message = "${actorName(group.createdBy)} created group '${group.name}'",
-                                    timestamp = group.createdAt
+                                    timestamp = group.createdAt,
+                                    groupId = group.id
                                 )
                             )
                         }
@@ -179,12 +182,13 @@ class ActivityViewModel(private val appContainer: AppContainer) : ViewModel() {
                                     actorUid = exp.createdBy,
                                     message = "${actorName(exp.createdBy)} added '${exp.description}' ($formattedAmt) in '$groupName'",
                                     timestamp = exp.date,
-                                    relatedExpenseId = exp.id
+                                    relatedExpenseId = exp.id,
+                                    groupId = exp.groupId
                                 )
                             )
                         }
 
-                        settlements.forEach { set ->
+                        settlements.forEach { (set, gId) ->
                             val formattedAmt = com.opensplit.util.CurrencyFormatter.format(set.amount, set.currency)
                             allActivities.add(
                                 Activity(
@@ -192,7 +196,8 @@ class ActivityViewModel(private val appContainer: AppContainer) : ViewModel() {
                                     type = ActivityType.SETTLEMENT_ADDED,
                                     actorUid = set.fromUid,
                                     message = "${actorName(set.fromUid)} logged a settlement of $formattedAmt",
-                                    timestamp = set.date
+                                    timestamp = set.date,
+                                    groupId = gId
                                 )
                             )
                         }

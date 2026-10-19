@@ -20,7 +20,9 @@ data class GroupWithBalance(
     val expenseCount: Int = 0,
     /** Recorded settlements; "Settled" is only claimed when someone actually paid. */
     val settlementCount: Int = 0,
-    val totalSpent: Double = 0.0
+    val totalSpent: Double = 0.0,
+    val hasTransactions: Boolean = false,
+    val lastActivity: com.google.firebase.Timestamp? = null
 )
 
 data class HomeUiState(
@@ -63,9 +65,21 @@ class HomeViewModel(private val appContainer: AppContainer) : ViewModel() {
                 val expensesFlow = appContainer.expenseRepository.getExpensesForGroup(group.id)
                 val settlementsFlow = appContainer.settlementRepository.getSettlementsForGroup(group.id)
                 combine(expensesFlow, settlementsFlow) { expenses, settlements ->
-                    val groupBal = calculateUserGroupBalance(currentUserId, expenses, settlements)
                     val live = expenses.filter { !it.isDeleted }
-                    GroupWithBalance(group, groupBal, live.size, settlements.size, live.sumOf { it.amount })
+                    val groupBal = calculateUserGroupBalance(currentUserId, live, settlements)
+                    val hasTransactions = live.isNotEmpty() || settlements.isNotEmpty()
+                    val latestExpenseTs = live.maxOfOrNull { it.date }
+                    val latestSettlementTs = settlements.maxOfOrNull { it.date }
+                    val latestTs = listOfNotNull(latestExpenseTs, latestSettlementTs).maxByOrNull { it.seconds }
+                    GroupWithBalance(
+                        group = group,
+                        balance = groupBal,
+                        expenseCount = live.size,
+                        settlementCount = settlements.size,
+                        totalSpent = live.sumOf { it.amount },
+                        hasTransactions = hasTransactions,
+                        lastActivity = latestTs
+                    )
                 }
             }
 
@@ -182,6 +196,7 @@ class HomeViewModel(private val appContainer: AppContainer) : ViewModel() {
     ): Double {
         var net = 0.0
         for (expense in expenses) {
+            if (expense.isDeleted) continue
             val payers = mutableMapOf<String, Double>()
             if (expense.multiPayer != null) {
                 payers.putAll(expense.multiPayer)

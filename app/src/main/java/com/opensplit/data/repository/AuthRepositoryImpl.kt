@@ -16,6 +16,7 @@ class AuthRepositoryImpl(
     private val _demoUserFlow = kotlinx.coroutines.flow.MutableStateFlow<String?>(null)
 
     override val currentUser: com.google.firebase.auth.FirebaseUser? get() = auth.currentUser
+    override val currentUserId: String? get() = auth.currentUser?.uid ?: _demoUserFlow.value
     
     override fun getAuthState(): Flow<AuthState> {
         val firebaseAuthFlow = callbackFlow<AuthState> {

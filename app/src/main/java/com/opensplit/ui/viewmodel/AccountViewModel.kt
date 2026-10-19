@@ -8,14 +8,15 @@ import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 
 data class AccountUiState(
-    val user: FirebaseUser,
+    val user: com.opensplit.domain.model.User,
     val groupCount: Int,
     val friendCount: Int,
     /** Net balance per currency; never summed across currencies. */
     val netByCurrency: Map<String, Double>,
     val defaultCurrency: String,
     val allExpenses: List<com.opensplit.domain.model.Expense>,
-    val pendingInvites: List<String>
+    val pendingInvites: List<String>,
+    val authProvider: String = "Google"
 )
 
 class AccountViewModel(
@@ -117,45 +118,77 @@ class AccountViewModel(
     }
 
     val uiState: StateFlow<ScreenState<AccountUiState>> = retryTrigger.flatMapLatest {
+        val currentUid = authRepository.currentUserId
         val currentUser = authRepository.currentUser
-        if (currentUser == null) {
+        if (currentUid == null) {
             flowOf(ScreenState.Error("User not logged in") {})
         } else {
-            combine(
-                groupRepository.getGroupsForUser(currentUser.uid),
-                friendRepository.getFriendsBalances(currentUser.uid),
-                expenseRepository.getExpensesForUser(currentUser.uid),
-                flow {
-                    val user = userRepository.getUser(currentUser.uid)
-                    emit(user?.defaultCurrency ?: "INR")
-                }
-            ) { groups, friendsBalances, expenses, currency ->
-                val groupCount = groups.size
-                // A friend counts if they have any non-zero balance in any currency.
-                val friendCount = friendsBalances.count { (_, byCurrency) ->
-                    byCurrency.values.any { Math.abs(it) > 0.01 }
-                }
-                // Aggregate per currency, keeping currencies separate.
-                val netByCurrency = mutableMapOf<String, Double>()
-                for ((_, byCurrency) in friendsBalances) {
-                    for ((c, amt) in byCurrency) {
-                        netByCurrency[c] = (netByCurrency[c] ?: 0.0) + amt
+            val userFlow = flow {
+                val dbUser = userRepository.getUser(currentUid)
+                val user = if (dbUser != null) {
+                    if (dbUser.photoUrl.isNullOrBlank() && currentUser?.photoUrl != null) {
+                        dbUser.copy(photoUrl = currentUser.photoUrl.toString())
+                    } else {
+                        dbUser
                     }
-                }
-                val pendingInvites = emptyList<String>()
-                val allExpenses = expenses
-
-                ScreenState.Success(
-                    AccountUiState(
-                        user = currentUser,
-                        groupCount = groupCount,
-                        friendCount = friendCount,
-                        netByCurrency = netByCurrency,
-                        defaultCurrency = currency,
-                        allExpenses = allExpenses,
-                        pendingInvites = pendingInvites
+                } else {
+                    com.opensplit.domain.model.User(
+                        uid = currentUid,
+                        displayName = currentUser?.displayName ?: "User",
+                        email = currentUser?.email ?: "",
+                        photoUrl = currentUser?.photoUrl?.toString()
                     )
-                ) as ScreenState<AccountUiState>
+                }
+                emit(user)
+            }
+            val groupsFlow = groupRepository.getGroupsForUser(currentUid)
+            val friendsBalancesFlow = friendRepository.getFriendsBalances(currentUid)
+
+            groupsFlow.flatMapLatest { groups ->
+                val groupIds = groups.map { it.id }
+                val expenseFlows = groupIds.map { expenseRepository.getExpensesForGroup(it) } +
+                    expenseRepository.getExpensesForUser(currentUid)
+                val allExpensesFlow: Flow<List<com.opensplit.domain.model.Expense>> = if (expenseFlows.isEmpty()) {
+                    flowOf(emptyList())
+                } else {
+                    combine(expenseFlows) { arrays -> arrays.flatMap { it }.distinctBy { it.id } }
+                }
+
+                combine(friendsBalancesFlow, allExpensesFlow, userFlow) { friendsBalances, allExpenses, user ->
+                    val groupCount = groups.size
+                    // A friend counts if they have any non-zero balance in any currency.
+                    val friendCount = friendsBalances.count { (_, byCurrency) ->
+                        byCurrency.values.any { Math.abs(it) > 0.01 }
+                    }
+                    // Aggregate per currency, keeping currencies separate.
+                    val netByCurrency = mutableMapOf<String, Double>()
+                    for ((_, byCurrency) in friendsBalances) {
+                        for ((c, amt) in byCurrency) {
+                            netByCurrency[c] = (netByCurrency[c] ?: 0.0) + amt
+                        }
+                    }
+                    val pendingInvites = emptyList<String>()
+
+                    val detectedProvider = when {
+                        currentUser?.providerData?.any { it.providerId == "google.com" } == true -> "Google"
+                        currentUser?.providerData?.any { it.providerId == "password" } == true -> "Email"
+                        currentUser?.isAnonymous == true -> "Guest"
+                        else -> "Google"
+                    }
+
+                    ScreenState.Success(
+                        AccountUiState(
+                            user = user,
+                            groupCount = groupCount,
+                            friendCount = friendCount,
+                            netByCurrency = netByCurrency,
+                            defaultCurrency = user.defaultCurrency.ifBlank { "INR" },
+                            allExpenses = allExpenses,
+                            pendingInvites = pendingInvites,
+                            authProvider = detectedProvider
+                        )
+                    ) as ScreenState<AccountUiState>
+                }
             }.catch { e ->
                 emit(ScreenState.Error(e.message ?: "Unknown error") { retryTrigger.value++ })
             }

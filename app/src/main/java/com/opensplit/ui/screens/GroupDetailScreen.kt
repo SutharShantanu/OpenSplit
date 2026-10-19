@@ -11,8 +11,10 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -42,7 +44,7 @@ fun GroupDetailScreen(
     onNavigateBack: () -> Unit,
     onNavigateToAddExpense: () -> Unit,
     onNavigateToExpenseDetail: (String, String) -> Unit,
-    onNavigateToSettleUp: () -> Unit = {},
+    onNavigateToSettleUp: (fromUid: String?, toUid: String?, amount: Double?) -> Unit = { _, _, _ -> },
     onNavigateToEditExpense: (String, String) -> Unit = { _, _ -> }
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -51,6 +53,8 @@ fun GroupDetailScreen(
     var showExportSheet by remember { mutableStateOf(false) }
     var showSettings by remember { mutableStateOf(false) }
     var showFilterSortSheet by remember { mutableStateOf(false) }
+    var confirmDelete by remember { mutableStateOf(false) }
+    var showAvatarPicker by remember { mutableStateOf(false) }
     var sortOrder by rememberSaveable { mutableStateOf(ExpenseSortOrder.DATE_NEWEST) }
     var filterPaidByYou by rememberSaveable { mutableStateOf(false) }
     var filterInvolvedYou by rememberSaveable { mutableStateOf(false) }
@@ -86,9 +90,6 @@ fun GroupDetailScreen(
                     IconButton(shapes = IconButtonDefaults.shapes(), onClick = { showExportSheet = true }) {
                         SymbolIcon(OpenSplitIcons.Export, contentDescription = "Export Group Expenses")
                     }
-                    IconButton(shapes = IconButtonDefaults.shapes(), onClick = { showAddMember = true }) {
-                        SymbolIcon(OpenSplitIcons.Invite, contentDescription = "Add Member")
-                    }
                     IconButton(shapes = IconButtonDefaults.shapes(), onClick = { showSettings = true }) {
                         SymbolIcon(OpenSplitIcons.More, contentDescription = "Group settings")
                     }
@@ -100,14 +101,29 @@ fun GroupDetailScreen(
             )
         },
         floatingActionButton = {
-            ExtendedFloatingActionButton(
-                expanded = isExpanded,
-                onClick = onNavigateToAddExpense,
-                icon = { SymbolIcon(OpenSplitIcons.AddExpense, contentDescription = null) },
-                text = { Text("Add Expense") },
-                containerColor = MaterialTheme.colorScheme.primaryContainer,
-                contentColor = MaterialTheme.colorScheme.onPrimaryContainer
-            )
+            when (selectedTab) {
+                0 -> {
+                    ExtendedFloatingActionButton(
+                        expanded = isExpanded,
+                        onClick = onNavigateToAddExpense,
+                        icon = { SymbolIcon(OpenSplitIcons.AddExpense, contentDescription = null) },
+                        text = { Text("Add Expense") },
+                        containerColor = MaterialTheme.colorScheme.primaryContainer,
+                        contentColor = MaterialTheme.colorScheme.onPrimaryContainer
+                    )
+                }
+                2 -> {
+                    ExtendedFloatingActionButton(
+                        expanded = true,
+                        onClick = { showAddMember = true },
+                        icon = { SymbolIcon(OpenSplitIcons.Invite, contentDescription = null) },
+                        text = { Text("Add Member") },
+                        containerColor = MaterialTheme.colorScheme.primaryContainer,
+                        contentColor = MaterialTheme.colorScheme.onPrimaryContainer
+                    )
+                }
+                else -> {}
+            }
         }
     ) { padding ->
         Box(
@@ -116,7 +132,7 @@ fun GroupDetailScreen(
                 .padding(top = padding.calculateTopPadding(), bottom = padding.calculateBottomPadding())
         ) {
             StateLayout(state = uiState) { data ->
-                val currentUid = com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.uid ?: ""
+                val currentUid = viewModel.currentUserId
                 val filteredExpenses = data.expenses.filter { exp ->
                     val matchesQuery = exp.description.contains(searchQuery, ignoreCase = true) || exp.category.contains(searchQuery, ignoreCase = true)
                     val matchesCategory = selectedCategory == "All" || exp.category.equals(selectedCategory, ignoreCase = true)
@@ -143,14 +159,23 @@ fun GroupDetailScreen(
                                 selected = selectedTab == index,
                                 onClick = { selectedTab = index },
                                 text = {
-                                    if (index == 0 && data.expenses.isNotEmpty()) {
-                                        BadgedBox(
-                                            badge = { Badge { Text("${data.expenses.size}") } }
-                                        ) {
-                                            Text(title)
-                                        }
-                                    } else {
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.Center
+                                    ) {
                                         Text(title)
+                                        if (index == 0 && data.expenses.isNotEmpty()) {
+                                            Spacer(modifier = Modifier.width(6.dp))
+                                            Badge(
+                                                containerColor = MaterialTheme.colorScheme.primaryContainer,
+                                                contentColor = MaterialTheme.colorScheme.onPrimaryContainer
+                                            ) {
+                                                Text(
+                                                    "${data.expenses.size}",
+                                                    style = MaterialTheme.typography.labelSmall
+                                                )
+                                            }
+                                        }
                                     }
                                 }
                             )
@@ -208,7 +233,8 @@ fun GroupDetailScreen(
                                             Button(
                                                 onClick = {
                                                     if (data.members.size > 1) {
-                                                        onNavigateToSettleUp()
+                                                        val s = data.simplifiedSettlements.firstOrNull()
+                                                        onNavigateToSettleUp(s?.fromUid, s?.toUid, s?.amount)
                                                     } else {
                                                         snackbar.showMessage("Add another member to this group before settling up")
                                                     }
@@ -227,7 +253,7 @@ fun GroupDetailScreen(
                                     }
 
                                     // Settle-up suggestion: only when someone actually owes the signed-in user.
-                                    val me = com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.uid
+                                    val me = viewModel.currentUserId
                                     val owedToMe = data.simplifiedSettlements.filter { it.toUid == me && it.amount > 0.01 }
                                     if (owedToMe.isNotEmpty()) {
                                         val top = owedToMe.maxBy { it.amount }
@@ -253,7 +279,7 @@ fun GroupDetailScreen(
                                                         style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant
                                                     )
                                                 }
-                                                TextButton(shapes = ButtonDefaults.shapes(), onClick = onNavigateToSettleUp) { Text("Settle up") }
+                                                TextButton(shapes = ButtonDefaults.shapes(), onClick = { onNavigateToSettleUp(top.fromUid, top.toUid, top.amount) }) { Text("Settle up") }
                                             }
                                         }
                                     }
@@ -427,7 +453,8 @@ fun GroupDetailScreen(
                                 Button(shapes = ButtonDefaults.shapes(), 
                                     onClick = {
                                         if (data.members.size > 1) {
-                                            onNavigateToSettleUp()
+                                            val s = data.simplifiedSettlements.firstOrNull()
+                                            onNavigateToSettleUp(s?.fromUid, s?.toUid, s?.amount)
                                         } else {
                                             snackbar.showMessage("Add another member to this group before settling up")
                                         }
@@ -456,10 +483,26 @@ fun GroupDetailScreen(
                                             )
                                             Spacer(modifier = Modifier.height(OpenSplitTokens.SpaceSM))
                                             data.simplifiedSettlements.forEach { s ->
-                                                Text(
-                                                    text = "${nameOf(s.fromUid)} → ${nameOf(s.toUid)}: ${com.opensplit.util.CurrencyFormatter.format(s.amount, data.group.currency)}",
-                                                    style = MaterialTheme.typography.bodyMedium
-                                                )
+                                                Row(
+                                                    modifier = Modifier
+                                                        .fillMaxWidth()
+                                                        .clip(RoundedCornerShape(8.dp))
+                                                        .clickable { onNavigateToSettleUp(s.fromUid, s.toUid, s.amount) }
+                                                        .padding(vertical = 6.dp, horizontal = 4.dp),
+                                                    verticalAlignment = Alignment.CenterVertically
+                                                ) {
+                                                    Text(
+                                                        text = "${nameOf(s.fromUid)} → ${nameOf(s.toUid)}: ${com.opensplit.util.CurrencyFormatter.format(s.amount, data.group.currency)}",
+                                                        style = MaterialTheme.typography.bodyMedium,
+                                                        modifier = Modifier.weight(1f)
+                                                    )
+                                                    Text(
+                                                        text = "Settle",
+                                                        style = MaterialTheme.typography.labelMedium,
+                                                        color = MaterialTheme.colorScheme.primary,
+                                                        fontWeight = FontWeight.Bold
+                                                    )
+                                                }
                                             }
                                         }
                                     }
@@ -617,6 +660,7 @@ fun GroupDetailScreen(
                                 } else {
                                     LazyColumn(
                                         modifier = Modifier.weight(1f),
+                                        contentPadding = PaddingValues(bottom = 88.dp),
                                         verticalArrangement = Arrangement.spacedBy(OpenSplitTokens.SpaceXS)
                                     ) {
                                         item {
@@ -644,6 +688,22 @@ fun GroupDetailScreen(
                                                                 text = user.displayName.take(1).uppercase(),
                                                                 fontWeight = FontWeight.Bold,
                                                                 color = MaterialTheme.colorScheme.onPrimaryContainer
+                                                            )
+                                                        }
+                                                    }
+                                                },
+                                                trailingContent = {
+                                                    if (user.uid == data.group.createdBy) {
+                                                        Surface(
+                                                            shape = OpenSplitTokens.PillShape,
+                                                            color = MaterialTheme.colorScheme.primaryContainer
+                                                        ) {
+                                                            Text(
+                                                                "Owner",
+                                                                style = MaterialTheme.typography.labelSmall,
+                                                                fontWeight = FontWeight.Bold,
+                                                                color = MaterialTheme.colorScheme.onPrimaryContainer,
+                                                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
                                                             )
                                                         }
                                                     }
@@ -736,25 +796,6 @@ fun GroupDetailScreen(
                                             }
                                         }
                                     }
-
-                                    Spacer(modifier = Modifier.height(OpenSplitTokens.SpaceMD))
-
-                                    // Add New Member Button
-                                    Button(
-                                        onClick = { showAddMember = true },
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .height(52.dp),
-                                        shape = CircleShape,
-                                        colors = ButtonDefaults.buttonColors(
-                                            containerColor = MaterialTheme.colorScheme.primary,
-                                            contentColor = MaterialTheme.colorScheme.onPrimary
-                                        )
-                                    ) {
-                                        SymbolIcon(OpenSplitIcons.Invite, contentDescription = null, modifier = Modifier.size(20.dp))
-                                        Spacer(modifier = Modifier.width(OpenSplitTokens.SpaceSM))
-                                        Text("Add New Member", fontWeight = FontWeight.Bold)
-                                    }
                                 }
                             }
                         }
@@ -787,6 +828,7 @@ fun GroupDetailScreen(
                         scopeName = data.group.name,
                         expenses = data.expenses,
                         groups = listOf(data.group),
+                        currentUid = viewModel.currentUserId,
                         onDismiss = { showExportSheet = false }
                     )
                 }
@@ -796,15 +838,18 @@ fun GroupDetailScreen(
 
     if (showAddMember) {
         val links by viewModel.inviteLinks.collectAsState()
-        InviteMemberDialog(
-            title = "Add member",
-            description = "Share a link or QR code, pick a contact, or invite by email.",
+        val success = uiState as? ScreenState.Success
+        val gName = success?.data?.group?.name ?: groupName
+        val gId = success?.data?.group?.id ?: viewModel.groupId
+        GroupInviteSheet(
+            groupId = gId,
+            groupName = gName,
+            inviteLink = links.firstOrNull(),
             onDismiss = { showAddMember = false },
             onSubmitEmail = { email ->
                 viewModel.addMemberByEmail(email)
                 snackbar.showMessage("Member / Invite added")
             },
-            inviteLink = links.firstOrNull(),
             onGenerateLink = { expires, maxUses ->
                 busy.show("Creating invite link…")
                 viewModel.createInviteLink(expires, maxUses) { ok ->
@@ -820,16 +865,19 @@ fun GroupDetailScreen(
         if (success != null) {
             val group = success.data.group
             val members = success.data.members
-            val currentUid = com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.uid
+            val currentUid = viewModel.currentUserId
             var renameText by remember(group.name) { mutableStateOf(group.name) }
-            var confirmDelete by remember { mutableStateOf(false) }
-            var showAvatarPicker by remember { mutableStateOf(false) }
             val currencies = listOf("INR", "USD", "EUR", "GBP", "JPY", "AUD", "CAD")
 
-            ModalBottomSheet(onDismissRequest = { showSettings = false }) {
+            ModalBottomSheet(
+                onDismissRequest = { showSettings = false },
+                sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+            ) {
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
+                        .navigationBarsPadding()
+                        .verticalScroll(rememberScrollState())
                         .padding(OpenSplitTokens.SpaceLG),
                     verticalArrangement = Arrangement.spacedBy(OpenSplitTokens.SpaceMD)
                 ) {
@@ -837,11 +885,17 @@ fun GroupDetailScreen(
 
                     // Avatar
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Box(modifier = Modifier.clickable { showAvatarPicker = true }) {
+                        Box(modifier = Modifier.clickable {
+                            showSettings = false
+                            showAvatarPicker = true
+                        }) {
                             GroupAvatar(name = group.name, avatarKey = group.avatarKey, size = 56.dp)
                         }
                         Spacer(modifier = Modifier.width(OpenSplitTokens.SpaceMD))
-                        TextButton(shapes = ButtonDefaults.shapes(), onClick = { showAvatarPicker = true }) {
+                        TextButton(shapes = ButtonDefaults.shapes(), onClick = {
+                            showSettings = false
+                            showAvatarPicker = true
+                        }) {
                             Text(if (group.avatarKey == null) "Choose an avatar" else "Change avatar")
                         }
                     }
@@ -957,51 +1011,55 @@ fun GroupDetailScreen(
 
                         if (currentUid == group.createdBy) {
                             Button(shapes = ButtonDefaults.shapes(), 
-                                onClick = { confirmDelete = true },
+                                onClick = {
+                                    showSettings = false
+                                    confirmDelete = true
+                                },
                                 colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error),
                                 modifier = Modifier.weight(1f)
                             ) { Text("Delete group") }
                         }
                     }
-                    Spacer(modifier = Modifier.height(OpenSplitTokens.SpaceLG))
+                    Spacer(modifier = Modifier.height(OpenSplitTokens.SpaceXXL))
                 }
-            }
-
-            if (confirmDelete) {
-                AlertDialog(
-                    onDismissRequest = { confirmDelete = false },
-                    title = { Text("Delete group?") },
-                    text = { Text("This permanently deletes '${group.name}' and its expenses for everyone.") },
-                    confirmButton = {
-                        Button(shapes = ButtonDefaults.shapes(), 
-                            onClick = {
-                                confirmDelete = false
-                                viewModel.deleteGroup { showSettings = false; onNavigateBack() }
-                                snackbar.showMessage("Deleted ${group.name}")
-                            },
-                            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
-                        ) { Text("Delete") }
-                    },
-                    dismissButton = {
-                        TextButton(shapes = ButtonDefaults.shapes(), onClick = { confirmDelete = false }) { Text("Cancel") }
-                    }
-                )
-            }
-
-            if (showAvatarPicker) {
-                val aiSuggestedKey = remember(group.name) {
-                    com.opensplit.data.ai.AiHeuristics.avatarKeyFor(group.name)
-                }
-                GroupAvatarPickerSheet(
-                    currentKey = group.avatarKey,
-                    aiSuggestedKey = aiSuggestedKey,
-                    onDismiss = { showAvatarPicker = false },
-                    onSelect = {
-                        viewModel.setGroupAvatar(it)
-                        snackbar.showMessage("Avatar updated")
-                    }
-                )
             }
         }
+    }
+
+    val activeGroup = (uiState as? ScreenState.Success)?.data?.group
+    if (confirmDelete && activeGroup != null) {
+        AlertDialog(
+            onDismissRequest = { confirmDelete = false },
+            title = { Text("Delete group?") },
+            text = { Text("This permanently deletes '${activeGroup.name}' and its expenses for everyone.") },
+            confirmButton = {
+                Button(shapes = ButtonDefaults.shapes(), 
+                    onClick = {
+                        confirmDelete = false
+                        viewModel.deleteGroup { onNavigateBack() }
+                        snackbar.showMessage("Deleted ${activeGroup.name}")
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
+                ) { Text("Delete") }
+            },
+            dismissButton = {
+                TextButton(shapes = ButtonDefaults.shapes(), onClick = { confirmDelete = false }) { Text("Cancel") }
+            }
+        )
+    }
+
+    if (showAvatarPicker && activeGroup != null) {
+        val aiSuggestedKey = remember(activeGroup.name) {
+            com.opensplit.data.ai.AiHeuristics.avatarKeyFor(activeGroup.name)
+        }
+        GroupAvatarPickerSheet(
+            currentKey = activeGroup.avatarKey,
+            aiSuggestedKey = aiSuggestedKey,
+            onDismiss = { showAvatarPicker = false },
+            onSelect = {
+                viewModel.setGroupAvatar(it)
+                snackbar.showMessage("Avatar updated")
+            }
+        )
     }
 }

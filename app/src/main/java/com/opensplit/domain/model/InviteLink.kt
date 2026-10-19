@@ -1,6 +1,7 @@
 package com.opensplit.domain.model
 
 import com.google.firebase.Timestamp
+import com.google.firebase.firestore.Exclude
 
 /**
  * A shareable group join link. Lives at top-level `inviteLinks/{token}` so a non-member can
@@ -19,6 +20,7 @@ data class InviteLink(
     val uses: Int = 0,
     val revoked: Boolean = false
 ) {
+    @get:Exclude
     val url: String get() = "$BASE_URL$token"
 
     companion object {

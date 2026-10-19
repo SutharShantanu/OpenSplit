@@ -66,7 +66,7 @@ data class RecurringItem(val expense: Expense, val group: Group, val setUpByMe: 
 
 /** Recurring templates across every group the user belongs to. */
 class RecurringExpensesViewModel(private val container: AppContainer) : ViewModel() {
-    private val uid = container.authRepository.currentUser?.uid ?: ""
+    private val uid = container.authRepository.currentUserId ?: ""
 
     @OptIn(ExperimentalCoroutinesApi::class)
     val items: StateFlow<List<RecurringItem>> = container.groupRepository.getGroupsForUser(uid)

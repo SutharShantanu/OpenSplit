@@ -13,6 +13,7 @@ fun SettlementMethod.toDisplayName(): String = when (this) {
 
 data class Settlement(
     val id: String = "",
+    val groupId: String = "",
     val fromUid: String = "",
     val toUid: String = "",
     val amount: Double = 0.0,

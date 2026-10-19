@@ -50,7 +50,6 @@ import androidx.navigation.NavHostController
 import com.opensplit.di.AppContainer
 import com.opensplit.ui.components.CreateGroupDialog
 import com.opensplit.ui.components.GlobalSearchSheet
-import com.opensplit.ui.components.InviteMemberDialog
 import com.opensplit.ui.components.LocalSnackbarController
 import com.opensplit.ui.components.appHazeHeader
 import com.opensplit.ui.components.appHazeSource
@@ -96,7 +95,7 @@ fun MainDashboard(
     val activityViewModel: ActivityViewModel = viewModel(factory = ViewModelFactory(appContainer))
     val accountViewModel: AccountViewModel = viewModel(factory = ViewModelFactory(appContainer))
 
-    val currentUid = appContainer.authRepository.currentUser?.uid ?: ""
+    val currentUid = appContainer.authRepository.currentUserId ?: ""
     val currentUserFlow = remember(currentUid) { appContainer.userRepository.getUserFlow(currentUid) }
     val currentUserState by currentUserFlow.collectAsState(initial = null)
     val userGroupsState by mainViewModel.userGroups.collectAsState()
@@ -310,7 +309,17 @@ fun MainDashboard(
                                     onNavigateBack = { detailGroupId = null },
                                     onNavigateToAddExpense = { rootNavController.navigate("add_expense/$gId") },
                                     onNavigateToExpenseDetail = { g, e -> rootNavController.navigate("expense_detail/$g/$e") },
-                                    onNavigateToSettleUp = { rootNavController.navigate("settle_up/$gId") },
+                                    onNavigateToSettleUp = { fUid, tUid, amt ->
+                                        val uri = buildString {
+                                            append("settle_up/$gId")
+                                            val params = mutableListOf<String>()
+                                            if (!fUid.isNullOrEmpty()) params.add("fromUid=$fUid")
+                                            if (!tUid.isNullOrEmpty()) params.add("toUid=$tUid")
+                                            if (amt != null && amt > 0) params.add("amount=$amt")
+                                            if (params.isNotEmpty()) append("?${params.joinToString("&")}")
+                                        }
+                                        rootNavController.navigate(uri)
+                                    },
                                     onNavigateToEditExpense = { g, e -> rootNavController.navigate("edit_expense/$g/$e") }
                                 )
                             },
@@ -342,9 +351,13 @@ fun MainDashboard(
                             viewModel = activityViewModel,
                             onNavigateBack = {},
                             showTopBar = false,
-                            onOpenExpense = { gId, eId -> rootNavController.navigate("expense_detail/$gId/$eId") }
+                            onOpenExpense = { gId, eId -> rootNavController.navigate("expense_detail/$gId/$eId") },
+                            onOpenGroup = { gId -> rootNavController.navigate("group_detail/$gId") }
                         )
-                        DashboardTab.INSIGHTS -> AnalyticsScreen(viewModel = analyticsViewModel)
+                        DashboardTab.INSIGHTS -> AnalyticsScreen(
+                            viewModel = analyticsViewModel,
+                            onNavigateToExpenseDetail = { gId, eId -> rootNavController.navigate("expense_detail/$gId/$eId") }
+                        )
                         DashboardTab.SETTINGS -> AccountScreen(
                             appContainer = appContainer,
                             rootNavController = rootNavController,

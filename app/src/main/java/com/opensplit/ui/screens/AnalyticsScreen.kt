@@ -43,6 +43,9 @@ import com.opensplit.ui.viewmodel.CategorySpend
 import com.opensplit.ui.viewmodel.InsightsState
 import com.opensplit.ui.viewmodel.MonthlyBucket
 import com.opensplit.util.CurrencyFormatter
+import com.opensplit.ui.viewmodel.AnalyticsPeriodType
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -61,6 +64,7 @@ fun AnalyticsScreen(
         SimpleDateFormat("MMMM", Locale.getDefault()).format(Date())
     }
     var chartMode by remember { mutableStateOf("Weekly") } // "Weekly" or "Monthly"
+    var showPeriodPickerDialog by remember { mutableStateOf(false) }
 
     Scaffold(
         contentWindowInsets = if (onNavigateBack != null) androidx.compose.material3.ScaffoldDefaults.contentWindowInsets else androidx.compose.foundation.layout.WindowInsets(0, 0, 0, 0),
@@ -150,6 +154,123 @@ fun AnalyticsScreen(
                     }
                 }
 
+                // Period selection & historical navigation
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    // Period type chips
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        AnalyticsPeriodType.entries.forEach { pType ->
+                            FilterChip(
+                                selected = analyticsState.periodType == pType,
+                                onClick = { viewModel.setPeriodType(pType) },
+                                label = {
+                                    Text(
+                                        text = pType.label,
+                                        fontWeight = if (analyticsState.periodType == pType) FontWeight.Bold else FontWeight.Normal
+                                    )
+                                },
+                                leadingIcon = if (analyticsState.periodType == pType) {
+                                    {
+                                        SymbolIcon(
+                                            symbol = OpenSplitIcons.Check,
+                                            contentDescription = null,
+                                            modifier = Modifier.size(16.dp)
+                                        )
+                                    }
+                                } else null
+                            )
+                        }
+                    }
+
+                    // Historical Navigator (Only when not "All Time")
+                    if (analyticsState.periodType != AnalyticsPeriodType.ALL_TIME) {
+                        Surface(
+                            shape = RoundedCornerShape(16.dp),
+                            color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 6.dp, vertical = 4.dp),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                IconButton(
+                                    onClick = { viewModel.previousPeriod() },
+                                    modifier = Modifier.size(36.dp)
+                                ) {
+                                    SymbolIcon(
+                                        symbol = OpenSplitIcons.ArrowBack,
+                                        contentDescription = "Previous Period",
+                                        tint = MaterialTheme.colorScheme.onSurface
+                                    )
+                                }
+
+                                Surface(
+                                    shape = CircleShape,
+                                    color = MaterialTheme.colorScheme.surfaceContainerHighest,
+                                    modifier = Modifier.clickable { showPeriodPickerDialog = true }
+                                ) {
+                                    Row(
+                                        modifier = Modifier.padding(horizontal = 14.dp, vertical = 6.dp),
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                    ) {
+                                        SymbolIcon(
+                                            symbol = OpenSplitIcons.CalendarToday,
+                                            contentDescription = null,
+                                            modifier = Modifier.size(16.dp),
+                                            tint = MaterialTheme.colorScheme.primary
+                                        )
+                                        Text(
+                                            text = analyticsState.periodLabel,
+                                            style = MaterialTheme.typography.labelLarge,
+                                            fontWeight = FontWeight.Bold,
+                                            color = MaterialTheme.colorScheme.onSurface
+                                        )
+                                        SymbolIcon(
+                                            symbol = OpenSplitIcons.Dropdown,
+                                            contentDescription = null,
+                                            modifier = Modifier.size(18.dp),
+                                            tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                    }
+                                }
+
+                                IconButton(
+                                    onClick = { viewModel.nextPeriod() },
+                                    enabled = analyticsState.canGoForward,
+                                    modifier = Modifier.size(36.dp)
+                                ) {
+                                    SymbolIcon(
+                                        symbol = OpenSplitIcons.ArrowForward,
+                                        contentDescription = "Next Period",
+                                        tint = if (analyticsState.canGoForward) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+
+                if (showPeriodPickerDialog) {
+                    PeriodPickerDialog(
+                        periodType = analyticsState.periodType,
+                        selectedMonth = analyticsState.selectedMonth,
+                        selectedYear = analyticsState.selectedYear,
+                        availableYears = analyticsState.availableYears,
+                        onSelectMonthAndYear = { m, y -> viewModel.setMonthAndYear(m, y) },
+                        onSelectYear = { y -> viewModel.setYear(y) },
+                        onDismiss = { showPeriodPickerDialog = false }
+                    )
+                }
+
                 // 1. Hero Summary Card (Total Spent)
                 Card(
                     modifier = Modifier.fillMaxWidth(),
@@ -176,7 +297,7 @@ fun AnalyticsScreen(
                                 .padding(24.dp)
                         ) {
                             Text(
-                                text = "Total Spent ($currentMonthName)",
+                                text = "Total Spent · ${analyticsState.periodLabel}",
                                 style = MaterialTheme.typography.labelLarge,
                                 color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.9f)
                             )
@@ -188,35 +309,40 @@ fun AnalyticsScreen(
                                 val currencySymbol = CurrencyFormatter.getCurrencySymbol(analyticsState.currency)
                                 Text(
                                     text = "$currencySymbol${CurrencyFormatter.format(analyticsState.monthlySpendTotal, showSymbol = false)}",
-                                    style = MaterialTheme.typography.displayMedium,
+                                    style = MaterialTheme.typography.displaySmall,
                                     fontWeight = FontWeight.Bold,
                                     fontFamily = com.opensplit.ui.theme.MoneyFontFamily,
-                                    color = MaterialTheme.colorScheme.onPrimaryContainer
+                                    color = MaterialTheme.colorScheme.onPrimaryContainer,
+                                    maxLines = 1
                                 )
 
-                                Surface(
-                                    shape = CircleShape,
-                                    color = Color.White.copy(alpha = 0.2f),
-                                    modifier = Modifier.padding(bottom = 6.dp)
-                                ) {
-                                    Row(
-                                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
-                                        verticalAlignment = Alignment.CenterVertically
+                                val mom = analyticsState.monthOverMonth
+                                if (analyticsState.periodType != AnalyticsPeriodType.ALL_TIME && mom != null) {
+                                    Surface(
+                                        shape = CircleShape,
+                                        color = Color.White.copy(alpha = 0.2f),
+                                        modifier = Modifier.padding(bottom = 6.dp)
                                     ) {
-                                        val mom = analyticsState.monthOverMonth
-                                        SymbolIcon(
-                                            symbol = if ((mom ?: 0.0) >= 0) OpenSplitIcons.ArrowUpward else OpenSplitIcons.ArrowDownward,
-                                            contentDescription = null,
-                                            modifier = Modifier.size(16.dp),
-                                            tint = MaterialTheme.colorScheme.onPrimaryContainer
-                                        )
-                                        Spacer(modifier = Modifier.width(2.dp))
-                                        Text(
-                                            text = mom?.let { "${kotlin.math.abs(it * 100).toInt()}%" } ?: "new",
-                                            style = MaterialTheme.typography.bodySmall,
-                                            fontWeight = FontWeight.Bold,
-                                            color = MaterialTheme.colorScheme.onPrimaryContainer
-                                        )
+                                        Row(
+                                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            SymbolIcon(
+                                                symbol = if (mom >= 0) OpenSplitIcons.ArrowUpward else OpenSplitIcons.ArrowDownward,
+                                                contentDescription = null,
+                                                modifier = Modifier.size(16.dp),
+                                                tint = MaterialTheme.colorScheme.onPrimaryContainer
+                                            )
+                                            Spacer(modifier = Modifier.width(2.dp))
+                                            Text(
+                                                text = "${kotlin.math.abs(mom * 100).toInt()}% ${analyticsState.comparisonLabel}",
+                                                style = MaterialTheme.typography.bodySmall,
+                                                fontWeight = FontWeight.Bold,
+                                                maxLines = 1,
+                                                softWrap = false,
+                                                color = MaterialTheme.colorScheme.onPrimaryContainer
+                                            )
+                                        }
                                     }
                                 }
                             }
@@ -249,27 +375,49 @@ fun AnalyticsScreen(
                                 color = MaterialTheme.colorScheme.onSurface
                             )
 
-                            Surface(
-                                shape = CircleShape,
-                                color = MaterialTheme.colorScheme.surfaceContainerHigh,
-                                modifier = Modifier.clickable {
-                                    chartMode = if (chartMode == "Weekly") "Monthly" else "Weekly"
+                            if (analyticsState.periodType == AnalyticsPeriodType.MONTH) {
+                                Surface(
+                                    shape = CircleShape,
+                                    color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                                    modifier = Modifier.clickable {
+                                        chartMode = if (chartMode == "Weekly") "Monthly" else "Weekly"
+                                    }
+                                ) {
+                                    Text(
+                                        text = chartMode,
+                                        style = MaterialTheme.typography.labelSmall,
+                                        fontWeight = FontWeight.Bold,
+                                        color = MaterialTheme.colorScheme.primary,
+                                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
+                                    )
                                 }
-                            ) {
-                                Text(
-                                    text = chartMode,
-                                    style = MaterialTheme.typography.labelSmall,
-                                    fontWeight = FontWeight.Bold,
-                                    color = MaterialTheme.colorScheme.primary,
-                                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
-                                )
+                            } else if (analyticsState.periodType == AnalyticsPeriodType.YEAR) {
+                                Surface(
+                                    shape = CircleShape,
+                                    color = MaterialTheme.colorScheme.surfaceContainerHigh
+                                ) {
+                                    Text(
+                                        text = "12 Months",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        fontWeight = FontWeight.Bold,
+                                        color = MaterialTheme.colorScheme.primary,
+                                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
+                                    )
+                                }
                             }
                         }
 
                         Spacer(modifier = Modifier.height(16.dp))
 
                         val (chartData, chartLabels) = remember(analyticsState, chartMode) {
-                            if (chartMode == "Weekly") {
+                            if (analyticsState.periodType == AnalyticsPeriodType.YEAR) {
+                                val buckets = analyticsState.monthlyBuckets
+                                if (buckets.isNotEmpty()) {
+                                    buckets.map { it.amount } to buckets.map { it.monthLabel }
+                                } else {
+                                    listOf(0.0) to listOf("No data")
+                                }
+                            } else if (chartMode == "Weekly") {
                                 val total = analyticsState.monthlySpendTotal
                                 val w1 = total * 0.22
                                 val w2 = total * 0.35
@@ -281,7 +429,7 @@ fun AnalyticsScreen(
                                 if (buckets.isNotEmpty()) {
                                     buckets.map { it.amount } to buckets.map { it.monthLabel }
                                 } else {
-                                    listOf(100.0, 250.0, 400.0, 320.0) to listOf("Jan", "Feb", "Mar", "Apr")
+                                    listOf(0.0) to listOf("No data")
                                 }
                             }
                         }
@@ -882,4 +1030,119 @@ private fun AiInsightsCard(
             }
         }
     }
+}
+
+@Composable
+private fun PeriodPickerDialog(
+    periodType: AnalyticsPeriodType,
+    selectedMonth: Int,
+    selectedYear: Int,
+    availableYears: List<Int>,
+    onSelectMonthAndYear: (Int, Int) -> Unit,
+    onSelectYear: (Int) -> Unit,
+    onDismiss: () -> Unit
+) {
+    var tempYear by remember { mutableIntStateOf(selectedYear) }
+    val monthNames = remember {
+        listOf("Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec")
+    }
+
+    val yearsToDisplay = remember(availableYears, selectedYear) {
+        val currentYear = java.util.Calendar.getInstance().get(java.util.Calendar.YEAR)
+        val set = (availableYears + listOf(currentYear, currentYear - 1, currentYear - 2, selectedYear)).toSortedSet().reversed()
+        set.toList()
+    }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Text(
+                text = if (periodType == AnalyticsPeriodType.MONTH) "Select Month & Year" else "Select Year",
+                fontWeight = FontWeight.Bold
+            )
+        },
+        text = {
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                // Year selector
+                Text(
+                    text = "Year",
+                    style = MaterialTheme.typography.labelMedium,
+                    fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                LazyRow(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    items(yearsToDisplay) { y ->
+                        FilterChip(
+                            selected = (tempYear == y),
+                            onClick = {
+                                tempYear = y
+                                if (periodType == AnalyticsPeriodType.YEAR) {
+                                    onSelectYear(y)
+                                    onDismiss()
+                                }
+                            },
+                            label = { Text(y.toString()) }
+                        )
+                    }
+                }
+
+                if (periodType == AnalyticsPeriodType.MONTH) {
+                    Text(
+                        text = "Month",
+                        style = MaterialTheme.typography.labelMedium,
+                        fontWeight = FontWeight.SemiBold,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+
+                    // 4 rows x 3 columns month grid
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        for (row in 0 until 4) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                for (col in 0 until 3) {
+                                    val mIdx = row * 3 + col
+                                    val isSelected = (mIdx == selectedMonth && tempYear == selectedYear)
+                                    Surface(
+                                        shape = RoundedCornerShape(12.dp),
+                                        color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceContainerHighest,
+                                        modifier = Modifier
+                                            .weight(1f)
+                                            .clickable {
+                                                onSelectMonthAndYear(mIdx, tempYear)
+                                                onDismiss()
+                                            }
+                                    ) {
+                                        Box(
+                                            modifier = Modifier.padding(vertical = 12.dp),
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            Text(
+                                                text = monthNames[mIdx],
+                                                style = MaterialTheme.typography.labelMedium,
+                                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                                                color = if (isSelected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = {},
+        dismissButton = {
+            TextButton(shapes = ButtonDefaults.shapes(), onClick = onDismiss) {
+                Text("Cancel")
+            }
+        }
+    )
 }

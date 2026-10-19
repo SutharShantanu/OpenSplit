@@ -71,6 +71,8 @@ class SettleUpViewModel(
 
         viewModelScope.launch {
             val settlement = Settlement(
+                id = java.util.UUID.randomUUID().toString(),
+                groupId = groupId,
                 fromUid = fromUid,
                 toUid = toUid,
                 amount = amount,

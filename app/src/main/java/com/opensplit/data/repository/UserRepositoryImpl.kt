@@ -7,19 +7,62 @@ import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.tasks.await
 
+import android.content.Context
+import org.json.JSONObject
+
 class UserRepositoryImpl(
-    private val firestore: FirebaseFirestore
+    private val firestore: FirebaseFirestore,
+    private val context: Context? = null
 ) : UserRepository {
     private val usersCollection = firestore.collection("users")
-    private val localUsers = kotlinx.coroutines.flow.MutableStateFlow<Map<String, User>>(
-        mapOf(
+    private val prefs by lazy { context?.getSharedPreferences("user_cache", Context.MODE_PRIVATE) }
+
+    private fun loadCachedUsers(): Map<String, User> {
+        val base = mutableMapOf(
             "user_elena_demo" to User(
                 uid = "user_elena_demo",
                 displayName = "Elena Rodriguez",
                 email = "elena.rodriguez@example.com"
             )
         )
-    )
+        prefs?.all?.forEach { (key, value) ->
+            if (value is String) {
+                try {
+                    val obj = JSONObject(value)
+                    base[key] = User(
+                        uid = obj.getString("uid"),
+                        displayName = obj.getString("displayName"),
+                        email = obj.optString("email", ""),
+                        photoUrl = obj.optString("photoUrl").ifBlank { null },
+                        defaultCurrency = obj.optString("defaultCurrency", "INR")
+                    )
+                } catch (e: Exception) {
+                    // Ignore malformed cache entry
+                }
+            }
+        }
+        return base
+    }
+
+    private val localUsers = kotlinx.coroutines.flow.MutableStateFlow<Map<String, User>>(loadCachedUsers())
+
+    private fun persistUser(user: User) {
+        if (user.uid.isBlank()) return
+        localUsers.update { it + (user.uid to user) }
+        try {
+            val json = JSONObject().apply {
+                put("uid", user.uid)
+                put("displayName", user.displayName)
+                put("email", user.email)
+                put("photoUrl", user.photoUrl ?: "")
+                put("defaultCurrency", user.defaultCurrency)
+            }.toString()
+            prefs?.edit()?.putString(user.uid, json)?.apply()
+        } catch (e: Exception) {
+            // Ignore write failures
+        }
+    }
+
 
     override suspend fun getUser(uid: String): User? {
         if (uid.isBlank()) return null
@@ -29,11 +72,22 @@ class UserRepositoryImpl(
         val localMatch = com.opensplit.data.local.InMemoryDataStore.friends.value.find { it.uid == uid }
         if (localMatch != null) return localMatch
 
+        val current = com.google.firebase.auth.FirebaseAuth.getInstance().currentUser
+        if (current != null && current.uid == uid) {
+            val user = User(
+                uid = uid,
+                displayName = current.displayName?.ifBlank { "You" } ?: "You",
+                email = current.email ?: ""
+            )
+            localUsers.update { it + (uid to user) }
+            return user
+        }
+
         return try {
-            val snapshot = kotlinx.coroutines.withTimeoutOrNull(1000) {
+            val snapshot = kotlinx.coroutines.withTimeoutOrNull(2500) {
                 usersCollection.document(uid).get().await()
             }
-            snapshot?.toObject(User::class.java)
+            snapshot?.toObject(User::class.java)?.also { persistUser(it) }
         } catch (e: Exception) {
             null
         }
@@ -79,9 +133,9 @@ class UserRepositoryImpl(
 
     override suspend fun saveUser(user: User): Result<Unit> {
         if (user.uid.isBlank()) return Result.success(Unit)
-        localUsers.value = localUsers.value + (user.uid to user)
+        persistUser(user)
         return try {
-            kotlinx.coroutines.withTimeoutOrNull(1000) {
+            kotlinx.coroutines.withTimeoutOrNull(1500) {
                 usersCollection.document(user.uid).set(user).awaitWrite()
             }
             Result.success(Unit)
@@ -103,9 +157,9 @@ class UserRepositoryImpl(
             email = email ?: "",
             photoUrl = photoUrl
         )
-        localUsers.value = localUsers.value + (uid to user)
+        persistUser(user)
         return try {
-            kotlinx.coroutines.withTimeoutOrNull(1200) {
+            kotlinx.coroutines.withTimeoutOrNull(1500) {
                 val snapshot = usersCollection.document(uid).get().await()
                 if (!snapshot.exists()) {
                     usersCollection.document(uid).set(user).awaitWrite()
@@ -164,6 +218,10 @@ class UserRepositoryImpl(
             close()
             return@callbackFlow
         }
+        val localMatches = (localUsers.value.values + com.opensplit.data.local.InMemoryDataStore.friends.value)
+            .filter { it.email.contains(query, ignoreCase = true) || it.displayName.contains(query, ignoreCase = true) }
+        trySend(localMatches)
+
         val listener = usersCollection
             .orderBy("email")
             .startAt(query)
@@ -171,11 +229,12 @@ class UserRepositoryImpl(
             .limit(10)
             .addSnapshotListener { snapshot, e ->
                 if (e != null) {
-                    close(e)
+                    trySend(localMatches)
                     return@addSnapshotListener
                 }
-                val users = snapshot?.documents?.mapNotNull { it.toObject(User::class.java) } ?: emptyList()
-                trySend(users)
+                val remoteUsers = snapshot?.documents?.mapNotNull { it.toObject(User::class.java) } ?: emptyList()
+                val combined = (localMatches + remoteUsers).distinctBy { it.uid }
+                trySend(combined)
             }
         awaitClose { listener.remove() }
     }

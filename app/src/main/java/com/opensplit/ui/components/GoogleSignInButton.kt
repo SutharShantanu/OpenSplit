@@ -99,14 +99,18 @@ fun GoogleSignInButton(
                         .build()
 
                     val credential = try {
+                        android.util.Log.d("GoogleSignIn", "Requesting googleIdOption with serverClientId=$serverClientId")
                         request(googleIdOption)
                     } catch (e: Exception) {
+                        android.util.Log.w("GoogleSignIn", "googleIdOption failed: ${e.javaClass.name}: ${e.message}", e)
                         // 2) Fall back to explicit GetSignInWithGoogleOption chooser if One-Tap has no account or needs reauth
                         val signInOption = GetSignInWithGoogleOption.Builder(serverClientId).build()
+                        android.util.Log.d("GoogleSignIn", "Requesting signInOption fallback")
                         request(signInOption)
                     }
 
                     if (credential != null) {
+                        android.util.Log.i("GoogleSignIn", "Got credential for email=${credential.id}")
                         viewModel.signInWithGoogle(
                             idToken = credential.idToken,
                             displayName = credential.displayName,
@@ -117,15 +121,22 @@ fun GoogleSignInButton(
                         snackbar.showMessage("Unexpected credential response from Google.")
                     }
                 } catch (e: NoCredentialException) {
+                    android.util.Log.e("GoogleSignIn", "NoCredentialException: ${e.message}", e)
                     snackbar.showMessage("No Google account found on device.")
                 } catch (e: GetCredentialException) {
                     val msg = e.message ?: "Authentication error"
-                    if (msg.contains("16") || msg.contains("reauth", ignoreCase = true) || msg.contains("Canceled", ignoreCase = true)) {
+                    android.util.Log.e("GoogleSignIn", "GetCredentialException: type=${e.type}, msg=$msg", e)
+                    val isUserCancellation = (msg.contains("Cancel", ignoreCase = true) || msg.contains("dismiss", ignoreCase = true)) &&
+                            !msg.contains("reauth", ignoreCase = true)
+                    if (isUserCancellation) {
+                        android.util.Log.d("GoogleSignIn", "Google sign-in flow cancelled by user")
+                    } else if (msg.contains("reauth", ignoreCase = true) || msg.contains("16") || msg.contains("UNREGISTERED", ignoreCase = true)) {
                         snackbar.showMessage("Google Sign-In failed [16]: this build's signing SHA-1 is not registered in the Firebase console.")
                     } else {
                         snackbar.showMessage("Google Sign-In failed: $msg")
                     }
                 } catch (e: Exception) {
+                    android.util.Log.e("GoogleSignIn", "General Exception: ${e.javaClass.name}: ${e.message}", e)
                     snackbar.showMessage("Google Sign-In error: ${e.message ?: "Unknown error"}")
                 }
             }

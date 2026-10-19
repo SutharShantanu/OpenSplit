@@ -42,8 +42,17 @@ class GroupRepositoryImpl(
         val local = com.opensplit.data.local.InMemoryDataStore.groups.value.find { it.id == groupId }
         if (local != null) return local
         return try {
+            val cached = runCatching {
+                groupsCollection.document(groupId).get(com.google.firebase.firestore.Source.CACHE).await().toObject(Group::class.java)
+            }.getOrNull()
+            if (cached != null) {
+                com.opensplit.data.local.InMemoryDataStore.updateGroup(cached)
+                return cached
+            }
             kotlinx.coroutines.withTimeoutOrNull(1000) {
                 groupsCollection.document(groupId).get().await().toObject(Group::class.java)
+            }?.also {
+                com.opensplit.data.local.InMemoryDataStore.updateGroup(it)
             } ?: local
         } catch (e: Exception) {
             local
@@ -54,6 +63,7 @@ class GroupRepositoryImpl(
         return try {
             val docRef = groupsCollection.document()
             val newGroup = group.copy(id = docRef.id)
+            com.opensplit.data.local.InMemoryDataStore.addGroup(newGroup)
             docRef.set(newGroup).awaitWrite()
             activityRepository.logActivity(
                 docRef.id,
@@ -71,6 +81,7 @@ class GroupRepositoryImpl(
 
     override suspend fun updateGroup(group: Group): Result<Unit> {
         if (group.id.isBlank()) return Result.failure(IllegalArgumentException("Group ID cannot be blank"))
+        com.opensplit.data.local.InMemoryDataStore.updateGroup(group)
         return try {
             groupsCollection.document(group.id).set(group).awaitWrite()
             Result.success(Unit)
@@ -81,6 +92,7 @@ class GroupRepositoryImpl(
 
     override suspend fun deleteGroup(groupId: String): Result<Unit> {
         if (groupId.isBlank()) return Result.failure(IllegalArgumentException("Group ID cannot be blank"))
+        com.opensplit.data.local.InMemoryDataStore.removeGroup(groupId)
         return try {
             groupsCollection.document(groupId).delete().awaitWrite()
             Result.success(Unit)

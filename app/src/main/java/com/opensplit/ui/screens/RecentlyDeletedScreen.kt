@@ -64,7 +64,7 @@ import java.util.Locale
 
 /** Soft-deleted expenses from the last 90 days across the user's groups. */
 class RecentlyDeletedViewModel(private val container: AppContainer) : ViewModel() {
-    private val uid = container.authRepository.currentUser?.uid ?: ""
+    private val uid = container.authRepository.currentUserId ?: ""
 
     @OptIn(ExperimentalCoroutinesApi::class)
     val deleted: StateFlow<List<Expense>> = container.groupRepository.getGroupsForUser(uid)

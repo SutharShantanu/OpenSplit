@@ -23,6 +23,8 @@ class ExpenseDetailViewModel(
     private val appContainer: AppContainer
 ) : ViewModel() {
 
+    val currentUserId: String? get() = appContainer.authRepository.currentUserId
+
     private val _uiState = MutableStateFlow<ScreenState<ExpenseDetailUiState>>(ScreenState.Loading)
     val uiState: StateFlow<ScreenState<ExpenseDetailUiState>> = _uiState.asStateFlow()
 
@@ -34,9 +36,15 @@ class ExpenseDetailViewModel(
         viewModelScope.launch {
             // Resolve member uid -> display name once, so the split breakdown shows names.
             val memberNames = mutableMapOf<String, String>()
+            val currentAuth = appContainer.authRepository.currentUser
+            if (currentAuth != null) {
+                memberNames[currentAuth.uid] = currentAuth.displayName?.ifBlank { "You" } ?: "You"
+            }
             if (groupId.isNotBlank()) {
                 appContainer.groupRepository.getGroup(groupId)?.memberIds?.forEach { uid ->
-                    appContainer.userRepository.getUser(uid)?.let { memberNames[uid] = it.displayName }
+                    if (!memberNames.containsKey(uid)) {
+                        appContainer.userRepository.getUser(uid)?.let { memberNames[uid] = it.displayName }
+                    }
                 }
             }
             appContainer.expenseRepository.getExpensesForGroup(groupId)
@@ -50,6 +58,8 @@ class ExpenseDetailViewModel(
                                 memberNames = memberNames
                             )
                         )
+                    } else if (expenses.isEmpty()) {
+                        ScreenState.Loading
                     } else {
                         ScreenState.Error("Expense not found")
                     }
@@ -62,7 +72,7 @@ class ExpenseDetailViewModel(
     }
 
     fun addComment(text: String) {
-        val uid = appContainer.authRepository.currentUser?.uid ?: return
+        val uid = appContainer.authRepository.currentUserId ?: return
         viewModelScope.launch {
             val comment = Comment(
                 uid = uid,

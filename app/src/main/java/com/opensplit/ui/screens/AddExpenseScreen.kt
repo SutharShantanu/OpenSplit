@@ -1290,13 +1290,20 @@ fun AddExpenseScreen(
                 }
 
                 if (showInvitePersonDialog) {
-                    com.opensplit.ui.components.InviteMemberDialog(
-                        title = "Invite to this group",
-                        description = "They'll be added to the split once they accept. Until then they show as pending.",
+                    val links by viewModel.inviteLinks.collectAsState()
+                    com.opensplit.ui.components.GroupInviteSheet(
+                        groupId = group.id,
+                        groupName = group.name,
+                        inviteLink = links.firstOrNull(),
                         onDismiss = { showInvitePersonDialog = false },
                         onSubmitEmail = { email ->
                             viewModel.addMemberByEmail(email)
                             snackbar.showMessage("Invite sent — they'll appear as pending")
+                        },
+                        onGenerateLink = { expires, maxUses ->
+                            viewModel.createInviteLink(expires, maxUses) { ok ->
+                                snackbar.showMessage(if (ok) "Invite link ready" else "Couldn't create link")
+                            }
                         }
                     )
                 }

@@ -95,7 +95,8 @@ fun ActivityScreen(
     viewModel: ActivityViewModel,
     onNavigateBack: () -> Unit,
     showTopBar: Boolean = false,
-    onOpenExpense: (groupId: String, expenseId: String) -> Unit = { _, _ -> }
+    onOpenExpense: (groupId: String, expenseId: String) -> Unit = { _, _ -> },
+    onOpenGroup: (groupId: String) -> Unit = {}
 ) {
     val state by viewModel.uiState.collectAsState()
     val hazeState = remember { HazeState() }
@@ -211,7 +212,7 @@ fun ActivityScreen(
                                 onDismissRequest = { sortDropdownExpanded = false },
                                 shape = MaterialTheme.shapes.large
                             ) {
-                                ActivitySortOrder.values().forEach { order ->
+                                ActivitySortOrder.entries.forEach { order ->
                                     DropdownMenuItem(
                                         text = { Text(order.label) },
                                         onClick = {
@@ -278,7 +279,7 @@ fun ActivityScreen(
                                 onDismissRequest = { dateDropdownExpanded = false },
                                 shape = MaterialTheme.shapes.large
                             ) {
-                                DateRangePreset.values().forEach { preset ->
+                                DateRangePreset.entries.forEach { preset ->
                                     DropdownMenuItem(
                                         text = { Text(preset.label) },
                                         onClick = {
@@ -374,6 +375,7 @@ fun ActivityScreen(
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
+                            .horizontalScroll(rememberScrollState())
                             .padding(bottom = OpenSplitTokens.SpaceSM),
                         horizontalArrangement = Arrangement.spacedBy(OpenSplitTokens.SpaceSM),
                         verticalAlignment = Alignment.CenterVertically
@@ -458,7 +460,12 @@ fun ActivityScreen(
                                 items(activitiesForDay, key = { it.id }) { act ->
                                     val isUnread = lastSeen != null && act.timestamp.seconds > lastSeen.seconds
                                     androidx.compose.foundation.layout.Box(Modifier.animateItem()) {
-                                    ActivityRow(act = act, isUnread = isUnread, onOpen = { onOpenExpense(it.groupId, it.relatedExpenseId ?: return@ActivityRow) })
+                                        ActivityRow(
+                                            act = act,
+                                            isUnread = isUnread,
+                                            onOpenExpense = onOpenExpense,
+                                            onOpenGroup = onOpenGroup
+                                        )
                                     }
                                     HorizontalDivider(color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
                                 }
@@ -472,7 +479,12 @@ fun ActivityScreen(
 }
 
 @Composable
-private fun ActivityRow(act: Activity, isUnread: Boolean, onOpen: (Activity) -> Unit = {}) {
+private fun ActivityRow(
+    act: Activity,
+    isUnread: Boolean,
+    onOpenExpense: (groupId: String, expenseId: String) -> Unit = { _, _ -> },
+    onOpenGroup: (groupId: String) -> Unit = {}
+) {
     val timeStr = remember(act.timestamp) {
         SimpleDateFormat("h:mm a", Locale.getDefault()).format(act.timestamp.toDate())
     }
@@ -484,11 +496,21 @@ private fun ActivityRow(act: Activity, isUnread: Boolean, onOpen: (Activity) -> 
         ActivityType.COMMENT_ADDED -> OpenSplitIcons.CategoryOther
     }
 
+    val canOpenExpense = act.relatedExpenseId != null && act.groupId.isNotBlank()
+    val canOpenGroup = (act.type == ActivityType.GROUP_CREATED || act.type == ActivityType.MEMBER_ADDED || act.type == ActivityType.MEMBER_REMOVED) && act.groupId.isNotBlank()
+    val isClickable = canOpenExpense || canOpenGroup
+
     ListItem(
         modifier = Modifier
             .fillMaxWidth()
             .clip(MaterialTheme.shapes.medium)
-            .clickable(enabled = act.relatedExpenseId != null && act.groupId.isNotBlank()) { onOpen(act) },
+            .clickable(enabled = isClickable) {
+                if (canOpenExpense) {
+                    onOpenExpense(act.groupId, act.relatedExpenseId!!)
+                } else if (canOpenGroup) {
+                    onOpenGroup(act.groupId)
+                }
+            },
         colors = ListItemDefaults.colors(
             containerColor = if (isUnread) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.25f) else Color.Transparent
         ),

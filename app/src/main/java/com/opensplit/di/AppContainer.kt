@@ -58,7 +58,7 @@ class AppContainer(private val applicationContext: Context) {
     }
 
     val userRepository: UserRepository by lazy {
-        UserRepositoryImpl(firestore)
+        UserRepositoryImpl(firestore, applicationContext)
     }
 
     val activityRepository: com.opensplit.domain.repository.ActivityRepository by lazy {

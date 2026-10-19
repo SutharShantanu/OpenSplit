@@ -158,7 +158,17 @@ fun MainNavHost(navController: NavHostController, appContainer: AppContainer, au
                 onNavigateBack = { navController.popBackStack() },
                 onNavigateToAddExpense = { navController.navigate("add_expense/$groupId") },
                 onNavigateToExpenseDetail = { gId, eId -> navController.navigate("expense_detail/$gId/$eId") },
-                onNavigateToSettleUp = { navController.navigate("settle_up/$groupId") },
+                onNavigateToSettleUp = { fUid, tUid, amt ->
+                    val uri = buildString {
+                        append("settle_up/$groupId")
+                        val params = mutableListOf<String>()
+                        if (!fUid.isNullOrEmpty()) params.add("fromUid=$fUid")
+                        if (!tUid.isNullOrEmpty()) params.add("toUid=$tUid")
+                        if (amt != null && amt > 0) params.add("amount=$amt")
+                        if (params.isNotEmpty()) append("?${params.joinToString("&")}")
+                    }
+                    navController.navigate(uri)
+                },
                 onNavigateToEditExpense = { gId, eId -> navController.navigate("edit_expense/$gId/$eId") }
             )
         }
@@ -217,20 +227,43 @@ fun MainNavHost(navController: NavHostController, appContainer: AppContainer, au
             )
         }
 
-        composable("settle_up/{groupId}") { backStackEntry ->
+        composable(
+            route = "settle_up/{groupId}?fromUid={fromUid}&toUid={toUid}&amount={amount}",
+            arguments = listOf(
+                androidx.navigation.navArgument("fromUid") {
+                    type = androidx.navigation.NavType.StringType
+                    nullable = true
+                    defaultValue = null
+                },
+                androidx.navigation.navArgument("toUid") {
+                    type = androidx.navigation.NavType.StringType
+                    nullable = true
+                    defaultValue = null
+                },
+                androidx.navigation.navArgument("amount") {
+                    type = androidx.navigation.NavType.StringType
+                    nullable = true
+                    defaultValue = null
+                }
+            )
+        ) { backStackEntry ->
             val groupId = backStackEntry.arguments?.getString("groupId") ?: return@composable
+            val fromUid = backStackEntry.arguments?.getString("fromUid")
+            val toUid = backStackEntry.arguments?.getString("toUid")
+            val amount = backStackEntry.arguments?.getString("amount")?.toDoubleOrNull()
             val vm: com.opensplit.ui.viewmodel.SettleUpViewModel = androidx.lifecycle.viewmodel.compose.viewModel(
                 factory = com.opensplit.ui.viewmodel.SettleUpViewModelFactory(
                     groupId = groupId,
-                    suggestedToUid = null,
-                    suggestedAmount = null,
+                    suggestedToUid = toUid,
+                    suggestedAmount = amount,
                     container = appContainer
                 )
             )
             com.opensplit.ui.screens.SettleUpScreen(
                 viewModel = vm,
-                suggestedToUid = null,
-                suggestedAmount = null,
+                suggestedFromUid = fromUid,
+                suggestedToUid = toUid,
+                suggestedAmount = amount,
                 onNavigateBack = { navController.popBackStack() }
             )
         }
@@ -293,7 +326,7 @@ fun MainNavHost(navController: NavHostController, appContainer: AppContainer, au
             val mainViewModel: com.opensplit.ui.viewmodel.MainViewModel = androidx.lifecycle.viewmodel.compose.viewModel(
                 factory = ViewModelFactory(appContainer)
             )
-            val currentUid = appContainer.authRepository.currentUser?.uid ?: ""
+            val currentUid = appContainer.authRepository.currentUserId ?: ""
             com.opensplit.ui.screens.SettlementHistoryScreen(
                 currentUid = currentUid,
                 onNavigateBack = { navController.popBackStack() }

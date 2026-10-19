@@ -231,7 +231,21 @@ object InMemoryDataStore {
     }
 
     fun addGroup(group: Group) {
-        _groups.update { current -> current + group }
+        _groups.update { current -> (current + group).distinctBy { it.id } }
+    }
+
+    fun updateGroup(group: Group) {
+        _groups.update { current ->
+            if (current.any { it.id == group.id }) {
+                current.map { if (it.id == group.id) group else it }
+            } else {
+                current + group
+            }
+        }
+    }
+
+    fun removeGroup(groupId: String) {
+        _groups.update { current -> current.filterNot { it.id == groupId } }
     }
 
     fun addExpense(expense: Expense) {

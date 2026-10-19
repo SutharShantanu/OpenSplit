@@ -38,7 +38,7 @@ data class GroupDetailUiState(
 )
 
 class GroupDetailViewModel(
-    private val groupId: String,
+    val groupId: String,
     private val groupRepository: GroupRepository,
     private val expenseRepository: ExpenseRepository,
     private val userRepository: UserRepository,
@@ -76,12 +76,14 @@ class GroupDetailViewModel(
     fun balanceOf(uid: String): Double = (uiState.value as? ScreenState.Success)?.data?.balances?.get(uid) ?: 0.0
 
     private val retryTrigger = MutableStateFlow(0)
+    private var lastKnownGroup: Group? = null
 
     val uiState: StateFlow<ScreenState<GroupDetailUiState>> = retryTrigger.flatMapLatest {
         flow {
             emit(ScreenState.Loading)
             try {
-                val g = groupRepository.getGroup(groupId) ?: throw Exception("Group not found")
+                val g = groupRepository.getGroup(groupId) ?: lastKnownGroup ?: throw Exception("Group not found")
+                lastKnownGroup = g
                 val members = loadMembers(g.memberIds)
                 val former = loadMembers(g.formerMemberIds.filterNot { it in g.memberIds })
 
@@ -93,9 +95,23 @@ class GroupDetailViewModel(
                     .collect { (expList, settleList, pendingList) ->
                         val balances = BalanceCalculator.netBalances(expList, settleList)
                         val suggestions = BalanceCalculator.settlementSuggestions(expList, settleList, g.simplifyDebts)
+                        val resolvedMembers = members.map { member ->
+                            if (member.displayName == "Member" || member.email.isBlank()) {
+                                val match = pendingList.firstOrNull { it.groupId == groupId }
+                                if (match != null && match.email.isNotBlank()) {
+                                    val name = match.email.substringBefore("@")
+                                        .replace(".", " ")
+                                        .split(" ")
+                                        .joinToString(" ") { word -> word.replaceFirstChar { c -> c.uppercase() } }
+                                    val updated = member.copy(displayName = name, email = match.email)
+                                    userRepository.saveUser(updated)
+                                    updated
+                                } else member
+                            } else member
+                        }
                         emit(
                             ScreenState.Success(
-                                GroupDetailUiState(g, expList, members, balances, suggestions, settleList, pendingList, former)
+                                GroupDetailUiState(g, expList, resolvedMembers, balances, suggestions, settleList, pendingList, former)
                             )
                         )
                     }
@@ -107,12 +123,15 @@ class GroupDetailViewModel(
 
     fun retry() { retryTrigger.value++ }
 
+    val currentUserId: String get() = authRepository?.currentUserId ?: ""
+
     private suspend fun loadMembers(userIds: List<String>): List<User> {
         val friendsMap = com.opensplit.data.local.InMemoryDataStore.friends.value.associateBy { it.uid }
         val currentUser = authRepository?.currentUser
+        val currentUid = authRepository?.currentUserId
         return userIds.map { uid ->
             friendsMap[uid]
-                ?: (if (currentUser != null && currentUser.uid == uid) User(uid = uid, displayName = currentUser.displayName ?: "You", email = currentUser.email ?: "") else null)
+                ?: (if (currentUid != null && currentUid == uid) User(uid = uid, displayName = currentUser?.displayName ?: "You", email = currentUser?.email ?: "") else null)
                 ?: userRepository.getUser(uid)
                 ?: User(uid = uid, displayName = "Member", email = "")
         }
@@ -151,8 +170,10 @@ class GroupDetailViewModel(
     fun renameGroup(newName: String) {
         val g = currentGroup() ?: return
         if (newName.isBlank() || newName.trim() == g.name) return
+        val updated = g.copy(name = newName.trim())
+        lastKnownGroup = updated
         viewModelScope.launch {
-            groupRepository.updateGroup(g.copy(name = newName.trim()))
+            groupRepository.updateGroup(updated)
             retry()
         }
     }
@@ -160,8 +181,10 @@ class GroupDetailViewModel(
     fun setGroupCurrency(currency: String) {
         val g = currentGroup() ?: return
         if (currency == g.currency) return
+        val updated = g.copy(currency = currency)
+        lastKnownGroup = updated
         viewModelScope.launch {
-            groupRepository.updateGroup(g.copy(currency = currency))
+            groupRepository.updateGroup(updated)
             retry()
         }
     }
@@ -169,8 +192,10 @@ class GroupDetailViewModel(
     fun setSimplifyDebts(enabled: Boolean) {
         val g = currentGroup() ?: return
         if (enabled == g.simplifyDebts) return
+        val updated = g.copy(simplifyDebts = enabled)
+        lastKnownGroup = updated
         viewModelScope.launch {
-            groupRepository.updateGroup(g.copy(simplifyDebts = enabled))
+            groupRepository.updateGroup(updated)
             retry()
         }
     }
@@ -178,8 +203,10 @@ class GroupDetailViewModel(
     fun setGroupAvatar(avatarKey: String) {
         val g = currentGroup() ?: return
         if (avatarKey == g.avatarKey) return
+        val updated = g.copy(avatarKey = avatarKey)
+        lastKnownGroup = updated
         viewModelScope.launch {
-            groupRepository.updateGroup(g.copy(avatarKey = avatarKey))
+            groupRepository.updateGroup(updated)
             retry()
         }
     }
@@ -242,27 +269,20 @@ class GroupDetailViewModel(
             if (currentState !is ScreenState.Success) return@launch
 
             val users = userRepository.searchUsersByEmail(trimmedEmail).first()
-            val user = users.firstOrNull { it.email.equals(trimmedEmail, ignoreCase = true) }
+            var user = users.firstOrNull { it.email.equals(trimmedEmail, ignoreCase = true) }
             val actorUid = authRepository?.getCurrentUserId() ?: ""
-            if (user != null) {
-                val currentGroup = currentState.data.group
-                if (!currentGroup.memberIds.contains(user.uid)) {
-                    val updatedMembers = currentGroup.memberIds + user.uid
-                    val updatedGroup = currentGroup.copy(memberIds = updatedMembers)
-                    groupRepository.updateGroup(updatedGroup)
+            val currentGroup = currentState.data.group
 
-                    activityRepository.logActivity(
-                        groupId,
-                        Activity(
-                            type = ActivityType.MEMBER_ADDED,
-                            actorUid = actorUid,
-                            message = "added member '${user.displayName}'"
-                        )
-                    )
-                    retry()
-                }
-            } else {
-                // User not registered yet - persist a pending invite in Firestore.
+            if (user == null) {
+                val newUid = "user_" + java.util.UUID.randomUUID().toString().take(8)
+                val displayName = trimmedEmail.substringBefore("@")
+                    .replace(".", " ")
+                    .split(" ")
+                    .joinToString(" ") { word -> word.replaceFirstChar { c -> c.uppercase() } }
+                val newUser = User(uid = newUid, displayName = displayName, email = trimmedEmail)
+                userRepository.saveUser(newUser)
+                user = newUser
+
                 val alreadyInvited = currentState.data.pendingInvites
                     .any { it.email.equals(trimmedEmail, ignoreCase = true) }
                 if (!alreadyInvited) {
@@ -272,15 +292,23 @@ class GroupDetailViewModel(
                         invitedBy = actorUid
                     )
                     pendingInviteRepository.addInvite(newInvite)
-                    activityRepository.logActivity(
-                        groupId,
-                        Activity(
-                            type = ActivityType.MEMBER_ADDED,
-                            actorUid = actorUid,
-                            message = "sent invite to '$trimmedEmail'"
-                        )
-                    )
                 }
+            }
+
+            if (!currentGroup.memberIds.contains(user.uid)) {
+                val updatedMembers = currentGroup.memberIds + user.uid
+                val updatedGroup = currentGroup.copy(memberIds = updatedMembers)
+                groupRepository.updateGroup(updatedGroup)
+
+                activityRepository.logActivity(
+                    groupId,
+                    Activity(
+                        type = ActivityType.MEMBER_ADDED,
+                        actorUid = actorUid,
+                        message = "added member '${user.displayName}'"
+                    )
+                )
+                retry()
             }
         }
     }

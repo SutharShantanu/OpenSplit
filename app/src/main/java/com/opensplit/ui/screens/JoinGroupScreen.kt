@@ -59,7 +59,7 @@ fun JoinGroupScreen(
     var loading by remember { mutableStateOf(true) }
     var error by remember { mutableStateOf<JoinError?>(null) }
     var joining by remember { mutableStateOf(false) }
-    val uid = appContainer.authRepository.currentUser?.uid ?: ""
+    val uid = appContainer.authRepository.currentUserId ?: ""
     val busy = com.opensplit.ui.components.LocalBusy.current
 
     LaunchedEffect(token) {

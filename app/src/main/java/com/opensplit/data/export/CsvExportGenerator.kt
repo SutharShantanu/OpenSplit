@@ -26,24 +26,36 @@ class CsvExportGenerator : ExportGenerator {
         val dateFormat = SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault())
 
         FileWriter(file).use { writer ->
-            // Header
-            writer.append("Type,Date,Description,Category,Amount,Currency,PaidBy,SplitType\n")
+            if (expenses.isEmpty() && settlements.isNotEmpty()) {
+                writer.append("Date,From,To,Method,Amount,Currency,Note\n")
+                settlements.forEach { set ->
+                    val dateStr = try { dateFormat.format(set.date.toDate()) } catch (e: Exception) { "" }
+                    val note = sanitizeCsv(set.note ?: "")
+                    val method = set.method.name
+                    val from = sanitizeCsv(set.fromUid)
+                    val to = sanitizeCsv(set.toUid)
+                    writer.append("$dateStr,$from,$to,$method,${set.amount},${set.currency},$note\n")
+                }
+            } else {
+                // Header
+                writer.append("Type,Date,Description,Category,Amount,Currency,PaidBy,SplitType\n")
 
-            // Expenses
-            expenses.forEach { exp ->
-                val dateStr = try { dateFormat.format(exp.date.toDate()) } catch (e: Exception) { "" }
-                val desc = sanitizeCsv(exp.description)
-                val cat = sanitizeCsv(exp.category)
-                val paidBy = exp.paidBy
-                val splitType = exp.splitType.name
-                writer.append("Expense,$dateStr,$desc,$cat,${exp.amount},${exp.currency},$paidBy,$splitType\n")
-            }
+                // Expenses
+                expenses.forEach { exp ->
+                    val dateStr = try { dateFormat.format(exp.date.toDate()) } catch (e: Exception) { "" }
+                    val desc = sanitizeCsv(exp.description)
+                    val cat = sanitizeCsv(exp.category)
+                    val paidBy = exp.paidBy
+                    val splitType = exp.splitType.name
+                    writer.append("Expense,$dateStr,$desc,$cat,${exp.amount},${exp.currency},$paidBy,$splitType\n")
+                }
 
-            // Settlements
-            settlements.forEach { set ->
-                val dateStr = try { dateFormat.format(set.date.toDate()) } catch (e: Exception) { "" }
-                val desc = sanitizeCsv("Settlement to ${set.toUid}")
-                writer.append("Settlement,$dateStr,$desc,Settlement,${set.amount},${set.currency},${set.fromUid},EQUAL\n")
+                // Settlements
+                settlements.forEach { set ->
+                    val dateStr = try { dateFormat.format(set.date.toDate()) } catch (e: Exception) { "" }
+                    val desc = sanitizeCsv("Settlement to ${set.toUid}")
+                    writer.append("Settlement,$dateStr,$desc,Settlement,${set.amount},${set.currency},${set.fromUid},EQUAL\n")
+                }
             }
         }
 

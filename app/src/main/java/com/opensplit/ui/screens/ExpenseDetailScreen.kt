@@ -88,7 +88,8 @@ fun ExpenseDetailScreen(
                         SimpleDateFormat("MMM d, yyyy", Locale.getDefault()).format(exp.date.toDate())
                     }
                     val nameOf: (String) -> String = { uid ->
-                        detailState.memberNames[uid] ?: uid.take(6)
+                        if (uid == viewModel.currentUserId) "You"
+                        else detailState.memberNames[uid]?.ifBlank { null } ?: uid.take(6)
                     }
 
                     Column(
@@ -264,7 +265,8 @@ fun ExpenseDetailScreen(
                             ) {
                                 Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                                     exp.history.takeLast(5).reversed().forEach { change ->
-                                        val who = detailState.memberNames[change.uid] ?: "Someone"
+                                        val who = if (change.uid == viewModel.currentUserId) "You"
+                                            else detailState.memberNames[change.uid]?.ifBlank { null } ?: "Someone"
                                         val whenStr = SimpleDateFormat("MMM d, h:mm a", Locale.getDefault()).format(change.timestamp.toDate())
                                         Text("$who · $whenStr", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                                         change.changes.forEach { line ->

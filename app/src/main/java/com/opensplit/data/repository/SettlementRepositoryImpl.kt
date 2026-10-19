@@ -26,23 +26,27 @@ class SettlementRepositoryImpl(
                         trySend(emptyList())
                         return@addSnapshotListener
                     }
-                    val settlements = snapshot?.documents?.mapNotNull { it.toObject(Settlement::class.java)?.copy(id = it.id) } ?: emptyList()
+                    val settlements = snapshot?.documents?.mapNotNull { 
+                        it.toObject(Settlement::class.java)?.copy(id = it.id, groupId = groupId) 
+                    } ?: emptyList()
                     trySend(settlements)
                 }
             awaitClose { listener.remove() }
         }.onStart { emit(emptyList<Settlement>()) }
 
         return combine(firestoreFlow, com.opensplit.data.local.InMemoryDataStore.settlements) { remote, local ->
-            val groupLocal = local.filter { it.fromUid.isNotBlank() }
+            val groupLocal = local.filter { (it.groupId.isEmpty() || it.groupId == groupId) && it.fromUid.isNotBlank() }
             (remote + groupLocal).distinctBy { it.id }.sortedByDescending { it.date }
         }
     }
 
     override suspend fun addSettlement(groupId: String, settlement: Settlement): Result<String> {
         return try {
+            val docId = if (settlement.id.isNotBlank()) settlement.id else firestore.collection("groups").document(groupId).collection("settlements").document().id
+            val settlementWithId = settlement.copy(id = docId, groupId = groupId)
             val docRef = firestore.collection("groups").document(groupId)
-                .collection("settlements").document()
-            docRef.set(settlement).awaitWrite()
+                .collection("settlements").document(docId)
+            docRef.set(settlementWithId).awaitWrite()
 
             activityRepository.logActivity(
                 groupId,

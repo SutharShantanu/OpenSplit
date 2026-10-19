@@ -25,4 +25,7 @@ google-services.json
 # Agent configs and design prototypes
 .agents
 .stitch_inventory/
-
+artifacts/
+skills-lock.json
+.idea/
+gradle/gradle-daemon-jvm.properties

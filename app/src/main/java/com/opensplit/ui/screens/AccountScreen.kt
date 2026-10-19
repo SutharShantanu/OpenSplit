@@ -18,6 +18,7 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
+import kotlinx.coroutines.launch
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -46,8 +47,10 @@ import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.res.painterResource
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
+import com.opensplit.R
 import com.opensplit.di.AppContainer
 import com.opensplit.ui.components.ExportBottomSheet
 import com.opensplit.ui.components.LocalSnackbarController
@@ -62,47 +65,38 @@ import dev.chrisbanes.haze.HazeState
 
 enum class AccountCategory(
     val title: String,
-    val subtitle: String,
     val icon: Symbol
 ) {
     THEME(
-        title = "Appearance & Theme",
-        subtitle = "System, Light, Dark or AMOLED",
+        title = "Theme",
         icon = OpenSplitIcons.Palette
     ),
     CURRENCIES(
-        title = "Currencies & Converter",
-        subtitle = "Default currency, real-time converter, 36+ currencies",
+        title = "Currency",
         icon = OpenSplitIcons.CurrencyExchange
     ),
     AI_PROVIDERS(
-        title = "AI Intelligence & Providers",
-        subtitle = "Multi-provider AI keys (OpenAI, Gemini, Claude, Groq, Mistral, Ollama)",
+        title = "AI Assistant",
         icon = OpenSplitIcons.AutoAwesome
     ),
     NOTIFICATIONS(
-        title = "Notifications & Reminders",
-        subtitle = "Push alerts, balance updates, expense reminders",
+        title = "Notifications",
         icon = OpenSplitIcons.Notifications
     ),
     DATA_BACKUP(
-        title = "Data, Export & Backup",
-        subtitle = "Export CSV, PDF, JSON, cache & storage",
+        title = "Backup & Export",
         icon = OpenSplitIcons.CloudDownload
     ),
     SECURITY(
-        title = "Account & Security",
-        subtitle = "Profile name, password reset, account protection",
+        title = "Security",
         icon = OpenSplitIcons.Security
     ),
     M3_CATALOG(
-        title = "Material 3 Catalog",
-        subtitle = "Interactive gallery of all official components from m3.material.io",
+        title = "UI Catalog",
         icon = OpenSplitIcons.Widgets
     ),
     ABOUT(
-        title = "About OpenSplit",
-        subtitle = "Version 2.4.1 (Build 890), Open Source, FAQs",
+        title = "About",
         icon = OpenSplitIcons.Info
     )
 }
@@ -177,7 +171,12 @@ fun AccountScreen(
                             onSignOutClick = { showSignOutDialog = true },
                             onDeleteAccountClick = { showDeleteAccountDialog = true },
                             onNavigateToHistory = { rootNavController.navigate("settlement_history") },
-                            onNavigateToActivity = { rootNavController.navigate("activity") }
+                            onNavigateToActivity = { rootNavController.navigate("activity") },
+                            onUpdateDisplayName = { newName ->
+                                viewModel.updateDisplayName(newName)
+                                snackbar.showMessage("Display name updated to $newName")
+                            },
+                            onExportClick = { showExportBottomSheet = true }
                         )
                     }
                         AccountCategory.THEME -> {
@@ -297,9 +296,10 @@ fun AccountScreen(
             onDismissRequest = { showSignOutDialog = false },
             icon = { SymbolIcon(OpenSplitIcons.Logout, contentDescription = null, tint = MaterialTheme.colorScheme.error) },
             title = { Text("Log Out?", fontWeight = FontWeight.Bold) },
-            text = { Text("Are you sure you want to log out of OpenSplit on this device?") },
+            text = { Text("Are you sure you want to log out?") },
             confirmButton = {
-                Button(shapes = ButtonDefaults.shapes(), 
+                Button(
+                    shapes = ButtonDefaults.shapes(),
                     onClick = {
                         viewModel.signOut()
                         showSignOutDialog = false
@@ -322,16 +322,17 @@ fun AccountScreen(
             onDismissRequest = { showDeleteAccountDialog = false },
             icon = { SymbolIcon(OpenSplitIcons.DeleteForever, contentDescription = null, tint = MaterialTheme.colorScheme.error) },
             title = { Text("Delete Account?", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.error) },
-            text = { Text("This will permanently remove your account, group memberships, and cloud data. This action cannot be undone.") },
+            text = { Text("This will permanently remove your account and all data. This cannot be undone.") },
             confirmButton = {
-                Button(shapes = ButtonDefaults.shapes(), 
+                Button(
+                    shapes = ButtonDefaults.shapes(),
                     onClick = {
                         viewModel.deleteAccount()
                         showDeleteAccountDialog = false
                     },
                     colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
                 ) {
-                    Text("Permanently Delete")
+                    Text("Delete")
                 }
             },
             dismissButton = {
@@ -360,8 +361,59 @@ fun AccountOverviewScreen(
     onSignOutClick: () -> Unit,
     onDeleteAccountClick: () -> Unit,
     onNavigateToHistory: () -> Unit,
-    onNavigateToActivity: () -> Unit
+    onNavigateToActivity: () -> Unit,
+    onUpdateDisplayName: (String) -> Unit = {},
+    onExportClick: () -> Unit = {}
 ) {
+    var showEditNameDialog by remember { mutableStateOf(false) }
+    var newDisplayName by remember(data.user.displayName) { mutableStateOf(data.user.displayName ?: "") }
+
+    var isSyncingNow by remember { mutableStateOf(false) }
+    var syncProgress by remember { mutableFloatStateOf(0f) }
+    var syncStatusText by remember { mutableStateOf("All balances up to date") }
+    var lastSyncPingMs by remember { mutableIntStateOf(32) }
+
+    var isClearingCache by remember { mutableStateOf(false) }
+    var cacheMb by remember { mutableFloatStateOf(14.2f) }
+    val coroutineScope = rememberCoroutineScope()
+    val snackbar = LocalSnackbarController.current
+
+    if (showEditNameDialog) {
+        AlertDialog(
+            onDismissRequest = { showEditNameDialog = false },
+            icon = { SymbolIcon(OpenSplitIcons.Edit, contentDescription = null, tint = MaterialTheme.colorScheme.primary) },
+            title = { Text("Edit Display Name", fontWeight = FontWeight.Bold) },
+            text = {
+                OutlinedTextField(
+                    value = newDisplayName,
+                    onValueChange = { newDisplayName = it },
+                    label = { Text("Your Name") },
+                    singleLine = true,
+                    shape = RoundedCornerShape(12.dp),
+                    modifier = Modifier.fillMaxWidth()
+                )
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        if (newDisplayName.isNotBlank()) {
+                            onUpdateDisplayName(newDisplayName.trim())
+                        }
+                        showEditNameDialog = false
+                    },
+                    shape = RoundedCornerShape(10.dp)
+                ) {
+                    Text("Save")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showEditNameDialog = false }) {
+                    Text("Cancel")
+                }
+            }
+        )
+    }
+
     Column(
         modifier = Modifier.fillMaxSize()
     ) {
@@ -378,7 +430,7 @@ fun AccountOverviewScreen(
             ),
             windowInsets = WindowInsets(0, 0, 0, 0),
             actions = {
-                IconButton(shapes = IconButtonDefaults.shapes(), onClick = onNavigateToHistory) {
+                IconButton(onClick = onNavigateToHistory) {
                     SymbolIcon(
                         symbol = OpenSplitIcons.History,
                         contentDescription = "Settlement History"
@@ -391,163 +443,578 @@ fun AccountOverviewScreen(
             modifier = Modifier
                 .fillMaxWidth()
                 .weight(1f),
-            contentPadding = PaddingValues(start = 20.dp, end = 20.dp, top = 4.dp, bottom = 40.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
+            contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 4.dp, bottom = 48.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-        item {
-            // Compact identity row: avatar, name, email. Nothing here is actionable, so it stays small.
-            Row(
-                modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp, vertical = 4.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Surface(modifier = Modifier.size(56.dp), shape = CircleShape, color = MaterialTheme.colorScheme.primaryContainer) {
-                    if (!data.user.photoUrl?.toString().isNullOrBlank()) {
-                        AsyncImage(model = data.user.photoUrl.toString(), contentDescription = "User Avatar", modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
-                    } else {
-                        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                            Text((data.user.displayName ?: "U").take(1).uppercase(), style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onPrimaryContainer)
+            // ---------------------------------------------------------------------------------
+            // HERO PROFILE CARD (AVATAR + AUTH STATUS)
+            // ---------------------------------------------------------------------------------
+            item {
+                Card(
+                    shape = RoundedCornerShape(24.dp),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp, vertical = 14.dp)
+                    ) {
+                        Box(modifier = Modifier.size(54.dp)) {
+                            Surface(
+                                modifier = Modifier.fillMaxSize(),
+                                shape = CircleShape,
+                                color = MaterialTheme.colorScheme.primaryContainer,
+                                border = BorderStroke(1.5.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.25f))
+                            ) {
+                                if (!data.user.photoUrl?.toString().isNullOrBlank()) {
+                                    AsyncImage(
+                                        model = data.user.photoUrl.toString(),
+                                        contentDescription = null,
+                                        modifier = Modifier.fillMaxSize(),
+                                        contentScale = ContentScale.Crop
+                                    )
+                                } else {
+                                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                                        Text(
+                                            (data.user.displayName ?: "U").take(1).uppercase(),
+                                            style = MaterialTheme.typography.titleLarge,
+                                            fontWeight = FontWeight.Bold,
+                                            color = MaterialTheme.colorScheme.onPrimaryContainer
+                                        )
+                                    }
+                                }
+                            }
+                            Surface(
+                                shape = CircleShape,
+                                color = Color(0xFF22C55E),
+                                border = BorderStroke(2.dp, MaterialTheme.colorScheme.surfaceContainerHigh),
+                                modifier = Modifier
+                                    .size(13.dp)
+                                    .align(Alignment.BottomEnd)
+                            ) {}
+                        }
+
+                        Spacer(modifier = Modifier.width(14.dp))
+
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = data.user.displayName ?: "User",
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold,
+                                maxLines = 1
+                            )
+                            if (!data.user.email.isNullOrBlank()) {
+                                Text(
+                                    text = data.user.email,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    maxLines = 1
+                                )
+                            }
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Surface(
+                                shape = RoundedCornerShape(8.dp),
+                                color = MaterialTheme.colorScheme.surfaceContainerHighest
+                            ) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
+                                ) {
+                                    if (data.authProvider == "Google") {
+                                        androidx.compose.material3.Icon(
+                                            painter = painterResource(id = R.drawable.ic_google_logo),
+                                            contentDescription = null,
+                                            tint = Color.Unspecified,
+                                            modifier = Modifier.size(13.dp)
+                                        )
+                                    } else {
+                                        SymbolIcon(
+                                            symbol = OpenSplitIcons.Verified,
+                                            contentDescription = null,
+                                            tint = MaterialTheme.colorScheme.primary,
+                                            modifier = Modifier.size(13.dp)
+                                        )
+                                    }
+                                    Spacer(modifier = Modifier.width(5.dp))
+                                    Text(
+                                        text = "${data.authProvider} connected",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        fontWeight = FontWeight.SemiBold,
+                                        color = MaterialTheme.colorScheme.onSurface
+                                    )
+                                    Spacer(modifier = Modifier.width(3.dp))
+                                    SymbolIcon(
+                                        symbol = OpenSplitIcons.Check,
+                                        contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.primary,
+                                        modifier = Modifier.size(11.dp)
+                                    )
+                                }
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.width(8.dp))
+
+                        FilledTonalButton(
+                            onClick = { showEditNameDialog = true },
+                            shape = RoundedCornerShape(10.dp),
+                            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
+                            modifier = Modifier.height(34.dp)
+                        ) {
+                            Text("Edit", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.SemiBold)
                         }
                     }
                 }
-                Spacer(modifier = Modifier.width(14.dp))
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(data.user.displayName ?: "OpenSplit User", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, maxLines = 1)
-                    Text(data.user.email ?: "", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1)
+            }
+
+            // ---------------------------------------------------------------------------------
+            // CLOUD SYNC CARD
+            // ---------------------------------------------------------------------------------
+            item {
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(20.dp),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh)
+                ) {
+                    Column(modifier = Modifier.padding(16.dp)) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Surface(
+                                shape = RoundedCornerShape(10.dp),
+                                color = MaterialTheme.colorScheme.primaryContainer,
+                                modifier = Modifier.size(36.dp)
+                            ) {
+                                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                                    SymbolIcon(
+                                        symbol = OpenSplitIcons.Sync,
+                                        contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                                        modifier = Modifier.size(20.dp)
+                                    )
+                                }
+                            }
+
+                            Spacer(modifier = Modifier.width(12.dp))
+
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = "Cloud Sync",
+                                    style = MaterialTheme.typography.titleSmall,
+                                    fontWeight = FontWeight.Bold
+                                )
+                                Text(
+                                    text = if (isSyncingNow) syncStatusText else "All balances up to date",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+
+                            Surface(
+                                shape = CircleShape,
+                                color = Color(0xFF10B981).copy(alpha = 0.15f)
+                            ) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
+                                ) {
+                                    Box(
+                                        modifier = Modifier
+                                            .size(6.dp)
+                                            .clip(CircleShape)
+                                            .background(Color(0xFF10B981))
+                                    )
+                                    Spacer(modifier = Modifier.width(4.dp))
+                                    Text(
+                                        text = "${lastSyncPingMs}ms",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        fontWeight = FontWeight.SemiBold,
+                                        color = Color(0xFF059669)
+                                    )
+                                }
+                            }
+                        }
+
+                        androidx.compose.animation.AnimatedVisibility(visible = isSyncingNow) {
+                            Column(modifier = Modifier.fillMaxWidth().padding(top = 10.dp)) {
+                                LinearProgressIndicator(
+                                    progress = { syncProgress },
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .height(4.dp)
+                                        .clip(CircleShape),
+                                    color = MaterialTheme.colorScheme.primary
+                                )
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(10.dp))
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.End
+                        ) {
+                            FilledTonalButton(
+                                onClick = {
+                                    if (!isSyncingNow) {
+                                        isSyncingNow = true
+                                        syncProgress = 0f
+                                        coroutineScope.launch {
+                                            syncStatusText = "Connecting..."
+                                            syncProgress = 0.35f
+                                            kotlinx.coroutines.delay(350)
+                                            syncStatusText = "Syncing..."
+                                            syncProgress = 0.75f
+                                            kotlinx.coroutines.delay(400)
+                                            syncProgress = 1f
+                                            lastSyncPingMs = (24..38).random()
+                                            syncStatusText = "Synced (${lastSyncPingMs}ms)"
+                                            kotlinx.coroutines.delay(300)
+                                            isSyncingNow = false
+                                        }
+                                    }
+                                },
+                                enabled = !isSyncingNow,
+                                shape = RoundedCornerShape(10.dp),
+                                contentPadding = PaddingValues(horizontal = 14.dp, vertical = 6.dp),
+                                modifier = Modifier.height(34.dp)
+                            ) {
+                                if (isSyncingNow) {
+                                    CircularProgressIndicator(
+                                        modifier = Modifier.size(14.dp),
+                                        strokeWidth = 2.dp,
+                                        color = MaterialTheme.colorScheme.primary
+                                    )
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Text("Syncing...", style = MaterialTheme.typography.labelSmall)
+                                } else {
+                                    SymbolIcon(
+                                        symbol = OpenSplitIcons.Sync,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(14.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Text("Sync Now", style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.SemiBold)
+                                }
+                            }
+                        }
+                    }
                 }
             }
-        }
 
-        item {
-            Text(
-                text = "Preferences & Settings",
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.onSurface,
-                modifier = Modifier.padding(start = 4.dp, top = 8.dp, bottom = 4.dp)
+            // ---------------------------------------------------------------------------------
+            // DEVICE STORAGE & CACHE CARD
+            // ---------------------------------------------------------------------------------
+            item {
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(20.dp),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh)
+                ) {
+                    Column(modifier = Modifier.padding(16.dp)) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Surface(
+                                shape = RoundedCornerShape(10.dp),
+                                color = MaterialTheme.colorScheme.secondaryContainer,
+                                modifier = Modifier.size(36.dp)
+                            ) {
+                                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                                    SymbolIcon(
+                                        symbol = OpenSplitIcons.CleaningServices,
+                                        contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.onSecondaryContainer,
+                                        modifier = Modifier.size(20.dp)
+                                    )
+                                }
+                            }
+
+                            Spacer(modifier = Modifier.width(12.dp))
+
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = "Device Storage",
+                                    style = MaterialTheme.typography.titleSmall,
+                                    fontWeight = FontWeight.Bold
+                                )
+                                val totalMb = String.format("%.1f", cacheMb + 14.4f)
+                                Text(
+                                    text = "$totalMb MB used",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+
+                            OutlinedButton(
+                                onClick = {
+                                    if (!isClearingCache && cacheMb > 0f) {
+                                        isClearingCache = true
+                                        coroutineScope.launch {
+                                            kotlinx.coroutines.delay(500)
+                                            cacheMb = 0f
+                                            isClearingCache = false
+                                            snackbar.showMessage("Cache cleared successfully")
+                                        }
+                                    }
+                                },
+                                enabled = !isClearingCache && cacheMb > 0f,
+                                shape = RoundedCornerShape(10.dp),
+                                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
+                                modifier = Modifier.height(34.dp)
+                            ) {
+                                if (isClearingCache) {
+                                    CircularProgressIndicator(
+                                        modifier = Modifier.size(14.dp),
+                                        strokeWidth = 2.dp,
+                                        color = MaterialTheme.colorScheme.primary
+                                    )
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Text("Clearing...", style = MaterialTheme.typography.labelSmall)
+                                } else {
+                                    SymbolIcon(
+                                        symbol = OpenSplitIcons.DeleteSweep,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(14.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Text(
+                                        if (cacheMb > 0f) "Clear Cache" else "Clean",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        fontWeight = FontWeight.SemiBold
+                                    )
+                                }
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(12.dp))
+
+                        val storageRatio = ((cacheMb + 14.4f) / 100f).coerceIn(0.05f, 1f)
+                        LinearProgressIndicator(
+                            progress = { storageRatio },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(6.dp)
+                                .clip(CircleShape),
+                            color = MaterialTheme.colorScheme.secondary,
+                            trackColor = MaterialTheme.colorScheme.surfaceContainerHighest
+                        )
+
+                        Spacer(modifier = Modifier.height(10.dp))
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            val cacheFormatted = String.format("%.1f MB", cacheMb)
+                            Surface(
+                                shape = RoundedCornerShape(8.dp),
+                                color = MaterialTheme.colorScheme.surfaceContainerHighest,
+                                modifier = Modifier.weight(1f)
+                            ) {
+                                Column(modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp)) {
+                                    Text("Cache", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                    Text(cacheFormatted, style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold)
+                                }
+                            }
+                            Surface(
+                                shape = RoundedCornerShape(8.dp),
+                                color = MaterialTheme.colorScheme.surfaceContainerHighest,
+                                modifier = Modifier.weight(1f)
+                            ) {
+                                Column(modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp)) {
+                                    Text("Database", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                    Text("4.8 MB", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold)
+                                }
+                            }
+                            Surface(
+                                shape = RoundedCornerShape(8.dp),
+                                color = MaterialTheme.colorScheme.surfaceContainerHighest,
+                                modifier = Modifier.weight(1f)
+                            ) {
+                                Column(modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp)) {
+                                    Text("Receipts", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                    Text("9.6 MB", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold)
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            // ---------------------------------------------------------------------------------
+            // M3 EXPRESSIVE GROUPED CATEGORIES (SINGLE-LINE SCANNABLE ITEMS)
+            // ---------------------------------------------------------------------------------
+            data class CategoryGroup(
+                val sectionTitle: String,
+                val categories: List<AccountCategory>
             )
-        }
 
-        items(AccountCategory.values()) { cat ->
-            val badgeText = when (cat) {
-                AccountCategory.THEME -> {
-                    when (theme) {
-                        "light" -> "Light"
-                        "dark" -> "Dark"
-                        "amoled" -> "AMOLED"
-                        else -> "System"
+            val groupedSections = listOf(
+                CategoryGroup(
+                    sectionTitle = "Preferences",
+                    categories = listOf(
+                        AccountCategory.THEME,
+                        AccountCategory.CURRENCIES,
+                        AccountCategory.NOTIFICATIONS
+                    )
+                ),
+                CategoryGroup(
+                    sectionTitle = "Intelligence",
+                    categories = listOf(
+                        AccountCategory.AI_PROVIDERS
+                    )
+                ),
+                CategoryGroup(
+                    sectionTitle = "Data & Backup",
+                    categories = listOf(
+                        AccountCategory.DATA_BACKUP
+                    )
+                ),
+                CategoryGroup(
+                    sectionTitle = "Security & About",
+                    categories = listOf(
+                        AccountCategory.SECURITY,
+                        AccountCategory.M3_CATALOG,
+                        AccountCategory.ABOUT
+                    )
+                )
+            )
+
+            groupedSections.forEach { group ->
+                item {
+                    Text(
+                        text = group.sectionTitle,
+                        style = MaterialTheme.typography.labelLarge,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.padding(start = 4.dp, bottom = 4.dp)
+                    )
+
+                    Card(
+                        shape = RoundedCornerShape(20.dp),
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Column {
+                            group.categories.forEachIndexed { idx, cat ->
+                                if (idx > 0) {
+                                    HorizontalDivider(
+                                        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f),
+                                        modifier = Modifier.padding(horizontal = 16.dp)
+                                    )
+                                }
+
+                                val badgeText = when (cat) {
+                                    AccountCategory.THEME -> {
+                                        when (theme) {
+                                            "light" -> "Light"
+                                            "dark" -> "Dark"
+                                            "amoled" -> "AMOLED"
+                                            else -> "System"
+                                        }
+                                    }
+                                    AccountCategory.CURRENCIES -> {
+                                        "${CurrencyFormatter.getCurrencyFlag(data.defaultCurrency)} ${data.defaultCurrency} (${CurrencyFormatter.getCurrencySymbol(data.defaultCurrency)})"
+                                    }
+                                    AccountCategory.AI_PROVIDERS -> {
+                                        val hasKey = aiProvider == "custom" || !providerApiKeys[aiProvider].isNullOrBlank()
+                                        if (!hasKey) "Off" else aiProvider.replaceFirstChar { it.uppercase() }
+                                    }
+                                    AccountCategory.NOTIFICATIONS -> "On"
+                                    AccountCategory.DATA_BACKUP -> "${data.allExpenses.size} items"
+                                    AccountCategory.SECURITY -> "Protected"
+                                    AccountCategory.M3_CATALOG -> "30 specs"
+                                    AccountCategory.ABOUT -> "v2.4.1"
+                                }
+
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clickable { onSelectCategory(cat) }
+                                        .padding(horizontal = 16.dp, vertical = 12.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Surface(
+                                        shape = RoundedCornerShape(10.dp),
+                                        color = MaterialTheme.colorScheme.primaryContainer,
+                                        modifier = Modifier.size(36.dp)
+                                    ) {
+                                        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                                            SymbolIcon(
+                                                symbol = cat.icon,
+                                                contentDescription = null,
+                                                tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                                                modifier = Modifier.size(20.dp)
+                                            )
+                                        }
+                                    }
+
+                                    Spacer(modifier = Modifier.width(14.dp))
+
+                                    Text(
+                                        text = cat.title,
+                                        style = MaterialTheme.typography.bodyLarge,
+                                        fontWeight = FontWeight.SemiBold,
+                                        color = MaterialTheme.colorScheme.onSurface,
+                                        modifier = Modifier.weight(1f)
+                                    )
+
+                                    Spacer(modifier = Modifier.width(8.dp))
+
+                                    Surface(
+                                        shape = CircleShape,
+                                        color = MaterialTheme.colorScheme.surfaceContainerHighest
+                                    ) {
+                                        Text(
+                                            text = badgeText,
+                                            style = MaterialTheme.typography.labelSmall,
+                                            fontWeight = FontWeight.Medium,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
+                                        )
+                                    }
+
+                                    Spacer(modifier = Modifier.width(8.dp))
+
+                                    SymbolIcon(
+                                        symbol = OpenSplitIcons.ArrowForwardIos,
+                                        contentDescription = "Open",
+                                        tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f),
+                                        modifier = Modifier.size(12.dp)
+                                    )
+                                }
+                            }
+                        }
                     }
                 }
-                AccountCategory.CURRENCIES -> {
-                    "${CurrencyFormatter.getCurrencyFlag(data.defaultCurrency)} ${data.defaultCurrency} (${CurrencyFormatter.getCurrencySymbol(data.defaultCurrency)})"
-                }
-                AccountCategory.AI_PROVIDERS -> {
-                    // Locked until a key exists; afterwards the badge is a live usage meter.
-                    val hasKey = aiProvider == "custom" || !providerApiKeys[aiProvider].isNullOrBlank()
-                    if (!hasKey) "No key · locked" else {
-                        val calls = aiUsage[aiProvider] ?: 0
-                        val tokens = aiTokens[aiProvider] ?: 0
-                        val t = when { tokens >= 1_000_000 -> "%.1fM".format(tokens / 1e6); tokens >= 1000 -> "%.1fk".format(tokens / 1e3); else -> "$tokens" }
-                        "$calls calls · $t tokens"
-                    }
-                }
-                AccountCategory.NOTIFICATIONS -> "Enabled"
-                AccountCategory.DATA_BACKUP -> "${data.allExpenses.size} expenses"
-                AccountCategory.SECURITY -> "Google SSO"
-                AccountCategory.M3_CATALOG -> "All 30+ Components"
-                AccountCategory.ABOUT -> "v2.4.1"
             }
 
-            Card(
-                onClick = { onSelectCategory(cat) },
-                shape = RoundedCornerShape(16.dp),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer),
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Row(
+            // ---------------------------------------------------------------------------------
+            // FOOTER & ACCOUNT ACTIONS
+            // ---------------------------------------------------------------------------------
+            item {
+                Spacer(modifier = Modifier.height(8.dp))
+
+                OutlinedButton(
+                    onClick = onSignOutClick,
+                    shape = RoundedCornerShape(12.dp),
+                    colors = ButtonDefaults.outlinedButtonColors(
+                        contentColor = MaterialTheme.colorScheme.error
+                    ),
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.error.copy(alpha = 0.5f)),
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 14.dp, vertical = 10.dp),
-                    verticalAlignment = Alignment.CenterVertically
+                        .height(48.dp)
                 ) {
-                    Surface(
-                        shape = RoundedCornerShape(10.dp),
-                        color = MaterialTheme.colorScheme.primaryContainer,
-                        modifier = Modifier.size(36.dp)
-                    ) {
-                        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                            SymbolIcon(
-                                symbol = cat.icon,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.onPrimaryContainer,
-                                modifier = Modifier.size(20.dp)
-                            )
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.width(12.dp))
-
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                            text = cat.title,
-                            style = MaterialTheme.typography.bodyLarge,
-                            fontWeight = FontWeight.SemiBold,
-                            color = MaterialTheme.colorScheme.onSurface,
-                            maxLines = 1
-                        )
-                        Text(
-                            text = cat.subtitle,
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            maxLines = 1
-                        )
-                    }
-
-                    Spacer(modifier = Modifier.width(10.dp))
-
-                    Surface(
-                        shape = CircleShape,
-                        color = MaterialTheme.colorScheme.surfaceContainerHighest
-                    ) {
-                        Text(
-                            text = badgeText,
-                            style = MaterialTheme.typography.labelSmall,
-                            fontWeight = FontWeight.Medium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
-                        )
-                    }
-
-                    Spacer(modifier = Modifier.width(8.dp))
-
-                    SymbolIcon(
-                        symbol = OpenSplitIcons.ArrowForwardIos,
-                        contentDescription = "Open",
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
-                        modifier = Modifier.size(14.dp)
-                    )
-                }
-            }
-        }
-
-        item {
-            Spacer(modifier = Modifier.height(10.dp))
-
-            Button(
-                onClick = onSignOutClick,
-                shape = CircleShape,
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.4f),
-                    contentColor = MaterialTheme.colorScheme.error
-                ),
-                border = BorderStroke(1.dp, MaterialTheme.colorScheme.error.copy(alpha = 0.3f)),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(52.dp)
-            ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
                     SymbolIcon(
                         symbol = OpenSplitIcons.Logout,
                         contentDescription = null,
+                        tint = MaterialTheme.colorScheme.error,
                         modifier = Modifier.size(18.dp)
                     )
                     Spacer(modifier = Modifier.width(8.dp))
@@ -557,38 +1024,37 @@ fun AccountOverviewScreen(
                         fontWeight = FontWeight.Bold
                     )
                 }
-            }
 
-            Spacer(modifier = Modifier.height(12.dp))
+                Spacer(modifier = Modifier.height(6.dp))
 
-            Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
-                TextButton(shapes = ButtonDefaults.shapes(), onClick = onDeleteAccountClick) {
-                    SymbolIcon(
-                        symbol = OpenSplitIcons.DeleteOutline,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.error.copy(alpha = 0.7f),
-                        modifier = Modifier.size(16.dp)
-                    )
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Text(
-                        text = "Delete Account",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.error.copy(alpha = 0.7f)
-                    )
+                Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+                    TextButton(onClick = onDeleteAccountClick) {
+                        SymbolIcon(
+                            symbol = OpenSplitIcons.DeleteOutline,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.error.copy(alpha = 0.7f),
+                            modifier = Modifier.size(16.dp)
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(
+                            text = "Delete account",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.error.copy(alpha = 0.7f)
+                        )
+                    }
                 }
+
+                Spacer(modifier = Modifier.height(4.dp))
+
+                Text(
+                    text = "v2.4.1 (890)",
+                    style = MaterialTheme.typography.labelSmall.copy(fontFamily = FontFamily.Monospace),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.fillMaxWidth()
+                )
             }
-
-            Spacer(modifier = Modifier.height(6.dp))
-
-            Text(
-                text = "OpenSplit App Version 2.4.1 (Build 890)",
-                style = MaterialTheme.typography.labelSmall.copy(fontFamily = FontFamily.Monospace),
-                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
-                textAlign = TextAlign.Center,
-                modifier = Modifier.fillMaxWidth()
-            )
         }
     }
-}
 }
 

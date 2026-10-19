@@ -48,8 +48,9 @@ import com.opensplit.ui.viewmodel.SettleUpViewModel
 @Composable
 fun SettleUpScreen(
     viewModel: SettleUpViewModel,
-    suggestedToUid: String?,
-    suggestedAmount: Double?,
+    suggestedFromUid: String? = null,
+    suggestedToUid: String? = null,
+    suggestedAmount: Double? = null,
     onNavigateBack: () -> Unit
 ) {
     val context = LocalContext.current
@@ -59,7 +60,7 @@ fun SettleUpScreen(
     val snackbar = LocalSnackbarController.current
     val busy = com.opensplit.ui.components.LocalBusy.current
 
-    var fromUid by rememberSaveable { mutableStateOf(currentUserId ?: "") }
+    var fromUid by rememberSaveable { mutableStateOf(suggestedFromUid ?: currentUserId ?: "") }
     var toUid by rememberSaveable { mutableStateOf(suggestedToUid ?: "") }
     var amountText by rememberSaveable { mutableStateOf(suggestedAmount?.let { CurrencyFormatter.format(it, showSymbol = false) } ?: "") }
     var note by rememberSaveable { mutableStateOf("") }
@@ -68,6 +69,7 @@ fun SettleUpScreen(
 
     var isSuccessScreenShown by remember { mutableStateOf(false) }
     var recordedSettlementAmount by remember { mutableStateOf(0.0) }
+    var memberPickerTarget by remember { mutableStateOf<String?>(null) } // "from" or "to"
 
     val displayMembers = remember(members, currentUserId) {
         if (members.isNotEmpty()) members else listOf(
@@ -77,12 +79,21 @@ fun SettleUpScreen(
         )
     }
 
-    LaunchedEffect(displayMembers, currentUserId) {
-        if (fromUid.isEmpty() || displayMembers.none { it.uid == fromUid }) {
-            fromUid = currentUserId?.takeIf { id -> displayMembers.any { it.uid == id } } ?: displayMembers.first().uid
+    LaunchedEffect(members, currentUserId, suggestedFromUid, suggestedToUid, suggestedAmount) {
+        if (members.isNotEmpty()) {
+            if (suggestedFromUid != null && members.any { it.uid == suggestedFromUid }) {
+                fromUid = suggestedFromUid
+            } else if (fromUid.isEmpty() || members.none { it.uid == fromUid }) {
+                fromUid = currentUserId?.takeIf { id -> members.any { it.uid == id } } ?: members.first().uid
+            }
+            if (suggestedToUid != null && suggestedToUid != fromUid && members.any { it.uid == suggestedToUid }) {
+                toUid = suggestedToUid
+            } else if (toUid.isEmpty() || toUid == fromUid || members.none { it.uid == toUid }) {
+                toUid = members.firstOrNull { it.uid != fromUid }?.uid ?: ""
+            }
         }
-        if (toUid.isEmpty() || toUid == fromUid || displayMembers.none { it.uid == toUid }) {
-            toUid = displayMembers.firstOrNull { it.uid != fromUid }?.uid ?: ""
+        if (amountText.isEmpty() && suggestedAmount != null && suggestedAmount > 0) {
+            amountText = CurrencyFormatter.format(suggestedAmount, showSymbol = false)
         }
     }
 
@@ -91,7 +102,7 @@ fun SettleUpScreen(
 
     val currencySymbol = remember(currency) { CurrencyFormatter.getCurrencySymbol(currency) }
 
-    val rawAmount = amountText.toDoubleOrNull() ?: 0.0
+    val rawAmount = amountText.replace(",", "").toDoubleOrNull() ?: 0.0
     var isRecording by remember { mutableStateOf(false) }
     val canSubmit = fromUid.isNotBlank() && toUid.isNotBlank() && fromUid != toUid && rawAmount > 0 && !isRecording
 
@@ -115,16 +126,18 @@ fun SettleUpScreen(
 
     val handleRecordSettlement = {
         if (canSubmit) {
-            // Trigger UPI Payment Intent so UPI apps catch recipient, amount, description
-            try {
-                val recipientVpa = "opensplit@upi"
-                val uriString = "upi://pay?pa=$recipientVpa&pn=${Uri.encode(toUser?.displayName ?: "Recipient")}&am=$rawAmount&tn=${Uri.encode(note.ifBlank { "OpenSplit Settlement" })}&cu=INR"
-                val intent = Intent(Intent.ACTION_VIEW, Uri.parse(uriString))
-                val chooser = Intent.createChooser(intent, "Pay via UPI App")
-                chooser.flags = Intent.FLAG_ACTIVITY_NEW_TASK
-                context.startActivity(chooser)
-            } catch (_: Exception) {
-                // If no UPI app installed or intent fails, fall back gracefully
+            // Trigger UPI Payment Intent ONLY when UPI method is chosen
+            if (method == SettlementMethod.UPI) {
+                try {
+                    val recipientVpa = "opensplit@upi"
+                    val uriString = "upi://pay?pa=$recipientVpa&pn=${Uri.encode(toUser?.displayName ?: "Recipient")}&am=$rawAmount&tn=${Uri.encode(note.ifBlank { "OpenSplit Settlement" })}&cu=INR"
+                    val intent = Intent(Intent.ACTION_VIEW, Uri.parse(uriString))
+                    val chooser = Intent.createChooser(intent, "Pay via UPI App")
+                    chooser.flags = Intent.FLAG_ACTIVITY_NEW_TASK
+                    context.startActivity(chooser)
+                } catch (_: Exception) {
+                    // If no UPI app installed or intent fails, fall back gracefully
+                }
             }
 
             isRecording = true
@@ -147,9 +160,15 @@ fun SettleUpScreen(
 
     if (isSuccessScreenShown) {
         // Successful Settlement Screen
+        val successSubtitle = when {
+            fromUid == currentUserId -> "You paid ${toUser?.displayName ?: "Recipient"}"
+            toUid == currentUserId -> "${fromUser?.displayName ?: "Payer"} paid you"
+            else -> "${fromUser?.displayName ?: "Payer"} paid ${toUser?.displayName ?: "Recipient"}"
+        }
         SettlementSuccessOverlay(
             amount = recordedSettlementAmount,
             currencySymbol = currencySymbol,
+            subtitle = successSubtitle,
             fromName = fromUser?.displayName ?: "Payer",
             toName = toUser?.displayName ?: "Recipient",
             method = method,
@@ -203,10 +222,13 @@ fun SettleUpScreen(
                             horizontalArrangement = Arrangement.SpaceEvenly,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            // Payer Block
+                            // Payer Block (Clickable)
                             Column(
                                 horizontalAlignment = Alignment.CenterHorizontally,
-                                modifier = Modifier.padding(8.dp)
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(12.dp))
+                                    .clickable { memberPickerTarget = "from" }
+                                    .padding(8.dp)
                             ) {
                                 UserAvatar(
                                     name = fromUser?.displayName ?: "Payer",
@@ -221,22 +243,34 @@ fun SettleUpScreen(
                                     color = MaterialTheme.colorScheme.onSurface,
                                     textAlign = TextAlign.Center
                                 )
+                                Text(
+                                    text = "Payer (tap to change)",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
                             }
 
-                            // Direction Indicator Pill ("Paying")
+                            // Direction Indicator Pill ("Paying" with swap on tap)
                             Surface(
                                 shape = CircleShape,
-                                color = MaterialTheme.colorScheme.secondaryContainer
+                                color = MaterialTheme.colorScheme.secondaryContainer,
+                                modifier = Modifier
+                                    .clip(CircleShape)
+                                    .clickable {
+                                        val temp = fromUid
+                                        fromUid = toUid
+                                        toUid = temp
+                                    }
                             ) {
                                 Row(
                                     modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
                                     SymbolIcon(
-                                        symbol = OpenSplitIcons.ArrowForward,
-                                        contentDescription = "Paying",
+                                        symbol = OpenSplitIcons.Sync,
+                                        contentDescription = "Swap Payer and Payee",
                                         tint = MaterialTheme.colorScheme.onSecondaryContainer,
-                                        modifier = Modifier.size(18.dp)
+                                        modifier = Modifier.size(16.dp)
                                     )
                                     Spacer(modifier = Modifier.width(4.dp))
                                     Text(
@@ -245,13 +279,23 @@ fun SettleUpScreen(
                                         fontWeight = FontWeight.Bold,
                                         color = MaterialTheme.colorScheme.onSecondaryContainer
                                     )
+                                    Spacer(modifier = Modifier.width(4.dp))
+                                    SymbolIcon(
+                                        symbol = OpenSplitIcons.ArrowForward,
+                                        contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.onSecondaryContainer,
+                                        modifier = Modifier.size(16.dp)
+                                    )
                                 }
                             }
 
-                            // Payee Block
+                            // Payee Block (Clickable)
                             Column(
                                 horizontalAlignment = Alignment.CenterHorizontally,
-                                modifier = Modifier.padding(8.dp)
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(12.dp))
+                                    .clickable { memberPickerTarget = "to" }
+                                    .padding(8.dp)
                             ) {
                                 UserAvatar(
                                     name = toUser?.displayName ?: "Recipient",
@@ -265,6 +309,11 @@ fun SettleUpScreen(
                                     fontWeight = FontWeight.Bold,
                                     color = MaterialTheme.colorScheme.onSurface,
                                     textAlign = TextAlign.Center
+                                )
+                                Text(
+                                    text = "Recipient (tap to change)",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
                             }
                         }
@@ -293,7 +342,7 @@ fun SettleUpScreen(
                             BasicTextField(
                                 value = amountText,
                                 onValueChange = { newValue ->
-                                    if (newValue.all { it.isDigit() || it == '.' }) {
+                                    if (newValue.all { it.isDigit() || it == '.' || it == ',' }) {
                                         amountText = newValue
                                     }
                                 },
@@ -360,6 +409,37 @@ fun SettleUpScreen(
                             shape = MaterialTheme.shapes.medium,
                             modifier = Modifier.fillMaxWidth()
                         )
+
+                        Spacer(modifier = Modifier.height(OpenSplitTokens.SpaceMD))
+
+                        // Payment Method Selector
+                        Text(
+                            text = "PAYMENT METHOD",
+                            style = MaterialTheme.typography.labelSmall,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Spacer(modifier = Modifier.height(OpenSplitTokens.SpaceXS))
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            listOf(
+                                SettlementMethod.UPI to "UPI",
+                                SettlementMethod.CASH to "Cash",
+                                SettlementMethod.BANK_TRANSFER to "Bank",
+                                SettlementMethod.OTHER to "Other"
+                            ).forEach { (m, label) ->
+                                FilterChip(
+                                    selected = method == m,
+                                    onClick = { method = m },
+                                    label = { Text(label) },
+                                    leadingIcon = if (method == m) {
+                                        { SymbolIcon(OpenSplitIcons.Check, contentDescription = null, modifier = Modifier.size(16.dp)) }
+                                    } else null
+                                )
+                            }
+                        }
                     }
                 }
 
@@ -416,6 +496,77 @@ fun SettleUpScreen(
                 }
             } }
         }
+
+        if (memberPickerTarget != null) {
+            val isFrom = memberPickerTarget == "from"
+            AlertDialog(
+                onDismissRequest = { memberPickerTarget = null },
+                title = { Text(if (isFrom) "Select Payer" else "Select Recipient") },
+                text = {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .verticalScroll(rememberScrollState()),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        displayMembers.forEach { m ->
+                            val isSelected = if (isFrom) m.uid == fromUid else m.uid == toUid
+                            Surface(
+                                shape = RoundedCornerShape(12.dp),
+                                color = if (isSelected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clip(RoundedCornerShape(12.dp))
+                                    .clickable {
+                                        if (isFrom) {
+                                            fromUid = m.uid
+                                            if (toUid == m.uid) {
+                                                toUid = displayMembers.firstOrNull { it.uid != m.uid }?.uid ?: ""
+                                            }
+                                        } else {
+                                            toUid = m.uid
+                                            if (fromUid == m.uid) {
+                                                fromUid = displayMembers.firstOrNull { it.uid != m.uid }?.uid ?: ""
+                                            }
+                                        }
+                                        memberPickerTarget = null
+                                    }
+                            ) {
+                                Row(
+                                    modifier = Modifier.padding(12.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    UserAvatar(name = m.displayName, photoUrl = m.photoUrl, size = 40)
+                                    Spacer(modifier = Modifier.width(12.dp))
+                                    Column(modifier = Modifier.weight(1f)) {
+                                        Text(
+                                            text = m.displayName + if (m.uid == currentUserId) " (You)" else "",
+                                            style = MaterialTheme.typography.bodyLarge,
+                                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
+                                        )
+                                        if (m.email.isNotBlank()) {
+                                            Text(
+                                                text = m.email,
+                                                style = MaterialTheme.typography.bodySmall,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                            )
+                                        }
+                                    }
+                                    if (isSelected) {
+                                        SymbolIcon(OpenSplitIcons.Check, contentDescription = "Selected", tint = MaterialTheme.colorScheme.primary)
+                                    }
+                                }
+                            }
+                        }
+                    }
+                },
+                confirmButton = {
+                    TextButton(onClick = { memberPickerTarget = null }) {
+                        Text("Close")
+                    }
+                }
+            )
+        }
     }
 }
 
@@ -423,6 +574,7 @@ fun SettleUpScreen(
 private fun SettlementSuccessOverlay(
     amount: Double,
     currencySymbol: String,
+    subtitle: String,
     fromName: String,
     toName: String,
     method: SettlementMethod,
@@ -479,7 +631,7 @@ private fun SettlementSuccessOverlay(
                 Spacer(modifier = Modifier.height(6.dp))
 
                 Text(
-                    text = "You paid $toName",
+                    text = subtitle,
                     style = MaterialTheme.typography.bodyLarge,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
