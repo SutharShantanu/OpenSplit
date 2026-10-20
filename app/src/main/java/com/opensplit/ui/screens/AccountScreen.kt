@@ -91,10 +91,6 @@ enum class AccountCategory(
         title = "Security",
         icon = OpenSplitIcons.Security
     ),
-    M3_CATALOG(
-        title = "UI Catalog",
-        icon = OpenSplitIcons.Widgets
-    ),
     ABOUT(
         title = "About",
         icon = OpenSplitIcons.Info
@@ -264,11 +260,6 @@ fun AccountScreen(
                                     }
                                 },
                                 onDeleteAccountClick = { showDeleteAccountDialog = true },
-                                onBack = { selectedCategory = null }
-                            )
-                        }
-                        AccountCategory.M3_CATALOG -> {
-                            M3ComponentsCatalogSubScreen(
                                 onBack = { selectedCategory = null }
                             )
                         }
@@ -879,7 +870,6 @@ fun AccountOverviewScreen(
                     sectionTitle = "Security & About",
                     categories = listOf(
                         AccountCategory.SECURITY,
-                        AccountCategory.M3_CATALOG,
                         AccountCategory.ABOUT
                     )
                 )
@@ -928,7 +918,6 @@ fun AccountOverviewScreen(
                                     AccountCategory.NOTIFICATIONS -> "On"
                                     AccountCategory.DATA_BACKUP -> "${data.allExpenses.size} items"
                                     AccountCategory.SECURITY -> "Protected"
-                                    AccountCategory.M3_CATALOG -> "30 specs"
                                     AccountCategory.ABOUT -> "v2.4.1"
                                 }
 
