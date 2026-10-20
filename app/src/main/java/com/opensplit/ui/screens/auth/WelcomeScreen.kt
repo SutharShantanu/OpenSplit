@@ -26,6 +26,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.opensplit.ui.components.GoogleSignInButton
 import com.opensplit.ui.components.LocalSnackbarController
+import com.opensplit.ui.components.responsiveContentWidth
 import com.opensplit.ui.theme.OpenSplitIcons
 import com.opensplit.ui.theme.OpenSplitTokens
 import com.opensplit.ui.viewmodel.AuthUiState
@@ -71,14 +72,20 @@ private fun OnboardingCarousel(
     val pagerState = rememberPagerState(pageCount = { 3 })
     val coroutineScope = rememberCoroutineScope()
 
-    Column(
+    Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(MaterialTheme.colorScheme.surface)
-            .padding(horizontal = 20.dp, vertical = 24.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.SpaceBetween
+            .background(MaterialTheme.colorScheme.surface),
+        contentAlignment = Alignment.Center
     ) {
+        Column(
+            modifier = Modifier
+                .responsiveContentWidth(maxWidth = 520.dp)
+                .fillMaxHeight()
+                .padding(horizontal = 20.dp, vertical = 24.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.SpaceBetween
+        ) {
         // Top row: Skip button
         Row(
             modifier = Modifier
@@ -208,6 +215,7 @@ private fun OnboardingCarousel(
             }
         }
     }
+}
 }
 
 /** SCREEN 02 — Onboarding Slide 1: Track Together */
@@ -477,7 +485,8 @@ private fun LoginView(
 
         Column(
             modifier = Modifier
-                .fillMaxSize()
+                .responsiveContentWidth(maxWidth = 520.dp)
+                .fillMaxHeight()
                 .padding(horizontal = 24.dp, vertical = 40.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.SpaceBetween

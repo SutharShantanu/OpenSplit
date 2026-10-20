@@ -5,6 +5,7 @@ package com.opensplit.ui.screens
 import com.opensplit.ui.theme.Symbol
 import com.opensplit.ui.components.SymbolIcon
 import com.opensplit.ui.components.AppLoadingIndicator
+import com.opensplit.ui.components.responsiveFormWidth
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.text.KeyboardOptions
@@ -67,13 +68,19 @@ fun SetNewPasswordScreen(
     Scaffold(
         topBar = { TopAppBar(title = { Text("Set New Password", fontWeight = FontWeight.Bold) }) }
     ) { padding ->
-        Column(
+        Box(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(padding)
-                .padding(OpenSplitTokens.SpaceLG),
-            verticalArrangement = Arrangement.spacedBy(OpenSplitTokens.SpaceMD)
+                .padding(padding),
+            contentAlignment = Alignment.TopCenter
         ) {
+            Column(
+                modifier = Modifier
+                    .responsiveFormWidth(maxWidth = 540.dp)
+                    .fillMaxHeight()
+                    .padding(OpenSplitTokens.SpaceLG),
+                verticalArrangement = Arrangement.spacedBy(OpenSplitTokens.SpaceMD)
+            ) {
             when {
                 success -> {
                     Column(
@@ -230,4 +237,5 @@ fun SetNewPasswordScreen(
             }
         }
     }
+}
 }

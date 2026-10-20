@@ -41,6 +41,7 @@ import com.opensplit.domain.model.JoinError
 import com.opensplit.domain.model.validate
 import com.opensplit.ui.components.GroupAvatar
 import com.opensplit.ui.components.SymbolIcon
+import com.opensplit.ui.components.responsiveDialogWidth
 import com.opensplit.ui.theme.OpenSplitIcons
 import com.opensplit.ui.theme.OpenSplitTokens
 import java.text.SimpleDateFormat
@@ -89,7 +90,11 @@ fun JoinGroupScreen(
                 }
                 else -> {
                     val l = link!!
-                    Card(shape = OpenSplitTokens.BrandCardShape, colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer), modifier = Modifier.fillMaxWidth()) {
+                    Card(
+                        shape = OpenSplitTokens.BrandCardShape,
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer),
+                        modifier = Modifier.responsiveDialogWidth(maxWidth = 480.dp)
+                    ) {
                         Column(modifier = Modifier.padding(OpenSplitTokens.SpaceXL), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(OpenSplitTokens.SpaceMD)) {
                             GroupAvatar(name = l.groupName, avatarKey = null, size = 72.dp)
                             Text("You're invited to", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)

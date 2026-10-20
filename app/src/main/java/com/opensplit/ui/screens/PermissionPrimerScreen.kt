@@ -5,6 +5,7 @@ package com.opensplit.ui.screens
 import com.opensplit.ui.theme.Symbol
 import com.opensplit.ui.theme.OpenSplitIcons
 import com.opensplit.ui.components.SymbolIcon
+import com.opensplit.ui.components.responsiveDialogWidth
 import android.Manifest
 import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -70,7 +71,7 @@ fun PermissionPrimerScreen(
             contentAlignment = Alignment.Center
         ) {
             Card(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier.responsiveDialogWidth(maxWidth = 520.dp),
                 colors = CardDefaults.cardColors(
                     containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
                 ),
