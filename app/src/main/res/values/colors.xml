@@ -7,4 +7,21 @@
     <color name="teal_700">#FF018786</color>
     <color name="black">#FF000000</color>
     <color name="white">#FFFFFFFF</color>
+
+    <!-- Material 3 Expressive Widget Colors (Light Theme) -->
+    <color name="widget_surface">#FFFFFF</color>
+    <color name="widget_outline">#E3E8EF</color>
+    <color name="widget_text_primary">#1A1C1E</color>
+    <color name="widget_text_secondary">#43474E</color>
+    <color name="widget_text_tertiary">#74777F</color>
+    <color name="widget_pill_bg">#F0F4F9</color>
+    <color name="widget_pill_text">#1A1C1E</color>
+    <color name="widget_pill_icon_tint">#1A1C1E</color>
+    <color name="widget_pill_stroke">#DDE3EA</color>
+    <color name="widget_badge_owed_bg">#E6F7EF</color>
+    <color name="widget_badge_owed_text">#006D44</color>
+    <color name="widget_badge_owe_bg">#FFEDE8</color>
+    <color name="widget_badge_owe_text">#BA1A1A</color>
+    <color name="widget_badge_settled_bg">#EEF2F6</color>
+    <color name="widget_badge_settled_text">#43474E</color>
 </resources>

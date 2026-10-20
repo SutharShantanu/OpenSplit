@@ -20,7 +20,7 @@ import com.google.firebase.firestore.persistentCacheSettings
  * Manual Dependency Injection Container.
  * (Hilt disabled due to AGP 9.1.1 compatibility in this environment)
  */
-class AppContainer(private val applicationContext: Context) {
+class AppContainer(val applicationContext: Context) {
     val firebaseAuth: FirebaseAuth by lazy { FirebaseAuth.getInstance() }
 
     /**

@@ -35,12 +35,14 @@ import com.opensplit.ui.theme.OpenSplitTheme
 class MainActivity : ComponentActivity() {
     private var pendingResetOobCode by mutableStateOf<String?>(null)
     private var pendingJoinToken by mutableStateOf<String?>(null)
+    private var pendingWidgetAction by mutableStateOf<String?>(null)
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         pendingResetOobCode = extractResetOobCode(intent)
         pendingJoinToken = extractJoinToken(intent)
+        pendingWidgetAction = extractWidgetAction(intent)
 
         val appContainer = (application as OpenSplitApp).container
 
@@ -94,7 +96,9 @@ class MainActivity : ComponentActivity() {
                                 pendingResetOobCode = pendingResetOobCode,
                                 onResetOobCodeConsumed = { pendingResetOobCode = null },
                                 pendingJoinToken = pendingJoinToken,
-                                onJoinTokenConsumed = { pendingJoinToken = null }
+                                onJoinTokenConsumed = { pendingJoinToken = null },
+                                pendingWidgetAction = pendingWidgetAction,
+                                onWidgetActionConsumed = { pendingWidgetAction = null }
                             )
                             SnackbarHost(
                                 hostState = snackbarHostState,
@@ -123,6 +127,11 @@ class MainActivity : ComponentActivity() {
         setIntent(intent)
         extractResetOobCode(intent)?.let { pendingResetOobCode = it }
         extractJoinToken(intent)?.let { pendingJoinToken = it }
+        extractWidgetAction(intent)?.let { pendingWidgetAction = it }
+    }
+
+    private fun extractWidgetAction(intent: Intent?): String? {
+        return intent?.getStringExtra(com.opensplit.widget.OpenSplitBalanceWidgetProvider.EXTRA_WIDGET_ACTION)
     }
 
     /** `https://<host>/join/<token>` from a shared invite link. */

@@ -1,0 +1,199 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/widget_balance_root"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:background="@drawable/widget_background_balance"
+    android:clipToOutline="true"
+    android:padding="16dp">
+
+    <!-- Top Header: Logo, App Name, Refresh Button -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center_vertical"
+        android:orientation="horizontal">
+
+        <ImageView
+            android:layout_width="18dp"
+            android:layout_height="18dp"
+            android:src="@drawable/ic_widget_logo"
+            android:contentDescription="@string/app_name" />
+
+        <TextView
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:layout_marginStart="8dp"
+            android:text="@string/app_name"
+            android:textSize="13sp"
+            android:textStyle="bold"
+            android:textColor="@color/widget_text_secondary" />
+
+        <ImageButton
+            android:id="@+id/widget_btn_refresh"
+            android:layout_width="30dp"
+            android:layout_height="30dp"
+            android:background="@drawable/widget_icon_button_bg"
+            android:src="@drawable/ic_widget_refresh"
+            android:tint="@color/widget_pill_icon_tint"
+            android:padding="6dp"
+            android:contentDescription="Refresh balance" />
+    </LinearLayout>
+
+    <!-- Hero Balance Display -->
+    <LinearLayout
+        android:id="@+id/widget_hero_section"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:layout_marginTop="8dp"
+        android:orientation="vertical"
+        android:gravity="center_vertical">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+
+            <TextView
+                android:id="@+id/widget_balance_amount"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="₹0.00"
+                android:textSize="24sp"
+                android:textStyle="bold"
+                android:textColor="@color/widget_text_primary"
+                android:maxLines="1" />
+
+            <TextView
+                android:id="@+id/widget_balance_badge"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:background="@drawable/widget_badge_settled_bg"
+                android:textColor="@color/widget_badge_settled_text"
+                android:text="@string/widget_status_settled"
+                android:textSize="10sp"
+                android:textStyle="bold"
+                android:paddingStart="8dp"
+                android:paddingEnd="8dp"
+                android:paddingTop="3dp"
+                android:paddingBottom="3dp" />
+        </LinearLayout>
+
+        <TextView
+            android:id="@+id/widget_balance_subtext"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="3dp"
+            android:text="All balances are settled"
+            android:textSize="12sp"
+            android:textColor="@color/widget_text_tertiary"
+            android:maxLines="1" />
+    </LinearLayout>
+
+    <!-- Quick Action Expressive Pills -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="40dp"
+        android:layout_marginTop="10dp"
+        android:orientation="horizontal"
+        android:gravity="center">
+
+        <!-- Add Expense -->
+        <LinearLayout
+            android:id="@+id/widget_action_add"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="1"
+            android:background="@drawable/widget_pill_button"
+            android:orientation="horizontal"
+            android:gravity="center"
+            android:paddingStart="4dp"
+            android:paddingEnd="4dp">
+
+            <ImageView
+                android:layout_width="16dp"
+                android:layout_height="16dp"
+                android:src="@drawable/ic_widget_add"
+                android:tint="@color/widget_pill_icon_tint"
+                android:layout_marginEnd="4dp"
+                android:contentDescription="@string/widget_action_add" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/widget_action_add"
+                android:textSize="11sp"
+                android:textStyle="bold"
+                android:textColor="@color/widget_pill_text"
+                android:maxLines="1" />
+        </LinearLayout>
+
+        <!-- Settle Up -->
+        <LinearLayout
+            android:id="@+id/widget_action_settle"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="1"
+            android:layout_marginStart="6dp"
+            android:background="@drawable/widget_pill_button"
+            android:orientation="horizontal"
+            android:gravity="center"
+            android:paddingStart="4dp"
+            android:paddingEnd="4dp">
+
+            <ImageView
+                android:layout_width="16dp"
+                android:layout_height="16dp"
+                android:src="@drawable/ic_widget_settle"
+                android:tint="@color/widget_pill_icon_tint"
+                android:layout_marginEnd="4dp"
+                android:contentDescription="@string/widget_action_settle" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/widget_action_settle"
+                android:textSize="11sp"
+                android:textStyle="bold"
+                android:textColor="@color/widget_pill_text"
+                android:maxLines="1" />
+        </LinearLayout>
+
+        <!-- Scan QR -->
+        <LinearLayout
+            android:id="@+id/widget_action_qr"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="1"
+            android:layout_marginStart="6dp"
+            android:background="@drawable/widget_pill_button"
+            android:orientation="horizontal"
+            android:gravity="center"
+            android:paddingStart="4dp"
+            android:paddingEnd="4dp">
+
+            <ImageView
+                android:layout_width="16dp"
+                android:layout_height="16dp"
+                android:src="@drawable/ic_widget_qr"
+                android:tint="@color/widget_pill_icon_tint"
+                android:layout_marginEnd="4dp"
+                android:contentDescription="@string/widget_action_qr" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/widget_action_qr"
+                android:textSize="11sp"
+                android:textStyle="bold"
+                android:textColor="@color/widget_pill_text"
+                android:maxLines="1" />
+        </LinearLayout>
+    </LinearLayout>
+
+</LinearLayout>

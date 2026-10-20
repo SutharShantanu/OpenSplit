@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Material 3 Expressive Widget Colors (Dark Theme) -->
+    <color name="widget_surface">#1F2124</color>
+    <color name="widget_outline">#33373D</color>
+    <color name="widget_text_primary">#E1E3E6</color>
+    <color name="widget_text_secondary">#C4C7CD</color>
+    <color name="widget_text_tertiary">#8D9199</color>
+    <color name="widget_pill_bg">#2C2F34</color>
+    <color name="widget_pill_text">#E1E3E6</color>
+    <color name="widget_pill_icon_tint">#E1E3E6</color>
+    <color name="widget_pill_stroke">#3D4249</color>
+    <color name="widget_badge_owed_bg">#003822</color>
+    <color name="widget_badge_owed_text">#63DBA2</color>
+    <color name="widget_badge_owe_bg">#410002</color>
+    <color name="widget_badge_owe_text">#FFB4AB</color>
+    <color name="widget_badge_settled_bg">#282A2E</color>
+    <color name="widget_badge_settled_text">#C4C7CD</color>
+</resources>

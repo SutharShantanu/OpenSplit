@@ -1,4 +1,21 @@
 <resources>
     <string name="app_name">OpenSplit</string>
     <string name="default_web_client_id">873815654150-eotijb7o03qe28gp1g5jpmjm2rmjj6b4.apps.googleusercontent.com</string>
+
+    <!-- M3 Expressive Widgets -->
+    <string name="widget_balance_name">OpenSplit Net Balance</string>
+    <string name="widget_balance_description">Track your net balance, what you owe or are owed, and log expenses quickly.</string>
+    <string name="widget_quick_actions_name">OpenSplit Quick Actions</string>
+    <string name="widget_quick_actions_description">1-tap home screen shortcuts to add expenses, settle up, scan QR, and view activity.</string>
+
+    <string name="widget_action_add">+ Expense</string>
+    <string name="widget_action_settle">Settle Up</string>
+    <string name="widget_action_qr">Scan QR</string>
+    <string name="widget_action_activity">Activity</string>
+
+    <string name="widget_status_owed">YOU ARE OWED</string>
+    <string name="widget_status_owe">YOU OWE</string>
+    <string name="widget_status_settled">ALL SETTLED UP</string>
+    <string name="widget_status_not_logged_in">SIGN IN TO VIEW</string>
+    <string name="widget_prompt_sign_in">Tap here to sign in and track your group balances</string>
 </resources>

@@ -131,6 +131,23 @@ class HomeViewModel(private val appContainer: AppContainer) : ViewModel() {
                     nudgeOtherUser = appContainer.userRepository.getUser(otherUid)
                 }
 
+                val net = netByCurrency[defaultCurrency] ?: 0.0
+                val owed = youAreOwedByCurrency[defaultCurrency] ?: 0.0
+                val owe = youOweByCurrency[defaultCurrency] ?: 0.0
+                try {
+                    com.opensplit.widget.WidgetDataHelper.updateFromDashboard(
+                        context = appContainer.applicationContext,
+                        isLoggedIn = true,
+                        displayName = currentUser.displayName,
+                        currencyCode = defaultCurrency,
+                        netBalance = net,
+                        totalOwed = owed,
+                        totalOwe = owe
+                    )
+                } catch (e: Exception) {
+                    // Non-fatal widget update
+                }
+
                 ScreenState.Success(
                     HomeUiState(
                         user = currentUser,

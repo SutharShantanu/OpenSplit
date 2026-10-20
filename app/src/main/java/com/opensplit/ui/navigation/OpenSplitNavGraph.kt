@@ -44,7 +44,9 @@ fun OpenSplitNavGraph(
     pendingResetOobCode: String? = null,
     onResetOobCodeConsumed: () -> Unit = {},
     pendingJoinToken: String? = null,
-    onJoinTokenConsumed: () -> Unit = {}
+    onJoinTokenConsumed: () -> Unit = {},
+    pendingWidgetAction: String? = null,
+    onWidgetActionConsumed: () -> Unit = {}
 ) {
     val authViewModel: AuthViewModel = viewModel(
         factory = ViewModelFactory(appContainer)
@@ -74,7 +76,13 @@ fun OpenSplitNavGraph(
                 AuthNavHost(navController = navController, authViewModel = authViewModel)
             }
             is AuthState.LoggedIn -> {
-                MainNavHost(navController = navController, appContainer = appContainer, authViewModel = authViewModel)
+                MainNavHost(
+                    navController = navController,
+                    appContainer = appContainer,
+                    authViewModel = authViewModel,
+                    pendingWidgetAction = pendingWidgetAction,
+                    onWidgetActionConsumed = onWidgetActionConsumed
+                )
                 // An invite link opened while signed in (or after signing in) lands on the join screen.
                 androidx.compose.runtime.LaunchedEffect(pendingJoinToken) {
                     if (pendingJoinToken != null) {
@@ -99,7 +107,13 @@ fun AuthNavHost(navController: NavHostController, authViewModel: AuthViewModel) 
 
 
 @Composable
-fun MainNavHost(navController: NavHostController, appContainer: AppContainer, authViewModel: AuthViewModel) {
+fun MainNavHost(
+    navController: NavHostController,
+    appContainer: AppContainer,
+    authViewModel: AuthViewModel,
+    pendingWidgetAction: String? = null,
+    onWidgetActionConsumed: () -> Unit = {}
+) {
     val hasCompletedPrimer by appContainer.userPreferencesRepository.hasCompletedPermissionPrimer.collectAsState(initial = true)
     val startDest = if (!hasCompletedPrimer) "permission_primer" else "home"
 
@@ -126,7 +140,12 @@ fun MainNavHost(navController: NavHostController, appContainer: AppContainer, au
             )
         }
         composable("home") {
-            com.opensplit.ui.screens.MainDashboard(appContainer = appContainer, rootNavController = navController)
+            com.opensplit.ui.screens.MainDashboard(
+                appContainer = appContainer,
+                rootNavController = navController,
+                pendingWidgetAction = pendingWidgetAction,
+                onWidgetActionConsumed = onWidgetActionConsumed
+            )
         }
 
         composable("activity") {

@@ -81,7 +81,9 @@ internal fun useNavigationRail(screenWidthDp: Int): Boolean = screenWidthDp >= 6
 @Composable
 fun MainDashboard(
     appContainer: AppContainer,
-    rootNavController: NavHostController
+    rootNavController: NavHostController,
+    pendingWidgetAction: String? = null,
+    onWidgetActionConsumed: () -> Unit = {}
 ) {
     var selectedTab by rememberSaveable { mutableStateOf(DashboardTab.GROUPS) }
     val hazeState = remember { HazeState() }
@@ -133,6 +135,35 @@ fun MainDashboard(
         0 -> snackbar.showMessage("Create a group first")
         1 -> rootNavController.navigate("add_expense/${allGroups.first().id}")
         else -> showAddExpensePicker = true
+    }
+
+    // Handle deep actions from Android 17 M3 home screen widgets
+    androidx.compose.runtime.LaunchedEffect(pendingWidgetAction, allGroups.size) {
+        if (pendingWidgetAction != null) {
+            when (pendingWidgetAction) {
+                com.opensplit.widget.OpenSplitBalanceWidgetProvider.ACTION_ADD_EXPENSE -> {
+                    addExpense()
+                    onWidgetActionConsumed()
+                }
+                com.opensplit.widget.OpenSplitBalanceWidgetProvider.ACTION_SETTLE_UP -> {
+                    when {
+                        allGroups.size == 1 -> rootNavController.navigate("settle_up/${allGroups.first().id}")
+                        allGroups.size > 1 -> showSettleUpPicker = true
+                        else -> snackbar.showMessage("No groups to settle")
+                    }
+                    onWidgetActionConsumed()
+                }
+                com.opensplit.widget.OpenSplitBalanceWidgetProvider.ACTION_SCAN_QR -> {
+                    mainViewModel.ensureFriendLink()
+                    showQrSheet = true
+                    onWidgetActionConsumed()
+                }
+                com.opensplit.widget.OpenSplitQuickActionsWidgetProvider.ACTION_ACTIVITY -> {
+                    selectedTab = DashboardTab.ACTIVITY
+                    onWidgetActionConsumed()
+                }
+            }
+        }
     }
 
     // One contextual FAB per tab; tabs without a primary create action have none.
