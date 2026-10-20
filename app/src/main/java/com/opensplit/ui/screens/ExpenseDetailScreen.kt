@@ -92,9 +92,12 @@ fun ExpenseDetailScreen(
                         else detailState.memberNames[uid]?.ifBlank { null } ?: uid.take(6)
                     }
 
+                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.TopCenter) {
                     Column(
                         modifier = Modifier
                             .fillMaxSize()
+                            .wrapContentWidth(Alignment.CenterHorizontally)
+                            .widthIn(max = 720.dp)
                             .padding(16.dp),
                         verticalArrangement = Arrangement.spacedBy(16.dp)
                     ) {
@@ -340,6 +343,7 @@ fun ExpenseDetailScreen(
                             }
                         }
                     }
+                }
                 }
             }
         }

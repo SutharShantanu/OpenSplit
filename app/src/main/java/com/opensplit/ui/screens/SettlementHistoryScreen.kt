@@ -37,6 +37,7 @@ import com.opensplit.ui.components.AppLoadingIndicator
 import com.opensplit.ui.components.AppSearchBar
 import com.opensplit.ui.components.LocalSnackbarController
 import com.opensplit.ui.components.SymbolIcon
+import com.opensplit.ui.components.responsiveContentWidth
 import com.opensplit.ui.theme.MoneyFontFamily
 import com.opensplit.ui.theme.OpenSplitIcons
 import com.opensplit.ui.theme.OpenSplitTokens
@@ -247,14 +248,20 @@ fun SettlementHistoryScreen(
             )
         }
     ) { innerPadding ->
-        Column(
+        Box(
             modifier = Modifier
                 .fillMaxSize()
                 .background(MaterialTheme.colorScheme.surface)
-                .padding(innerPadding)
-                .padding(horizontal = 20.dp, vertical = 8.dp),
-            verticalArrangement = Arrangement.spacedBy(14.dp)
+                .padding(innerPadding),
+            contentAlignment = Alignment.TopCenter
         ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .responsiveContentWidth(maxWidth = 860.dp)
+                    .padding(horizontal = 20.dp, vertical = 8.dp),
+                verticalArrangement = Arrangement.spacedBy(14.dp)
+            ) {
             // Search Bar
             AppSearchBar(
                 query = searchQuery,
@@ -703,6 +710,7 @@ fun SettlementHistoryScreen(
             }
         }
     }
+}
 
     // Settlement Details Dialog
     inspectSettlement?.let { item ->
@@ -868,6 +876,8 @@ fun SettlementReportBottomSheet(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
+                .wrapContentWidth(Alignment.CenterHorizontally)
+                .widthIn(max = 640.dp)
                 .padding(horizontal = 24.dp)
                 .padding(bottom = 32.dp),
             verticalArrangement = Arrangement.spacedBy(18.dp)

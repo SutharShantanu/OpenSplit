@@ -85,7 +85,13 @@ fun InviteFriendSheet(
     }
 
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)) {
-        Column(modifier = Modifier.fillMaxWidth().padding(horizontal = OpenSplitTokens.SpaceLG).padding(bottom = OpenSplitTokens.SpaceXL), horizontalAlignment = Alignment.CenterHorizontally) {
+        Column(
+            modifier = Modifier
+                .responsiveDialogWidth(maxWidth = 560.dp)
+                .padding(horizontal = OpenSplitTokens.SpaceLG)
+                .padding(bottom = OpenSplitTokens.SpaceXL),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
             Text("Add a friend", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, modifier = Modifier.fillMaxWidth())
             Spacer(Modifier.height(OpenSplitTokens.SpaceSM))
             androidx.compose.material3.PrimaryTabRow(selectedTabIndex = tab, containerColor = Color.Transparent) {

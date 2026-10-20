@@ -130,6 +130,8 @@ fun ActivityScreen(
                 Column(
                     modifier = Modifier
                         .fillMaxSize()
+                        .wrapContentWidth(Alignment.CenterHorizontally)
+                        .widthIn(max = 840.dp)
                         .padding(horizontal = OpenSplitTokens.SpaceLG)
                 ) {
 

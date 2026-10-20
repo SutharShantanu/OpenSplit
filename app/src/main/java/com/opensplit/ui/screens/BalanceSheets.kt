@@ -29,6 +29,7 @@ import com.opensplit.ui.components.HeroBalanceCard
 import com.opensplit.ui.components.StateLayout
 import com.opensplit.ui.components.WalletIllustration
 import com.opensplit.ui.components.getBalanceColor
+import com.opensplit.ui.components.responsiveDialogWidth
 import com.opensplit.ui.theme.OpenSplitIcons
 import com.opensplit.ui.theme.OpenSplitTokens
 import com.opensplit.ui.viewmodel.HomeUiState
@@ -156,7 +157,7 @@ fun BalanceBreakdownSheet(
     ) {
         Column(
             modifier = Modifier
-                .fillMaxWidth()
+                .responsiveDialogWidth(maxWidth = 640.dp)
                 .padding(horizontal = OpenSplitTokens.SpaceLG, vertical = OpenSplitTokens.SpaceMD)
         ) {
             // Header

@@ -28,6 +28,7 @@ import com.opensplit.domain.model.FriendInvite
 import com.opensplit.ui.components.AppSearchBar
 import com.opensplit.ui.components.HandshakeIllustration
 import com.opensplit.ui.components.StateLayout
+import com.opensplit.ui.components.responsiveContentWidth
 import com.opensplit.ui.theme.OpenSplitIcons
 import com.opensplit.ui.theme.OpenSplitTokens
 import com.opensplit.ui.viewmodel.MainViewModel
@@ -60,10 +61,14 @@ fun FriendsScreen(
     val context = LocalContext.current
     val snackbar = LocalSnackbarController.current
 
-    Box(modifier = Modifier.fillMaxSize()) {
+    Box(
+        modifier = Modifier.fillMaxSize(),
+        contentAlignment = Alignment.TopCenter
+    ) {
         Column(
             modifier = Modifier
-                .fillMaxSize()
+                .responsiveContentWidth(maxWidth = 860.dp)
+                .fillMaxHeight()
                 .padding(horizontal = OpenSplitTokens.SpaceLG, vertical = OpenSplitTokens.SpaceMD)
         ) {
         // Friend requests addressed to me
@@ -282,6 +287,7 @@ fun FriendsScreen(
 
                     LazyColumn(
                         verticalArrangement = Arrangement.spacedBy(OpenSplitTokens.SpaceXS),
+                        contentPadding = PaddingValues(bottom = 100.dp),
                         modifier = Modifier.fillMaxSize()
                     ) {
                         items(processedBalances, key = { it.user.uid }) { fb ->

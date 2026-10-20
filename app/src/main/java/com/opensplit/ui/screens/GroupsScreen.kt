@@ -36,6 +36,8 @@ import com.opensplit.domain.model.Group
 import com.opensplit.ui.components.AppSearchBar
 import com.opensplit.ui.components.CreateGroupDialog
 import com.opensplit.ui.components.StateLayout
+import com.opensplit.ui.components.responsiveContentWidth
+import com.opensplit.ui.components.responsiveDialogWidth
 import com.opensplit.ui.components.SwipeAction
 import com.opensplit.ui.components.SwipeActionRow
 import com.opensplit.ui.components.WalletIllustration
@@ -671,7 +673,7 @@ fun GroupsScreen(
         ) {
             Column(
                 modifier = Modifier
-                    .fillMaxWidth()
+                    .responsiveDialogWidth(maxWidth = 560.dp)
                     .padding(horizontal = OpenSplitTokens.SpaceLG, vertical = OpenSplitTokens.SpaceSM)
             ) {
                 Row(
@@ -794,7 +796,7 @@ fun GroupsScreen(
         ) {
             Column(
                 modifier = Modifier
-                    .fillMaxWidth()
+                    .responsiveDialogWidth(maxWidth = 560.dp)
                     .padding(horizontal = OpenSplitTokens.SpaceLG, vertical = OpenSplitTokens.SpaceSM)
             ) {
                 Row(

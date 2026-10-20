@@ -67,6 +67,8 @@ fun PersonBalanceScreen(
                 Column(
                     modifier = Modifier
                         .fillMaxSize()
+                        .wrapContentWidth(Alignment.CenterHorizontally)
+                        .widthIn(max = 720.dp)
                         .padding(horizontal = 16.dp, vertical = 8.dp)
                 ) {
                     // Header card with Friend profile & balance status

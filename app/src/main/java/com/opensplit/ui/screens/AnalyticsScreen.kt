@@ -120,6 +120,8 @@ fun AnalyticsScreen(
                     Column(
                         modifier = Modifier
                             .fillMaxSize()
+                            .wrapContentWidth(Alignment.CenterHorizontally)
+                            .widthIn(max = 860.dp)
                             .verticalScroll(scrollState)
                             .padding(horizontal = OpenSplitTokens.SpaceLG, vertical = OpenSplitTokens.SpaceMD),
                         verticalArrangement = Arrangement.spacedBy(OpenSplitTokens.SpaceMD)

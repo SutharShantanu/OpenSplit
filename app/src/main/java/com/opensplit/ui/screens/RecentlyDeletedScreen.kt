@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -40,6 +41,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
+import com.opensplit.ui.components.responsiveContentWidth
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.ViewModel
@@ -116,11 +118,19 @@ fun RecentlyDeletedScreen(appContainer: AppContainer, onNavigateBack: () -> Unit
             }
             return@Scaffold
         }
-        LazyColumn(
-            modifier = Modifier.fillMaxSize().padding(padding),
-            contentPadding = PaddingValues(horizontal = OpenSplitTokens.SpaceLG, vertical = OpenSplitTokens.SpaceMD),
-            verticalArrangement = Arrangement.spacedBy(OpenSplitTokens.SpaceSM)
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(padding),
+            contentAlignment = Alignment.TopCenter
         ) {
+            LazyColumn(
+                modifier = Modifier
+                    .responsiveContentWidth(maxWidth = 760.dp)
+                    .fillMaxHeight(),
+                contentPadding = PaddingValues(start = OpenSplitTokens.SpaceLG, end = OpenSplitTokens.SpaceLG, top = OpenSplitTokens.SpaceMD, bottom = 100.dp),
+                verticalArrangement = Arrangement.spacedBy(OpenSplitTokens.SpaceSM)
+            ) {
             item {
                 Text("Kept for 90 days after deletion. Restoring puts the expense back into everyone's balances.",
                     style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(bottom = OpenSplitTokens.SpaceXS))
@@ -153,6 +163,7 @@ fun RecentlyDeletedScreen(appContainer: AppContainer, onNavigateBack: () -> Unit
                 }
             }
         }
+    }
     }
 
     pendingPurge?.let { exp ->

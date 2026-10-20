@@ -150,6 +150,8 @@ fun GroupDetailScreen(
                 Column(
                     modifier = Modifier
                         .fillMaxSize()
+                        .wrapContentWidth(Alignment.CenterHorizontally)
+                        .widthIn(max = 900.dp)
                         .appHazeSource(hazeState)
                 ) {
                     // Secondary Tab Row

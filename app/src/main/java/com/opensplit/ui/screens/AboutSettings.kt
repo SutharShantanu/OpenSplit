@@ -7,6 +7,7 @@ import com.opensplit.data.ai.AI_PROVIDERS_CATALOG
 import com.opensplit.data.ai.AiProviderInfo
 import com.opensplit.data.ai.AiFeature
 import com.opensplit.ui.components.SymbolIcon
+import com.opensplit.ui.components.responsiveContentWidth
 import android.content.Intent
 import android.net.Uri
 import android.os.Build
@@ -70,25 +71,31 @@ fun AboutSupportSubScreen(
 ) {
     val context = LocalContext.current
 
-    Column(
-        modifier = Modifier.fillMaxSize()
+    Box(
+        modifier = Modifier.fillMaxSize(),
+        contentAlignment = Alignment.TopCenter
     ) {
-        TopAppBar(
-            title = { Text("About OpenSplit", fontWeight = FontWeight.Bold) },
-            navigationIcon = {
-                IconButton(shapes = IconButtonDefaults.shapes(), onClick = onBack) {
-                    SymbolIcon(OpenSplitIcons.ArrowBack, contentDescription = "Back")
-                }
-            },
-            windowInsets = WindowInsets(0, 0, 0, 0)
-        )
-        LazyColumn(
+        Column(
             modifier = Modifier
-                .fillMaxWidth()
-                .weight(1f),
-            contentPadding = PaddingValues(start = 20.dp, end = 20.dp, top = 8.dp, bottom = 40.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
+                .fillMaxSize()
+                .responsiveContentWidth(maxWidth = 760.dp)
         ) {
+            TopAppBar(
+                title = { Text("About OpenSplit", fontWeight = FontWeight.Bold) },
+                navigationIcon = {
+                    IconButton(shapes = IconButtonDefaults.shapes(), onClick = onBack) {
+                        SymbolIcon(OpenSplitIcons.ArrowBack, contentDescription = "Back")
+                    }
+                },
+                windowInsets = WindowInsets(0, 0, 0, 0)
+            )
+            LazyColumn(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(1f),
+                contentPadding = PaddingValues(start = 20.dp, end = 20.dp, top = 8.dp, bottom = 100.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
             item {
                 Card(
                     modifier = Modifier.fillMaxWidth(),
@@ -177,4 +184,5 @@ fun AboutSupportSubScreen(
             }
         }
     }
+}
 }

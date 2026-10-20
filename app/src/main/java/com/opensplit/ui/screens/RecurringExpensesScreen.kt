@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -46,6 +47,7 @@ import com.opensplit.domain.model.Expense
 import com.opensplit.domain.model.Group
 import com.opensplit.ui.components.LocalSnackbarController
 import com.opensplit.ui.components.SymbolIcon
+import com.opensplit.ui.components.responsiveContentWidth
 import com.opensplit.ui.components.getCategoryColor
 import com.opensplit.ui.components.getCategoryIcon
 import com.opensplit.ui.theme.OpenSplitIcons
@@ -136,15 +138,24 @@ fun RecurringExpensesScreen(
             return@Scaffold
         }
         val mine = items.filter { it.setUpByMe }; val others = items.filterNot { it.setUpByMe }
-        LazyColumn(
-            modifier = Modifier.fillMaxSize().padding(padding),
-            contentPadding = PaddingValues(horizontal = OpenSplitTokens.SpaceLG, vertical = OpenSplitTokens.SpaceMD),
-            verticalArrangement = Arrangement.spacedBy(OpenSplitTokens.SpaceSM)
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(padding),
+            contentAlignment = Alignment.TopCenter
         ) {
-            if (mine.isNotEmpty()) item { SectionLabel("Set up by you") }
-            items(mine, key = { it.expense.id }) { RecurringRow(it, dateFmt, viewModel, snackbar::showMessage, onOpenExpense, canEdit = true) }
-            if (others.isNotEmpty()) item { SectionLabel("Set up by others") }
-            items(others, key = { it.expense.id }) { RecurringRow(it, dateFmt, viewModel, snackbar::showMessage, onOpenExpense, canEdit = false) }
+            LazyColumn(
+                modifier = Modifier
+                    .responsiveContentWidth(maxWidth = 760.dp)
+                    .fillMaxHeight(),
+                contentPadding = PaddingValues(start = OpenSplitTokens.SpaceLG, end = OpenSplitTokens.SpaceLG, top = OpenSplitTokens.SpaceMD, bottom = 100.dp),
+                verticalArrangement = Arrangement.spacedBy(OpenSplitTokens.SpaceSM)
+            ) {
+                if (mine.isNotEmpty()) item { SectionLabel("Set up by you") }
+                items(mine, key = { it.expense.id }) { RecurringRow(it, dateFmt, viewModel, snackbar::showMessage, onOpenExpense, canEdit = true) }
+                if (others.isNotEmpty()) item { SectionLabel("Set up by others") }
+                items(others, key = { it.expense.id }) { RecurringRow(it, dateFmt, viewModel, snackbar::showMessage, onOpenExpense, canEdit = false) }
+            }
         }
     }
 }

@@ -47,6 +47,8 @@ fun FilterAndSortBottomSheet(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
+                .wrapContentWidth(Alignment.CenterHorizontally)
+                .widthIn(max = 560.dp)
                 .padding(horizontal = OpenSplitTokens.SpaceLG)
                 .padding(bottom = OpenSplitTokens.SpaceXXL)
         ) {

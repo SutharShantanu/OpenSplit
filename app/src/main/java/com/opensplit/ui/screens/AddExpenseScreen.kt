@@ -58,6 +58,8 @@ import com.opensplit.domain.model.RecurrenceRule
 import com.opensplit.domain.model.SplitType
 import com.opensplit.ui.components.CategoryChipRow
 import com.opensplit.ui.components.StateLayout
+import com.opensplit.ui.components.responsiveDialogWidth
+import com.opensplit.ui.components.responsiveFormWidth
 import com.opensplit.ui.theme.OpenSplitIcons
 import com.opensplit.ui.viewmodel.ScreenState
 import com.opensplit.ui.theme.OpenSplitTokens
@@ -270,26 +272,28 @@ fun AddExpenseScreen(
             var showReceiptSource by remember { mutableStateOf(false) }
             if (showReceiptSource) {
                 androidx.compose.material3.ModalBottomSheet(onDismissRequest = { showReceiptSource = false }) {
-                    Text("Add receipt", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp))
-                    listOf(
-                        Triple(OpenSplitIcons.CameraAlt, "Take a photo", {
-                            showReceiptSource = false
-                            if (androidx.core.content.ContextCompat.checkSelfPermission(context, android.Manifest.permission.CAMERA) == android.content.pm.PackageManager.PERMISSION_GRANTED) openCamera()
-                            else cameraPermission.launch(android.Manifest.permission.CAMERA)
-                        }),
-                        Triple(OpenSplitIcons.PhotoLibrary, "Choose from gallery", {
-                            showReceiptSource = false
-                            galleryPicker.launch(androidx.activity.result.PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
-                        }),
-                        Triple(OpenSplitIcons.AttachFile, "Browse files", { showReceiptSource = false; filePicker.launch("image/*") })
-                    ).forEach { (icon, label, action) ->
-                        androidx.compose.material3.ListItem(
-                            headlineContent = { Text(label) },
-                            leadingContent = { SymbolIcon(icon, contentDescription = null) },
-                            modifier = Modifier.clickable(onClick = action)
-                        )
+                    Column(modifier = Modifier.responsiveDialogWidth(maxWidth = 520.dp)) {
+                        Text("Add receipt", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp))
+                        listOf(
+                            Triple(OpenSplitIcons.CameraAlt, "Take a photo", {
+                                showReceiptSource = false
+                                if (androidx.core.content.ContextCompat.checkSelfPermission(context, android.Manifest.permission.CAMERA) == android.content.pm.PackageManager.PERMISSION_GRANTED) openCamera()
+                                else cameraPermission.launch(android.Manifest.permission.CAMERA)
+                            }),
+                            Triple(OpenSplitIcons.PhotoLibrary, "Choose from gallery", {
+                                showReceiptSource = false
+                                galleryPicker.launch(androidx.activity.result.PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
+                            }),
+                            Triple(OpenSplitIcons.AttachFile, "Browse files", { showReceiptSource = false; filePicker.launch("image/*") })
+                        ).forEach { (icon, label, action) ->
+                            androidx.compose.material3.ListItem(
+                                headlineContent = { Text(label) },
+                                leadingContent = { SymbolIcon(icon, contentDescription = null) },
+                                modifier = Modifier.clickable(onClick = action)
+                            )
+                        }
+                        Spacer(Modifier.height(24.dp))
                     }
-                    Spacer(Modifier.height(24.dp))
                 }
             }
 
@@ -384,6 +388,8 @@ fun AddExpenseScreen(
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
+                    .wrapContentWidth(Alignment.CenterHorizontally)
+                    .widthIn(max = 680.dp)
                     .verticalScroll(rememberScrollState())
                     .padding(horizontal = OpenSplitTokens.SpaceLG, vertical = OpenSplitTokens.SpaceMD),
                 verticalArrangement = Arrangement.spacedBy(OpenSplitTokens.SpaceMD)

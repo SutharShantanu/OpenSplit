@@ -98,7 +98,7 @@ fun CreateGroupDialog(
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)) {
         Column(
             modifier = Modifier
-                .fillMaxWidth()
+                .responsiveDialogWidth(maxWidth = 580.dp)
                 .verticalScroll(rememberScrollState())
                 .padding(horizontal = OpenSplitTokens.SpaceLG)
                 .padding(bottom = OpenSplitTokens.SpaceXL),

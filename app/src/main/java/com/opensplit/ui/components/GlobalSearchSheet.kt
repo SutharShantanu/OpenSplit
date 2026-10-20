@@ -155,6 +155,8 @@ fun GlobalSearchSheet(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
+                .wrapContentWidth(Alignment.CenterHorizontally)
+                .widthIn(max = 680.dp)
                 .fillMaxHeight(0.9f)
                 .padding(horizontal = OpenSplitTokens.SpaceLG)
         ) {

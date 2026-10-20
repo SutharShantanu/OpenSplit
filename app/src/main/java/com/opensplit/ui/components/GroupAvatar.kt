@@ -106,7 +106,7 @@ fun GroupAvatarPickerSheet(
     ModalBottomSheet(onDismissRequest = onDismiss) {
         Column(
             modifier = Modifier
-                .fillMaxWidth()
+                .responsiveDialogWidth(maxWidth = 560.dp)
                 .padding(horizontal = OpenSplitTokens.SpaceLG)
                 .padding(bottom = OpenSplitTokens.SpaceXL),
             verticalArrangement = Arrangement.spacedBy(OpenSplitTokens.SpaceMD)

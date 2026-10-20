@@ -193,9 +193,12 @@ fun SettleUpScreen(
             }
         ) { padding ->
             com.opensplit.ui.components.FormLock(locked = isRecording, modifier = Modifier.fillMaxSize().padding(padding)) {
+            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.TopCenter) {
             Column(
                 modifier = Modifier
                     .fillMaxSize()
+                    .wrapContentWidth(Alignment.CenterHorizontally)
+                    .widthIn(max = 680.dp)
                     .verticalScroll(rememberScrollState())
                     .padding(OpenSplitTokens.SpaceLG),
                 verticalArrangement = Arrangement.spacedBy(OpenSplitTokens.SpaceLG)
@@ -494,7 +497,7 @@ fun SettleUpScreen(
                         fontWeight = FontWeight.Bold
                     )
                 }
-            } }
+            } } }
         }
 
         if (memberPickerTarget != null) {

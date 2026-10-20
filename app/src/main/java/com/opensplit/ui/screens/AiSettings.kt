@@ -5,6 +5,7 @@ package com.opensplit.ui.screens
 import android.content.Intent
 import android.net.Uri
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -53,6 +54,7 @@ import androidx.compose.ui.unit.dp
 import com.opensplit.data.ai.AI_PROVIDERS_CATALOG
 import com.opensplit.data.ai.AiFeature
 import com.opensplit.data.ai.AiProviderInfo
+import com.opensplit.ui.components.responsiveContentWidth
 import com.opensplit.data.ai.AiService
 import com.opensplit.ui.components.SymbolIcon
 import com.opensplit.ui.theme.OpenSplitIcons
@@ -116,18 +118,26 @@ fun AiProvidersSubScreen(
         )
     }
 
-    Column(modifier = Modifier.fillMaxSize()) {
-        TopAppBar(
-            title = { Text("AI", fontWeight = FontWeight.Bold) },
-            navigationIcon = { IconButton(shapes = IconButtonDefaults.shapes(), onClick = onBack) { SymbolIcon(OpenSplitIcons.ArrowBack, contentDescription = "Back") } },
-            actions = { Switch(checked = aiEnabled, onCheckedChange = onToggleAi, modifier = Modifier.padding(end = 12.dp)) },
-            windowInsets = WindowInsets(0, 0, 0, 0)
-        )
-        LazyColumn(
-            modifier = Modifier.fillMaxWidth().weight(1f),
-            contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 4.dp, bottom = 32.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
+    Box(
+        modifier = Modifier.fillMaxSize(),
+        contentAlignment = Alignment.TopCenter
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .responsiveContentWidth(maxWidth = 760.dp)
         ) {
+            TopAppBar(
+                title = { Text("AI", fontWeight = FontWeight.Bold) },
+                navigationIcon = { IconButton(shapes = IconButtonDefaults.shapes(), onClick = onBack) { SymbolIcon(OpenSplitIcons.ArrowBack, contentDescription = "Back") } },
+                actions = { Switch(checked = aiEnabled, onCheckedChange = onToggleAi, modifier = Modifier.padding(end = 12.dp)) },
+                windowInsets = WindowInsets(0, 0, 0, 0)
+            )
+            LazyColumn(
+                modifier = Modifier.fillMaxWidth().weight(1f),
+                contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 4.dp, bottom = 100.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
             item {
                 Card(shape = RoundedCornerShape(20.dp), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer), modifier = Modifier.fillMaxWidth()) {
                     Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -268,4 +278,5 @@ fun AiProvidersSubScreen(
             }
         }
     }
+}
 }

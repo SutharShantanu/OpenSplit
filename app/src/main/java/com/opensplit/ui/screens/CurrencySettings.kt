@@ -18,6 +18,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.opensplit.ui.components.SymbolIcon
+import com.opensplit.ui.components.responsiveContentWidth
 import com.opensplit.ui.theme.OpenSplitIcons
 import com.opensplit.util.CurrencyFormatter
 
@@ -50,35 +51,41 @@ fun CurrencySettingsSubScreen(
         }
     }
 
-    Column(
-        modifier = Modifier.fillMaxSize()
+    Box(
+        modifier = Modifier.fillMaxSize(),
+        contentAlignment = Alignment.TopCenter
     ) {
-        TopAppBar(
-            title = {
-                Text(
-                    text = "Currency",
-                    fontWeight = FontWeight.Bold,
-                    style = MaterialTheme.typography.titleLarge
-                )
-            },
-            navigationIcon = {
-                IconButton(shapes = IconButtonDefaults.shapes(), onClick = onBack) {
-                    SymbolIcon(OpenSplitIcons.ArrowBack, contentDescription = "Back")
-                }
-            },
-            colors = TopAppBarDefaults.topAppBarColors(
-                containerColor = Color.Transparent
-            ),
-            windowInsets = WindowInsets(0, 0, 0, 0)
-        )
-
-        LazyColumn(
+        Column(
             modifier = Modifier
-                .fillMaxWidth()
-                .weight(1f),
-            contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 4.dp, bottom = 48.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
+                .fillMaxSize()
+                .responsiveContentWidth(maxWidth = 760.dp)
         ) {
+            TopAppBar(
+                title = {
+                    Text(
+                        text = "Currency",
+                        fontWeight = FontWeight.Bold,
+                        style = MaterialTheme.typography.titleLarge
+                    )
+                },
+                navigationIcon = {
+                    IconButton(shapes = IconButtonDefaults.shapes(), onClick = onBack) {
+                        SymbolIcon(OpenSplitIcons.ArrowBack, contentDescription = "Back")
+                    }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = Color.Transparent
+                ),
+                windowInsets = WindowInsets(0, 0, 0, 0)
+            )
+
+            LazyColumn(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(1f),
+                contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 4.dp, bottom = 100.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
             // ---------------------------------------------------------------------------------
             // 1. ACTIVE DEFAULT CURRENCY HERO CARD
             // ---------------------------------------------------------------------------------
@@ -388,6 +395,7 @@ fun CurrencySettingsSubScreen(
             }
         }
     }
+}
 }
 
 @OptIn(ExperimentalMaterial3Api::class)

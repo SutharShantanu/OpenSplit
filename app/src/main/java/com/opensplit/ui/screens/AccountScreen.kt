@@ -55,6 +55,8 @@ import com.opensplit.di.AppContainer
 import com.opensplit.ui.components.ExportBottomSheet
 import com.opensplit.ui.components.LocalSnackbarController
 import com.opensplit.ui.components.StateLayout
+import com.opensplit.ui.components.responsiveContentWidth
+import com.opensplit.ui.components.responsiveDialogWidth
 import com.opensplit.ui.components.appHazeHeader
 import com.opensplit.ui.components.appHazeSource
 import com.opensplit.ui.theme.OpenSplitIcons
@@ -427,38 +429,44 @@ fun AccountOverviewScreen(
         )
     }
 
-    Column(
-        modifier = Modifier.fillMaxSize()
+    Box(
+        modifier = Modifier.fillMaxSize(),
+        contentAlignment = Alignment.TopCenter
     ) {
-        TopAppBar(
-            title = {
-                Text(
-                    text = "Settings",
-                    fontWeight = FontWeight.Bold,
-                    style = MaterialTheme.typography.titleLarge
-                )
-            },
-            colors = TopAppBarDefaults.topAppBarColors(
-                containerColor = Color.Transparent
-            ),
-            windowInsets = WindowInsets(0, 0, 0, 0),
-            actions = {
-                IconButton(onClick = onNavigateToHistory) {
-                    SymbolIcon(
-                        symbol = OpenSplitIcons.History,
-                        contentDescription = "Settlement History"
-                    )
-                }
-            }
-        )
-
-        LazyColumn(
+        Column(
             modifier = Modifier
-                .fillMaxWidth()
-                .weight(1f),
-            contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 4.dp, bottom = 48.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
+                .fillMaxSize()
+                .responsiveContentWidth(maxWidth = 760.dp)
         ) {
+            TopAppBar(
+                title = {
+                    Text(
+                        text = "Settings",
+                        fontWeight = FontWeight.Bold,
+                        style = MaterialTheme.typography.titleLarge
+                    )
+                },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = Color.Transparent
+                ),
+                windowInsets = WindowInsets(0, 0, 0, 0),
+                actions = {
+                    IconButton(onClick = onNavigateToHistory) {
+                        SymbolIcon(
+                            symbol = OpenSplitIcons.History,
+                            contentDescription = "Settlement History"
+                        )
+                    }
+                }
+            )
+
+            LazyColumn(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(1f),
+                contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 4.dp, bottom = 100.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
             // ---------------------------------------------------------------------------------
             // HERO PROFILE CARD (AVATAR + AUTH STATUS)
             // ---------------------------------------------------------------------------------
@@ -892,6 +900,7 @@ fun AccountOverviewScreen(
         }
     }
 }
+}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -913,6 +922,8 @@ private fun CloudSyncBottomSheet(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
+                .wrapContentWidth(Alignment.CenterHorizontally)
+                .widthIn(max = 560.dp)
                 .padding(horizontal = 24.dp)
                 .padding(bottom = 36.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
@@ -1099,6 +1110,8 @@ private fun DeviceStorageBottomSheet(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
+                .wrapContentWidth(Alignment.CenterHorizontally)
+                .widthIn(max = 560.dp)
                 .padding(horizontal = 24.dp)
                 .padding(bottom = 36.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
