@@ -118,6 +118,8 @@ fun AccountScreen(
     val uiState by viewModel.uiState.collectAsState()
 
     val theme by viewModel.themeFlow.collectAsState(initial = "system")
+    val colorPalette by viewModel.colorPaletteFlow.collectAsState(initial = "dynamic")
+    val amoledPref by viewModel.amoledFlow.collectAsState(initial = false)
     val dynamicColor by viewModel.dynamicColorFlow.collectAsState(initial = Build.VERSION.SDK_INT >= Build.VERSION_CODES.S)
     val notificationsEnabled by viewModel.notificationsEnabledFlow.collectAsState(initial = true)
     val aiProvider by viewModel.aiProviderFlow.collectAsState(initial = "openai")
@@ -166,6 +168,7 @@ fun AccountScreen(
                         AccountOverviewScreen(
                             data = data,
                             theme = theme,
+                            colorPalette = colorPalette,
                             dynamicColor = dynamicColor,
                             aiProvider = aiProvider,
                             providerApiKeys = providerApiKeys,
@@ -183,13 +186,17 @@ fun AccountScreen(
                             onExportClick = { showExportBottomSheet = true }
                         )
                     }
-                        AccountCategory.THEME -> {
-                            AppearanceSettingsSubScreen(
-                                theme = theme,
-                                onThemeChange = { viewModel.setTheme(it) },
-                                onBack = { selectedCategory = null }
-                            )
-                        }
+                    AccountCategory.THEME -> {
+                        AppearanceSettingsSubScreen(
+                            theme = theme,
+                            onThemeChange = { viewModel.setTheme(it) },
+                            palette = colorPalette,
+                            onPaletteChange = { viewModel.setColorPalette(it) },
+                            amoled = amoledPref,
+                            onAmoledChange = { viewModel.setAmoled(it) },
+                            onBack = { selectedCategory = null }
+                        )
+                    }
                         AccountCategory.CURRENCIES -> {
                             CurrencySettingsSubScreen(
                                 defaultCurrency = data.defaultCurrency,
@@ -355,6 +362,7 @@ fun AccountScreen(
 fun AccountOverviewScreen(
     data: AccountUiState,
     theme: String,
+    colorPalette: String = "dynamic",
     dynamicColor: Boolean,
     aiProvider: String,
     providerApiKeys: Map<String, String>,
@@ -653,12 +661,21 @@ fun AccountOverviewScreen(
                                         "${String.format("%.1f", cacheMb + 14.4f)} MB"
                                     }
                                     AccountCategory.THEME -> {
-                                        when (theme) {
+                                        val modeLabel = when (theme) {
                                             "light" -> "Light"
                                             "dark" -> "Dark"
                                             "amoled" -> "AMOLED"
                                             else -> "System"
                                         }
+                                        val palLabel = when (colorPalette) {
+                                            "monochrome" -> "Mono"
+                                            "emerald" -> "Emerald"
+                                            "ocean" -> "Ocean"
+                                            "sunset" -> "Sunset"
+                                            "lavender" -> "Violet"
+                                            else -> "Dynamic"
+                                        }
+                                        "$modeLabel · $palLabel"
                                     }
                                     AccountCategory.CURRENCIES -> {
                                         "${CurrencyFormatter.getCurrencyFlag(data.defaultCurrency)} ${data.defaultCurrency} (${CurrencyFormatter.getCurrencySymbol(data.defaultCurrency)})"

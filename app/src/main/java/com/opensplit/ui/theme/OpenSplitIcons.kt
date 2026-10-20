@@ -194,5 +194,10 @@ object OpenSplitIcons {
     val Sync                   = Symbol(0xe627) // sync
     val Upload                 = Symbol(0xf09b) // upload
     val ContentCopy            = Symbol(0xe14d) // content_copy
+    val Contrast               = Symbol(0xeb37) // contrast
+    val WaterDrop              = Symbol(0xe798) // water_drop
+    val Eco                    = Symbol(0xea35) // eco
+    val WbSunny                = Symbol(0xe518) // wb_sunny
+
 
 }

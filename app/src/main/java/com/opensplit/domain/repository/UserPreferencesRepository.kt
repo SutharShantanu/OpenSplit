@@ -48,6 +48,12 @@ interface UserPreferencesRepository {
     val dynamicColorFlow: Flow<Boolean>
     suspend fun setDynamicColor(enabled: Boolean)
 
+    val colorPaletteFlow: Flow<String>
+    suspend fun setColorPalette(palette: String)
+
+    val amoledFlow: Flow<Boolean>
+    suspend fun setAmoled(enabled: Boolean)
+
     val providerApiKeysFlow: Flow<Map<String, String>>
     suspend fun setProviderApiKey(providerId: String, key: String)
 

@@ -37,10 +37,24 @@ class AccountViewModel(
     val geminiApiKeyFlow = userPreferencesRepository.geminiApiKeyFlow
     val aiProviderFlow = userPreferencesRepository.aiProviderFlow
     val dynamicColorFlow = userPreferencesRepository.dynamicColorFlow
+    val colorPaletteFlow = userPreferencesRepository.colorPaletteFlow
+    val amoledFlow = userPreferencesRepository.amoledFlow
 
     fun setTheme(theme: String) {
         viewModelScope.launch {
             userPreferencesRepository.setTheme(theme)
+        }
+    }
+
+    fun setColorPalette(palette: String) {
+        viewModelScope.launch {
+            userPreferencesRepository.setColorPalette(palette)
+        }
+    }
+
+    fun setAmoled(enabled: Boolean) {
+        viewModelScope.launch {
+            userPreferencesRepository.setAmoled(enabled)
         }
     }
 
