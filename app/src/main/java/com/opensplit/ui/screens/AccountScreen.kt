@@ -75,13 +75,21 @@ enum class AccountCategory(
         title = "Currency",
         icon = OpenSplitIcons.CurrencyExchange
     ),
-    AI_PROVIDERS(
-        title = "AI Assistant",
-        icon = OpenSplitIcons.AutoAwesome
-    ),
     NOTIFICATIONS(
         title = "Notifications",
         icon = OpenSplitIcons.Notifications
+    ),
+    SYNC(
+        title = "Cloud Sync",
+        icon = OpenSplitIcons.Sync
+    ),
+    STORAGE(
+        title = "Device Storage",
+        icon = OpenSplitIcons.CleaningServices
+    ),
+    AI_PROVIDERS(
+        title = "AI Assistant",
+        icon = OpenSplitIcons.AutoAwesome
     ),
     DATA_BACKUP(
         title = "Backup & Export",
@@ -268,6 +276,10 @@ fun AccountScreen(
                                 onBack = { selectedCategory = null }
                             )
                         }
+                        AccountCategory.SYNC,
+                        AccountCategory.STORAGE -> {
+                            selectedCategory = null
+                        }
                     }
                 }
             }
@@ -366,6 +378,8 @@ fun AccountOverviewScreen(
 
     var isClearingCache by remember { mutableStateOf(false) }
     var cacheMb by remember { mutableFloatStateOf(14.2f) }
+    var showSyncBottomSheet by remember { mutableStateOf(false) }
+    var showStorageBottomSheet by remember { mutableStateOf(false) }
     val coroutineScope = rememberCoroutineScope()
     val snackbar = LocalSnackbarController.current
 
@@ -560,282 +574,7 @@ fun AccountOverviewScreen(
                 }
             }
 
-            // ---------------------------------------------------------------------------------
-            // CLOUD SYNC CARD
-            // ---------------------------------------------------------------------------------
-            item {
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(20.dp),
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh)
-                ) {
-                    Column(modifier = Modifier.padding(16.dp)) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Surface(
-                                shape = RoundedCornerShape(10.dp),
-                                color = MaterialTheme.colorScheme.primaryContainer,
-                                modifier = Modifier.size(36.dp)
-                            ) {
-                                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                                    SymbolIcon(
-                                        symbol = OpenSplitIcons.Sync,
-                                        contentDescription = null,
-                                        tint = MaterialTheme.colorScheme.onPrimaryContainer,
-                                        modifier = Modifier.size(20.dp)
-                                    )
-                                }
-                            }
 
-                            Spacer(modifier = Modifier.width(12.dp))
-
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text(
-                                    text = "Cloud Sync",
-                                    style = MaterialTheme.typography.titleSmall,
-                                    fontWeight = FontWeight.Bold
-                                )
-                                Text(
-                                    text = if (isSyncingNow) syncStatusText else "All balances up to date",
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            }
-
-                            Surface(
-                                shape = CircleShape,
-                                color = Color(0xFF10B981).copy(alpha = 0.15f)
-                            ) {
-                                Row(
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
-                                ) {
-                                    Box(
-                                        modifier = Modifier
-                                            .size(6.dp)
-                                            .clip(CircleShape)
-                                            .background(Color(0xFF10B981))
-                                    )
-                                    Spacer(modifier = Modifier.width(4.dp))
-                                    Text(
-                                        text = "${lastSyncPingMs}ms",
-                                        style = MaterialTheme.typography.labelSmall,
-                                        fontWeight = FontWeight.SemiBold,
-                                        color = Color(0xFF059669)
-                                    )
-                                }
-                            }
-                        }
-
-                        androidx.compose.animation.AnimatedVisibility(visible = isSyncingNow) {
-                            Column(modifier = Modifier.fillMaxWidth().padding(top = 10.dp)) {
-                                LinearProgressIndicator(
-                                    progress = { syncProgress },
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .height(4.dp)
-                                        .clip(CircleShape),
-                                    color = MaterialTheme.colorScheme.primary
-                                )
-                            }
-                        }
-
-                        Spacer(modifier = Modifier.height(10.dp))
-
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.End
-                        ) {
-                            FilledTonalButton(
-                                onClick = {
-                                    if (!isSyncingNow) {
-                                        isSyncingNow = true
-                                        syncProgress = 0f
-                                        coroutineScope.launch {
-                                            syncStatusText = "Connecting..."
-                                            syncProgress = 0.35f
-                                            kotlinx.coroutines.delay(350)
-                                            syncStatusText = "Syncing..."
-                                            syncProgress = 0.75f
-                                            kotlinx.coroutines.delay(400)
-                                            syncProgress = 1f
-                                            lastSyncPingMs = (24..38).random()
-                                            syncStatusText = "Synced (${lastSyncPingMs}ms)"
-                                            kotlinx.coroutines.delay(300)
-                                            isSyncingNow = false
-                                        }
-                                    }
-                                },
-                                enabled = !isSyncingNow,
-                                shape = RoundedCornerShape(10.dp),
-                                contentPadding = PaddingValues(horizontal = 14.dp, vertical = 6.dp),
-                                modifier = Modifier.height(34.dp)
-                            ) {
-                                if (isSyncingNow) {
-                                    CircularProgressIndicator(
-                                        modifier = Modifier.size(14.dp),
-                                        strokeWidth = 2.dp,
-                                        color = MaterialTheme.colorScheme.primary
-                                    )
-                                    Spacer(modifier = Modifier.width(6.dp))
-                                    Text("Syncing...", style = MaterialTheme.typography.labelSmall)
-                                } else {
-                                    SymbolIcon(
-                                        symbol = OpenSplitIcons.Sync,
-                                        contentDescription = null,
-                                        modifier = Modifier.size(14.dp)
-                                    )
-                                    Spacer(modifier = Modifier.width(6.dp))
-                                    Text("Sync Now", style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.SemiBold)
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-
-            // ---------------------------------------------------------------------------------
-            // DEVICE STORAGE & CACHE CARD
-            // ---------------------------------------------------------------------------------
-            item {
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(20.dp),
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh)
-                ) {
-                    Column(modifier = Modifier.padding(16.dp)) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Surface(
-                                shape = RoundedCornerShape(10.dp),
-                                color = MaterialTheme.colorScheme.secondaryContainer,
-                                modifier = Modifier.size(36.dp)
-                            ) {
-                                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                                    SymbolIcon(
-                                        symbol = OpenSplitIcons.CleaningServices,
-                                        contentDescription = null,
-                                        tint = MaterialTheme.colorScheme.onSecondaryContainer,
-                                        modifier = Modifier.size(20.dp)
-                                    )
-                                }
-                            }
-
-                            Spacer(modifier = Modifier.width(12.dp))
-
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text(
-                                    text = "Device Storage",
-                                    style = MaterialTheme.typography.titleSmall,
-                                    fontWeight = FontWeight.Bold
-                                )
-                                val totalMb = String.format("%.1f", cacheMb + 14.4f)
-                                Text(
-                                    text = "$totalMb MB used",
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            }
-
-                            OutlinedButton(
-                                onClick = {
-                                    if (!isClearingCache && cacheMb > 0f) {
-                                        isClearingCache = true
-                                        coroutineScope.launch {
-                                            kotlinx.coroutines.delay(500)
-                                            cacheMb = 0f
-                                            isClearingCache = false
-                                            snackbar.showMessage("Cache cleared successfully")
-                                        }
-                                    }
-                                },
-                                enabled = !isClearingCache && cacheMb > 0f,
-                                shape = RoundedCornerShape(10.dp),
-                                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
-                                modifier = Modifier.height(34.dp)
-                            ) {
-                                if (isClearingCache) {
-                                    CircularProgressIndicator(
-                                        modifier = Modifier.size(14.dp),
-                                        strokeWidth = 2.dp,
-                                        color = MaterialTheme.colorScheme.primary
-                                    )
-                                    Spacer(modifier = Modifier.width(6.dp))
-                                    Text("Clearing...", style = MaterialTheme.typography.labelSmall)
-                                } else {
-                                    SymbolIcon(
-                                        symbol = OpenSplitIcons.DeleteSweep,
-                                        contentDescription = null,
-                                        modifier = Modifier.size(14.dp)
-                                    )
-                                    Spacer(modifier = Modifier.width(6.dp))
-                                    Text(
-                                        if (cacheMb > 0f) "Clear Cache" else "Clean",
-                                        style = MaterialTheme.typography.labelSmall,
-                                        fontWeight = FontWeight.SemiBold
-                                    )
-                                }
-                            }
-                        }
-
-                        Spacer(modifier = Modifier.height(12.dp))
-
-                        val storageRatio = ((cacheMb + 14.4f) / 100f).coerceIn(0.05f, 1f)
-                        LinearProgressIndicator(
-                            progress = { storageRatio },
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(6.dp)
-                                .clip(CircleShape),
-                            color = MaterialTheme.colorScheme.secondary,
-                            trackColor = MaterialTheme.colorScheme.surfaceContainerHighest
-                        )
-
-                        Spacer(modifier = Modifier.height(10.dp))
-
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            val cacheFormatted = String.format("%.1f MB", cacheMb)
-                            Surface(
-                                shape = RoundedCornerShape(8.dp),
-                                color = MaterialTheme.colorScheme.surfaceContainerHighest,
-                                modifier = Modifier.weight(1f)
-                            ) {
-                                Column(modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp)) {
-                                    Text("Cache", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                                    Text(cacheFormatted, style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold)
-                                }
-                            }
-                            Surface(
-                                shape = RoundedCornerShape(8.dp),
-                                color = MaterialTheme.colorScheme.surfaceContainerHighest,
-                                modifier = Modifier.weight(1f)
-                            ) {
-                                Column(modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp)) {
-                                    Text("Database", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                                    Text("4.8 MB", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold)
-                                }
-                            }
-                            Surface(
-                                shape = RoundedCornerShape(8.dp),
-                                color = MaterialTheme.colorScheme.surfaceContainerHighest,
-                                modifier = Modifier.weight(1f)
-                            ) {
-                                Column(modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp)) {
-                                    Text("Receipts", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                                    Text("9.6 MB", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold)
-                                }
-                            }
-                        }
-                    }
-                }
-            }
 
             // ---------------------------------------------------------------------------------
             // M3 EXPRESSIVE GROUPED CATEGORIES (SINGLE-LINE SCANNABLE ITEMS)
@@ -846,6 +585,13 @@ fun AccountOverviewScreen(
             )
 
             val groupedSections = listOf(
+                CategoryGroup(
+                    sectionTitle = "Sync & Storage",
+                    categories = listOf(
+                        AccountCategory.SYNC,
+                        AccountCategory.STORAGE
+                    )
+                ),
                 CategoryGroup(
                     sectionTitle = "Preferences",
                     categories = listOf(
@@ -900,6 +646,12 @@ fun AccountOverviewScreen(
                                 }
 
                                 val badgeText = when (cat) {
+                                    AccountCategory.SYNC -> {
+                                        if (isSyncingNow) "Syncing..." else "Synced · ${lastSyncPingMs}ms"
+                                    }
+                                    AccountCategory.STORAGE -> {
+                                        "${String.format("%.1f", cacheMb + 14.4f)} MB"
+                                    }
                                     AccountCategory.THEME -> {
                                         when (theme) {
                                             "light" -> "Light"
@@ -924,7 +676,13 @@ fun AccountOverviewScreen(
                                 Row(
                                     modifier = Modifier
                                         .fillMaxWidth()
-                                        .clickable { onSelectCategory(cat) }
+                                        .clickable {
+                                            when (cat) {
+                                                AccountCategory.SYNC -> showSyncBottomSheet = true
+                                                AccountCategory.STORAGE -> showStorageBottomSheet = true
+                                                else -> onSelectCategory(cat)
+                                            }
+                                        }
                                         .padding(horizontal = 16.dp, vertical = 12.dp),
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
@@ -959,13 +717,33 @@ fun AccountOverviewScreen(
                                         shape = CircleShape,
                                         color = MaterialTheme.colorScheme.surfaceContainerHighest
                                     ) {
-                                        Text(
-                                            text = badgeText,
-                                            style = MaterialTheme.typography.labelSmall,
-                                            fontWeight = FontWeight.Medium,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        Row(
+                                            verticalAlignment = Alignment.CenterVertically,
                                             modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
-                                        )
+                                        ) {
+                                            if (cat == AccountCategory.SYNC && !isSyncingNow) {
+                                                Box(
+                                                    modifier = Modifier
+                                                        .size(6.dp)
+                                                        .clip(CircleShape)
+                                                        .background(Color(0xFF10B981))
+                                                )
+                                                Spacer(modifier = Modifier.width(5.dp))
+                                            } else if (cat == AccountCategory.SYNC && isSyncingNow) {
+                                                CircularProgressIndicator(
+                                                    modifier = Modifier.size(10.dp),
+                                                    strokeWidth = 1.5.dp,
+                                                    color = MaterialTheme.colorScheme.primary
+                                                )
+                                                Spacer(modifier = Modifier.width(5.dp))
+                                            }
+                                            Text(
+                                                text = badgeText,
+                                                style = MaterialTheme.typography.labelSmall,
+                                                fontWeight = FontWeight.Medium,
+                                                color = if (cat == AccountCategory.SYNC && !isSyncingNow) Color(0xFF059669) else MaterialTheme.colorScheme.onSurfaceVariant
+                                            )
+                                        }
                                     }
 
                                     Spacer(modifier = Modifier.width(8.dp))
@@ -1042,6 +820,417 @@ fun AccountOverviewScreen(
                     textAlign = TextAlign.Center,
                     modifier = Modifier.fillMaxWidth()
                 )
+            }
+        }
+
+        if (showSyncBottomSheet) {
+            CloudSyncBottomSheet(
+                isSyncing = isSyncingNow,
+                syncProgress = syncProgress,
+                syncStatusText = syncStatusText,
+                lastSyncPingMs = lastSyncPingMs,
+                userEmail = data.user.email,
+                onDismiss = { showSyncBottomSheet = false },
+                onSyncNow = {
+                    if (!isSyncingNow) {
+                        isSyncingNow = true
+                        syncProgress = 0f
+                        coroutineScope.launch {
+                            syncStatusText = "Connecting..."
+                            syncProgress = 0.35f
+                            kotlinx.coroutines.delay(350)
+                            syncStatusText = "Syncing..."
+                            syncProgress = 0.75f
+                            kotlinx.coroutines.delay(400)
+                            syncProgress = 1f
+                            lastSyncPingMs = (24..38).random()
+                            syncStatusText = "Synced (${lastSyncPingMs}ms)"
+                            kotlinx.coroutines.delay(300)
+                            isSyncingNow = false
+                            snackbar.showMessage("All balances synced with cloud (${lastSyncPingMs}ms)")
+                        }
+                    }
+                }
+            )
+        }
+
+        if (showStorageBottomSheet) {
+            DeviceStorageBottomSheet(
+                cacheMb = cacheMb,
+                isClearing = isClearingCache,
+                onDismiss = { showStorageBottomSheet = false },
+                onClearCache = {
+                    if (!isClearingCache && cacheMb > 0f) {
+                        isClearingCache = true
+                        coroutineScope.launch {
+                            kotlinx.coroutines.delay(500)
+                            val freedMb = cacheMb
+                            cacheMb = 0f
+                            isClearingCache = false
+                            snackbar.showMessage("Cache cleared successfully (freed ${String.format("%.1f", freedMb)} MB)")
+                        }
+                    }
+                }
+            )
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun CloudSyncBottomSheet(
+    isSyncing: Boolean,
+    syncProgress: Float,
+    syncStatusText: String,
+    lastSyncPingMs: Int,
+    userEmail: String?,
+    onDismiss: () -> Unit,
+    onSyncNow: () -> Unit
+) {
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+        containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
+        dragHandle = { BottomSheetDefaults.DragHandle() }
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 24.dp)
+                .padding(bottom = 36.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Surface(
+                    shape = RoundedCornerShape(12.dp),
+                    color = MaterialTheme.colorScheme.primaryContainer,
+                    modifier = Modifier.size(44.dp)
+                ) {
+                    Box(contentAlignment = Alignment.Center) {
+                        SymbolIcon(
+                            symbol = OpenSplitIcons.Sync,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                            modifier = Modifier.size(24.dp)
+                        )
+                    }
+                }
+                Spacer(modifier = Modifier.width(14.dp))
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = "Cloud Sync",
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Text(
+                        text = "Real-time sync across all your devices",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+                IconButton(onClick = onDismiss) {
+                    SymbolIcon(OpenSplitIcons.Close, contentDescription = "Close")
+                }
+            }
+
+            Card(
+                shape = RoundedCornerShape(16.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Column(
+                    modifier = Modifier.padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "Connection Status",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Surface(
+                            shape = CircleShape,
+                            color = Color(0xFF10B981).copy(alpha = 0.15f)
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(6.dp)
+                                        .clip(CircleShape)
+                                        .background(Color(0xFF10B981))
+                                )
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text(
+                                    text = "Connected · ${lastSyncPingMs}ms",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = Color(0xFF059669)
+                                )
+                            }
+                        }
+                    }
+
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f))
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "Sync Account",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Text(
+                            text = userEmail ?: "Google Account",
+                            style = MaterialTheme.typography.bodyMedium,
+                            fontWeight = FontWeight.Medium
+                        )
+                    }
+
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f))
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "Status",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Text(
+                            text = if (isSyncing) syncStatusText else "All balances up to date",
+                            style = MaterialTheme.typography.bodyMedium,
+                            fontWeight = FontWeight.SemiBold,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                    }
+
+                    if (isSyncing) {
+                        LinearProgressIndicator(
+                            progress = { syncProgress },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(4.dp)
+                                .clip(CircleShape),
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                    }
+                }
+            }
+
+            FilledTonalButton(
+                onClick = onSyncNow,
+                enabled = !isSyncing,
+                shape = RoundedCornerShape(12.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(48.dp)
+            ) {
+                if (isSyncing) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(18.dp),
+                        strokeWidth = 2.dp,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("Syncing with cloud...")
+                } else {
+                    SymbolIcon(
+                        symbol = OpenSplitIcons.Sync,
+                        contentDescription = null,
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("Sync Now", fontWeight = FontWeight.SemiBold)
+                }
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun DeviceStorageBottomSheet(
+    cacheMb: Float,
+    isClearing: Boolean,
+    onDismiss: () -> Unit,
+    onClearCache: () -> Unit
+) {
+    val totalMb = String.format("%.1f", cacheMb + 14.4f)
+    val storageRatio = ((cacheMb + 14.4f) / 100f).coerceIn(0.05f, 1f)
+
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+        containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
+        dragHandle = { BottomSheetDefaults.DragHandle() }
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 24.dp)
+                .padding(bottom = 36.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Surface(
+                    shape = RoundedCornerShape(12.dp),
+                    color = MaterialTheme.colorScheme.secondaryContainer,
+                    modifier = Modifier.size(44.dp)
+                ) {
+                    Box(contentAlignment = Alignment.Center) {
+                        SymbolIcon(
+                            symbol = OpenSplitIcons.CleaningServices,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.onSecondaryContainer,
+                            modifier = Modifier.size(24.dp)
+                        )
+                    }
+                }
+                Spacer(modifier = Modifier.width(14.dp))
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = "Device Storage",
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Text(
+                        text = "Local cache, database, and receipt scans",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+                IconButton(onClick = onDismiss) {
+                    SymbolIcon(OpenSplitIcons.Close, contentDescription = "Close")
+                }
+            }
+
+            Card(
+                shape = RoundedCornerShape(16.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Column(
+                    modifier = Modifier.padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "Total App Storage",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Text(
+                            text = "$totalMb MB",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                    }
+
+                    LinearProgressIndicator(
+                        progress = { storageRatio },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(8.dp)
+                            .clip(CircleShape),
+                        color = MaterialTheme.colorScheme.secondary,
+                        trackColor = MaterialTheme.colorScheme.surfaceContainerHighest
+                    )
+
+                    Spacer(modifier = Modifier.height(4.dp))
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        val cacheFormatted = String.format("%.1f MB", cacheMb)
+                        Surface(
+                            shape = RoundedCornerShape(10.dp),
+                            color = MaterialTheme.colorScheme.surfaceContainerHighest,
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Column(modifier = Modifier.padding(10.dp)) {
+                                Text("Cache", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                Spacer(modifier = Modifier.height(2.dp))
+                                Text(cacheFormatted, style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold)
+                            }
+                        }
+                        Surface(
+                            shape = RoundedCornerShape(10.dp),
+                            color = MaterialTheme.colorScheme.surfaceContainerHighest,
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Column(modifier = Modifier.padding(10.dp)) {
+                                Text("Database", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                Spacer(modifier = Modifier.height(2.dp))
+                                Text("4.8 MB", style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold)
+                            }
+                        }
+                        Surface(
+                            shape = RoundedCornerShape(10.dp),
+                            color = MaterialTheme.colorScheme.surfaceContainerHighest,
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Column(modifier = Modifier.padding(10.dp)) {
+                                Text("Receipts", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                Spacer(modifier = Modifier.height(2.dp))
+                                Text("9.6 MB", style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold)
+                            }
+                        }
+                    }
+                }
+            }
+
+            OutlinedButton(
+                onClick = onClearCache,
+                enabled = !isClearing && cacheMb > 0f,
+                shape = RoundedCornerShape(12.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(48.dp)
+            ) {
+                if (isClearing) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(18.dp),
+                        strokeWidth = 2.dp,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("Clearing cache...")
+                } else {
+                    SymbolIcon(
+                        symbol = OpenSplitIcons.DeleteSweep,
+                        contentDescription = null,
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = if (cacheMb > 0f) "Clear Cache (${String.format("%.1f", cacheMb)} MB)" else "Cache is Clean",
+                        fontWeight = FontWeight.SemiBold
+                    )
+                }
             }
         }
     }
