@@ -4,6 +4,7 @@ import android.content.Intent
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.compose.runtime.LaunchedEffect
 import androidx.activity.enableEdgeToEdge
 import androidx.lifecycle.lifecycleScope
 import kotlinx.coroutines.launch
@@ -84,8 +85,10 @@ class MainActivity : ComponentActivity() {
                 CompositionLocalProvider(
                     LocalSnackbarController provides snackbarController,
                     com.opensplit.ui.components.LocalAiService provides appContainer.aiService,
-                    com.opensplit.ui.components.LocalBusy provides busy
+                    com.opensplit.ui.components.LocalBusy provides busy,
+                    com.opensplit.ui.components.LocalAppUpdater provides appContainer.appUpdater
                 ) {
+                    LaunchedEffect(Unit) { appContainer.appUpdater.checkOnLaunch() }
                     Surface(
                         modifier = Modifier.fillMaxSize(),
                         color = MaterialTheme.colorScheme.background
@@ -107,6 +110,7 @@ class MainActivity : ComponentActivity() {
                                     .navigationBarsPadding()
                                     .imePadding()
                             )
+                            com.opensplit.ui.components.UpdateSheet(appContainer.appUpdater)
                             com.opensplit.ui.components.BusyPill(
                                 controller = busy,
                                 modifier = Modifier

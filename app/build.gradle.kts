@@ -17,8 +17,11 @@ android {
     applicationId = "open.split_07"
     minSdk = 24
     targetSdk = 36
-    versionCode = 1
-    versionName = "1.0"
+    // CI sets both from the run number (see .github/workflows); local builds stay 1 / baseVersion,
+    // which also tells AppUpdater to skip the automatic update check.
+    val baseVersion = "1.0"
+    versionCode = System.getenv("VERSION_CODE")?.toIntOrNull() ?: 1
+    versionName = System.getenv("VERSION_NAME")?.ifBlank { null } ?: baseVersion
 
     // Host Firebase Auth action links (password reset, etc.) are sent on — see the
     // App Link intent-filter in AndroidManifest.xml.

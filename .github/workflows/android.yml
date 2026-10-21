@@ -68,7 +68,13 @@ jobs:
             echo "No DEBUG_KEYSTORE_BASE64 secret set — generated throwaway keystore (Google Sign-In disabled)."
           fi
 
+      - name: Unit tests
+        run: ./gradlew :app:testDebugUnitTest --stacktrace
+
       - name: Build debug APK
+        env:
+          VERSION_CODE: ${{ github.run_number }}
+          VERSION_NAME: 1.0.${{ github.run_number }}
         run: ./gradlew :app:assembleDebug --stacktrace
 
       - name: Rename APK

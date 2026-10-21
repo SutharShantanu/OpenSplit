@@ -695,7 +695,7 @@ fun AccountOverviewScreen(
                                     AccountCategory.NOTIFICATIONS -> "On"
                                     AccountCategory.DATA_BACKUP -> "${data.allExpenses.size} items"
                                     AccountCategory.SECURITY -> "Protected"
-                                    AccountCategory.ABOUT -> "v2.4.1"
+                                    AccountCategory.ABOUT -> "v${com.opensplit.BuildConfig.VERSION_NAME}"
                                 }
 
                                 Row(
@@ -839,7 +839,7 @@ fun AccountOverviewScreen(
                 Spacer(modifier = Modifier.height(4.dp))
 
                 Text(
-                    text = "v2.4.1 (890)",
+                    text = "v${com.opensplit.BuildConfig.VERSION_NAME} (${com.opensplit.BuildConfig.VERSION_CODE})",
                     style = MaterialTheme.typography.labelSmall.copy(fontFamily = FontFamily.Monospace),
                     color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
                     textAlign = TextAlign.Center,

@@ -22,6 +22,9 @@ import com.google.firebase.firestore.persistentCacheSettings
  */
 class AppContainer(val applicationContext: Context) {
     val firebaseAuth: FirebaseAuth by lazy { FirebaseAuth.getInstance() }
+    val appUpdater: com.opensplit.data.update.AppUpdater by lazy {
+        com.opensplit.data.update.AppUpdater(applicationContext)
+    }
 
     /**
      * Firestore with offline persistence enabled so the app is usable without a

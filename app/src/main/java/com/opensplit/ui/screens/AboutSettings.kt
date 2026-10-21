@@ -60,6 +60,7 @@ import com.opensplit.ui.viewmodel.AccountUiState
 import com.opensplit.ui.viewmodel.AccountViewModel
 import com.opensplit.util.CurrencyFormatter
 import dev.chrisbanes.haze.HazeState
+import kotlinx.coroutines.launch
 
 /* =========================================================================================
  * 8. SUB-SCREEN: ABOUT & SUPPORT
@@ -70,6 +71,10 @@ fun AboutSupportSubScreen(
     onBack: () -> Unit
 ) {
     val context = LocalContext.current
+    val updater = com.opensplit.ui.components.LocalAppUpdater.current
+    val updateState by updater.state.collectAsState()
+    val snackbar = LocalSnackbarController.current
+    val scope = rememberCoroutineScope()
 
     Box(
         modifier = Modifier.fillMaxSize(),
@@ -131,7 +136,7 @@ fun AboutSupportSubScreen(
                             fontWeight = FontWeight.Bold
                         )
                         Text(
-                            text = "Version 2.4.1 (Build 890)",
+                            text = "Version ${com.opensplit.BuildConfig.VERSION_NAME} (Build ${com.opensplit.BuildConfig.VERSION_CODE})",
                             style = MaterialTheme.typography.labelMedium.copy(fontFamily = FontFamily.Monospace),
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -142,6 +147,54 @@ fun AboutSupportSubScreen(
                             textAlign = TextAlign.Center,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
+                    }
+                }
+            }
+
+            item {
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(24.dp),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh)
+                ) {
+                    val checking = updateState is com.opensplit.data.update.AppUpdater.State.Checking
+                    Surface(
+                        onClick = {
+                            scope.launch {
+                                when (val result = updater.check()) {
+                                    is com.opensplit.data.update.AppUpdater.State.UpToDate ->
+                                        snackbar.showMessage("You're on the latest version")
+                                    is com.opensplit.data.update.AppUpdater.State.Failed ->
+                                        snackbar.showMessage(result.message)
+                                    else -> Unit // Available: UpdateSheet opens from MainActivity
+                                }
+                            }
+                        },
+                        enabled = !checking,
+                        shape = RoundedCornerShape(24.dp),
+                        color = Color.Transparent,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 28.dp, vertical = 20.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            if (checking) {
+                                com.opensplit.ui.components.AppLoadingIndicator(size = 24.dp)
+                            } else {
+                                SymbolIcon(OpenSplitIcons.Refresh, contentDescription = null, modifier = Modifier.size(24.dp))
+                            }
+                            Spacer(modifier = Modifier.width(16.dp))
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text("Check for updates", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold)
+                                Text(
+                                    if (checking) "Contacting GitHub…" else "Installs the latest GitHub release",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                            SymbolIcon(OpenSplitIcons.ArrowForward, contentDescription = null, modifier = Modifier.size(16.dp))
+                        }
                     }
                 }
             }

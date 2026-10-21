@@ -55,7 +55,7 @@ jobs:
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
             TAG="${{ github.event.inputs.tag_name }}"
           elif [ "${{ github.event_name }}" = "workflow_run" ]; then
-            VERSION_NAME=$(grep -oP 'versionName = "\K[^"]+' app/build.gradle.kts)
+            VERSION_NAME=$(grep -oP 'val baseVersion = "\K[^"]+' app/build.gradle.kts)
             TAG="v${VERSION_NAME}.${{ github.event.workflow_run.run_number }}"
           else
             TAG="${GITHUB_REF#refs/tags/}"
@@ -107,6 +107,10 @@ jobs:
           fi
 
       - name: Build Release APK and App Bundle
+        env:
+          # Same number the debug build of this commit used, so nightly N == release v1.0.N.
+          VERSION_CODE: ${{ github.event.workflow_run.run_number || github.run_number }}
+          VERSION_NAME: ${{ env.VERSION }}
         run: ./gradlew :app:assembleRelease :app:bundleRelease --stacktrace
 
       - name: Prepare Release Artifacts
