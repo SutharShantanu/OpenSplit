@@ -189,20 +189,9 @@ class HomeViewModel(private val appContainer: AppContainer) : ViewModel() {
                 memberIds = listOf(uid),
                 avatarKey = avatarKey
             )
-            val result = appContainer.groupRepository.createGroup(newGroup)
-            if (result.isSuccess) {
-                val groupId = result.getOrNull()
-                if (groupId != null) {
-                    appContainer.activityRepository.logActivity(
-                        groupId = groupId,
-                        activity = Activity(
-                            type = com.opensplit.domain.model.ActivityType.GROUP_CREATED,
-                            actorUid = uid,
-                            message = "Created group $name"
-                        )
-                    )
-                }
-            }
+            // GroupRepositoryImpl.createGroup already logs GROUP_CREATED; logging here too
+            // produced the duplicate "created group" rows in the Activity feed.
+            appContainer.groupRepository.createGroup(newGroup)
         }
     }
 

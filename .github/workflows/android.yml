@@ -51,30 +51,38 @@ jobs:
             echo "No GEMINI_API_KEY secret set — using empty string."
           fi
 
-      - name: Generate debug keystore
+      - name: Provide debug keystore
         run: |
           # The debug signing config points at ${rootDir}/debug.keystore (git-ignored).
-          # Recreate it with the standard Android debug credentials so signing succeeds.
-          keytool -genkeypair -v -keystore debug.keystore \
-            -storepass android -keypass android -alias androiddebugkey \
-            -keyalg RSA -keysize 2048 -validity 10000 \
-            -dname "CN=Android Debug,O=Android,C=US"
+          # Use the stable keystore from the DEBUG_KEYSTORE_BASE64 secret so the APK's
+          # SHA-1 matches the one registered in Firebase (Google Sign-In needs this).
+          # Without the secret a throwaway keystore is generated and sign-in won't work.
+          if [ -n "${{ secrets.DEBUG_KEYSTORE_BASE64 }}" ]; then
+            echo "${{ secrets.DEBUG_KEYSTORE_BASE64 }}" | base64 -d > debug.keystore
+            echo "Using DEBUG_KEYSTORE_BASE64 secret."
+          else
+            keytool -genkeypair -v -keystore debug.keystore \
+              -storepass android -keypass android -alias androiddebugkey \
+              -keyalg RSA -keysize 2048 -validity 10000 \
+              -dname "CN=Android Debug,O=Android,C=US"
+            echo "No DEBUG_KEYSTORE_BASE64 secret set — generated throwaway keystore (Google Sign-In disabled)."
+          fi
 
       - name: Build debug APK
         run: ./gradlew :app:assembleDebug --stacktrace
 
       - name: Rename APK
-        run: cp app/build/outputs/apk/debug/app-debug.apk OpenSplit-debug.apk
+        run: cp app/build/outputs/apk/debug/app-debug.apk OpenSplit.apk
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
           name: opensplit-debug-apk
-          path: OpenSplit-debug.apk
+          path: OpenSplit.apk
           if-no-files-found: error
 
       # Publish to a rolling "nightly" Release so there's a permanent download URL:
-      # https://github.com/SutharShantanu/OpenSplit/releases/download/nightly/OpenSplit-debug.apk
+      # https://github.com/SutharShantanu/OpenSplit/releases/download/nightly/OpenSplit.apk
       # Delete first so the release date and the `nightly` tag track the current
       # commit; softprops only swaps assets on an existing release.
       - name: Reset nightly release
@@ -94,9 +102,9 @@ jobs:
 
             Install:
             ```
-            adb install -r OpenSplit-debug.apk
+            adb install -r OpenSplit.apk
             ```
             Note: built with a placeholder Firebase config unless the
             `GOOGLE_SERVICES_JSON` secret is set, so sign-in/sync may not work.
           prerelease: true
-          files: OpenSplit-debug.apk
+          files: OpenSplit.apk

@@ -1,136 +1,264 @@
+<div align="center">
+
 # OpenSplit
 
-A **free, open-source, fully-featured expense-splitting Android app** — a Splitwise
-alternative with **no paid tiers and no locked features**. Everything is free.
+**Free, open-source expense splitting for Android. No paid tier. No locked features.**
 
-Built with **Kotlin**, **Jetpack Compose** (100% **Material 3**), and **Firebase**
-(Auth + Firestore), OpenSplit lets groups of people track shared expenses, split them
-fairly, and settle up.
+Split bills with roommates, trips, and friends. Track who owes whom, settle up with the
+fewest payments, and bring your own AI key for receipt scanning and natural-language entry.
 
-[![Build Debug APK](https://github.com/SutharShantanu/OpenSplit/actions/workflows/android.yml/badge.svg?branch=main)](https://github.com/SutharShantanu/OpenSplit/actions/workflows/android.yml)
+[![Build](https://github.com/SutharShantanu/OpenSplit/actions/workflows/android.yml/badge.svg?branch=main)](https://github.com/SutharShantanu/OpenSplit/actions/workflows/android.yml)
+[![Latest release](https://img.shields.io/github/v/release/SutharShantanu/OpenSplit?label=release)](https://github.com/SutharShantanu/OpenSplit/releases/latest)
+[![Downloads](https://img.shields.io/github/downloads/SutharShantanu/OpenSplit/total)](https://github.com/SutharShantanu/OpenSplit/releases)
+![Android 7.0+](https://img.shields.io/badge/Android-7.0%2B-3DDC84?logo=android&logoColor=white)
+![Kotlin](https://img.shields.io/badge/Kotlin-2.2-7F52FF?logo=kotlin&logoColor=white)
+![Material 3](https://img.shields.io/badge/Material-3%20Expressive-6750A4)
 
-## 📥 Download
+**[⬇️ Download latest APK](https://github.com/SutharShantanu/OpenSplit/releases/latest)** &nbsp;·&nbsp;
+[Nightly build](https://github.com/SutharShantanu/OpenSplit/releases/download/nightly/OpenSplit.apk) &nbsp;·&nbsp;
+[All releases](https://github.com/SutharShantanu/OpenSplit/releases)
 
-Grab the latest debug build — no toolchain required:
+</div>
 
-**[⬇️ Download OpenSplit-debug.apk](https://github.com/SutharShantanu/OpenSplit/releases/download/nightly/OpenSplit-debug.apk)**
-&nbsp;·&nbsp; [All releases](https://github.com/SutharShantanu/OpenSplit/releases) &nbsp;·&nbsp; [Build artifacts](https://github.com/SutharShantanu/OpenSplit/actions/workflows/android.yml)
+---
 
-The `nightly` release is refreshed automatically on every push to `main`. Install it on a
-connected device with:
+## Screenshots
+
+<p align="center">
+  <img src="docs/screenshots/onboarding_1.png" width="19%" alt="Onboarding: track expenses together" />
+  <img src="docs/screenshots/onboarding_2.png" width="19%" alt="Onboarding: AI receipt parsing" />
+  <img src="docs/screenshots/onboarding_3.png" width="19%" alt="Onboarding: always free" />
+  <img src="docs/screenshots/signin.png" width="19%" alt="Sign in with Google" />
+  <img src="docs/screenshots/groups.png" width="19%" alt="Groups tab with net balance" />
+</p>
+<p align="center">
+  <img src="docs/screenshots/new_group.png" width="19%" alt="Create group sheet with avatar suggestion" />
+  <img src="docs/screenshots/activity.png" width="19%" alt="Activity feed" />
+  <img src="docs/screenshots/insights.png" width="19%" alt="Insights: spend, cash flow, budgets" />
+  <img src="docs/screenshots/people.png" width="19%" alt="People tab with invite link" />
+  <img src="docs/screenshots/settings.png" width="19%" alt="Settings" />
+</p>
+
+---
+
+## Install
+
+1. Download `OpenSplit.apk` from the **[latest release](https://github.com/SutharShantanu/OpenSplit/releases/latest)**.
+2. Open it on your phone and allow installs from your browser when prompted.
+3. Sign in with Google and create or join a group.
+
+Or from a computer with `adb`:
 
 ```bash
-adb install -r OpenSplit-debug.apk
+adb install -r OpenSplit.apk
 ```
 
-> The published APK is built with a **placeholder Firebase config**, so it installs and
-> the UI works but sign-in/sync won't function. For a fully working build, compile
-> locally with your own `app/google-services.json` (see [docs/SETUP.md](docs/SETUP.md))
-> or set the `GOOGLE_SERVICES_JSON` repo secret so CI uses your real config.
+| Channel | What you get | When it updates |
+|---|---|---|
+| **Release** `vX.Y.N` | Release build, APK + AAB + SHA-256 checksums | Every successful build on `main` |
+| **Nightly** | Debug build for testing | Every push to `main` |
+
+> Builds are signed with a stable debug key only when the `DEBUG_KEYSTORE_BASE64` secret is
+> set in CI. Without it (or without `GOOGLE_SERVICES_JSON`) the APK installs and the UI works,
+> but Google sign-in and cloud sync do not. See [CI/CD](#cicd) below.
+
+---
 
 ## Features
 
-- **Groups & friends** — create groups, add members by email or from contacts, see
-  who owes whom.
-- **Expenses** — add, edit and delete expenses with five split modes:
-  **Equal**, **Exact amounts**, **Percentage**, **Shares**, and **Itemized**
-  (per-item assignment).
-- **Choose participants** — split an expense among only the people involved, not
-  always the whole group.
-- **Multiple payers** — record expenses paid by more than one person.
-- **Smart settle-up** — debt-simplification minimizes the number of payments needed;
-  record settlements (Cash / UPI / Bank transfer / Other) and see settlement history.
-- **Balances that are actually correct** — group balances reflect recorded
-  settlements, and **multiple currencies are shown per-currency** (never summed into a
-  meaningless mixed total).
-- **Activity feed**, **analytics** (spend by category / month), and **data export**
-  (CSV / JSON / PDF).
-- **Offline-first** — Firestore local persistence keeps the app usable without a
-  connection.
-- **Material 3 Expressive** — Material Symbols Rounded, brand violet or Material You,
-  Light / Dark / AMOLED themes, navigation rail and list-detail panes on tablets.
-- **Bring-your-own-key AI** — Claude, OpenAI, Gemini, Groq, Mistral, DeepSeek or any
-  OpenAI-compatible endpoint. Keys stay on the device (encrypted). Receipt scanning,
-  natural-language expense entry, smart categories, group icons and spending insights,
-  each with an offline fallback and a per-feature switch.
-- **Invite links with expiry** and QR codes, friend requests, direct 1:1 expenses, archived
-  groups, recurring bills (weekly to yearly, pausable), recently deleted (90-day restore),
-  edit history on every expense, global search across expenses, payments, groups and people,
-  per-category monthly budgets, per-type push notification controls.
+### Groups and people
+- Groups with emoji, letter, or image avatars. AI suggests an emoji from the name.
+- Invite by link or QR code, with expiry (1 hour to never) and optional max uses.
+- Friend requests, direct 1:1 expenses outside any group, archived groups, pinned groups.
+- Group currency locks once the group has expenses. Balances settle **per currency**, never
+  summed into a meaningless mixed total.
+
+### Expenses
+- Five split modes: **Equal**, **Exact**, **Percentage**, **Shares**, **Itemized** (assign
+  receipt line items to people; tax and tip spread proportionally).
+- Multiple payers, any subset of participants, categories, notes, receipt photo.
+- Recurring bills (weekly to yearly) with pause and resume, created on-device by WorkManager.
+- Edit history on every expense. Soft delete with undo and a 90-day **Recently deleted** screen.
+- Global search across expenses, payments, groups, and people.
+
+### Settle up
+- Debt simplification minimizes the number of payments across the whole group.
+- Record settlements by cash, UPI, bank transfer, or other. Full settlement history.
+- Reminders to debtors, with rate limiting.
+
+### Insights
+- Spend by category, cash flow over time, top people and groups.
+- Per-category monthly budgets with progress.
+- Export to CSV, JSON, or PDF.
+
+### AI, bring your own key
+Claude, OpenAI, Gemini, Groq, Mistral, DeepSeek, or any OpenAI-compatible endpoint. Keys are
+stored encrypted on the device and never leave it except to call the provider you chose.
+
+- Receipt scanning that streams fields into the expense form.
+- Natural-language entry: "Rahul paid 1500 for dinner yesterday, split with me and Priya".
+- Smart categories, group icon suggestions, spending insights.
+- Every AI feature has a per-feature switch and an offline fallback.
+
+### Experience
+- 100% Jetpack Compose, Material 3 Expressive, Material Symbols Rounded.
+- System / Light / Dark / AMOLED themes. Brand violet, Material You, or monochrome palettes.
+- Navigation rail and list-detail layouts on tablets. Home screen widgets.
+- Offline-first: Firestore local persistence keeps everything usable without a connection.
+
+---
+
+## How it works
+
+### Settling with the fewest payments
+
+Raw balances after a trip often form a web of small debts. `DebtSimplifier` nets them so
+each person makes at most one or two transfers.
+
+```mermaid
+flowchart LR
+  subgraph Before["Before: 5 payments"]
+    direction LR
+    A1[Alex] -- "₹500" --> B1[Bea]
+    B1 -- "₹300" --> C1[Chen]
+    C1 -- "₹200" --> A1
+    A1 -- "₹400" --> C1
+    B1 -- "₹100" --> A1
+  end
+  subgraph After["After: 2 payments"]
+    direction LR
+    A2[Alex] -- "₹600" --> C2[Chen]
+    B2[Bea] -- "₹100" --> C2
+  end
+  Before -. "DebtSimplifier" .-> After
+```
+
+### Architecture
+
+Plain MVVM over three layers. ViewModels never touch Firebase directly.
+
+```mermaid
+flowchart TB
+  UI["ui/<br/>Compose screens · ViewModels · navigation · theme"]
+  DOM["domain/<br/>models · repository interfaces · SplitCalculator · DebtSimplifier"]
+  DATA["data/<br/>Firestore + DataStore repositories · export generators"]
+  FB[("Firebase Auth<br/>Cloud Firestore")]
+  AI[("AI provider<br/>(your key)")]
+  WM["WorkManager<br/>recurring bills"]
+
+  UI --> DOM
+  DATA -. implements .-> DOM
+  DATA --> FB
+  DATA --> AI
+  WM --> DATA
+```
+
+```
+app/src/main/java/com/opensplit/
+  domain/   models, repository interfaces, pure logic (SplitCalculator, DebtSimplifier)
+  data/     Firebase and DataStore implementations, export generators
+  di/       AppContainer (manual DI)
+  ui/       screens, viewmodels, navigation, theme, components
+  widget/   home screen widgets
+  util/     CurrencyFormatter and helpers
+```
+
+---
+
+## Roadmap
+
+Planned, roughly in order. Open an issue to vote or claim one.
+
+- [ ] **Guests**: add a named person who does not use the app; a claim link lets them take
+      over their balance later.
+- [ ] **Offline drafts**: queue expenses while offline and review them in one batch.
+- [ ] **Approximate currency conversion** display using a cached daily rate (never used for
+      balances).
+- [ ] **Comments** under each expense.
+- [ ] **App lock** with biometrics.
+- [ ] **Localization** beyond English.
+- [ ] **F-Droid** and Play Store listings.
+
+Done recently: Android 17 widgets, QR invites, recurring bills, multi-provider AI, AMOLED and
+monochrome themes, tablet layouts, edit history, recently deleted, budgets.
+
+---
 
 ## Tech stack
 
 | Area | Choice |
-|------|--------|
+|---|---|
 | Language | Kotlin 2.2 |
-| UI | Jetpack Compose + Material 3 |
-| Architecture | MVVM over Clean Architecture (domain / data / ui) |
-| DI | Manual (`di/AppContainer`) — Hilt disabled for AGP 9.1.1 compatibility |
-| Backend | Firebase Auth + Cloud Firestore |
-| Local prefs | DataStore |
-| Async | Kotlin Coroutines + Flow |
-| Background | WorkManager (recurring expenses) |
+| UI | Jetpack Compose, Material 3 Expressive |
+| Architecture | MVVM, domain / data / ui layers |
+| DI | Manual (`di/AppContainer`) |
+| Backend | Firebase Auth + Cloud Firestore (offline persistence on) |
+| Preferences | DataStore, EncryptedSharedPreferences for AI keys |
+| Async | Coroutines + Flow |
+| Background | WorkManager |
 | Images | Coil |
-| Testing | JUnit4, Robolectric, Roborazzi |
+| Tests | JUnit4, Robolectric, Roborazzi screenshots |
 
-## Project layout
+---
 
-```
-app/src/main/java/com/opensplit/
-  domain/     # models, repository interfaces, pure logic (SplitCalculator, DebtSimplifier)
-  data/       # Firebase/DataStore repository implementations, export generators
-  di/         # AppContainer (manual DI)
-  ui/         # Compose screens, viewmodels, navigation, theme, components
-  util/       # CurrencyFormatter
-```
+## Build it yourself
 
-## Getting started
-
-See **[docs/SETUP.md](docs/SETUP.md)** for full setup, including the Firebase
-configuration you must supply (`google-services.json`) before the app will build.
-
-Quick version:
+Full guide: **[docs/SETUP.md](docs/SETUP.md)**.
 
 ```bash
-# 1. Add your own app/google-services.json from the Firebase console
-# 2. Add a .env with GEMINI_API_KEY=... (see .env.example)
+# 1. Put your Firebase config at app/google-services.json
+# 2. Optional: .env with GEMINI_API_KEY=... (see .env.example)
 ./gradlew :app:assembleDebug
 ./gradlew :app:testDebugUnitTest
 ```
 
-## 🚀 CI/CD & Android APK Build Flow (GitHub Actions)
+Google sign-in needs the SHA-1 of your signing key registered in the Firebase project:
 
-OpenSplit uses **GitHub Actions** for automated Continuous Integration and Android APK generation on every push to `main` and on demand via `workflow_dispatch`.
+```bash
+scripts/print-debug-sha1.sh
+```
 
-> **Note on Web Hosting Platforms (Vercel / Netlify):**  
-> Web platforms such as Vercel and Netlify only support frontend web applications and serverless functions (Next.js, React, Node.js). They do **not** provide the Android SDK, Android Build Tools, or the Gradle toolchain needed to compile Kotlin code into `.apk` binaries. All Android compilation and APK releases are handled through **GitHub Actions**.
+---
 
-### Automated Workflow Pipeline
+## CI/CD
 
-The workflow defined in [`.github/workflows/android.yml`](.github/workflows/android.yml) executes the following pipeline on GitHub's `ubuntu-latest` runner:
+Two GitHub Actions workflows. Android cannot be built on web hosts like Vercel or Netlify;
+all APKs come from Actions.
 
-1. **Environment Setup**: Checks out the repository and sets up JDK 21 (Temurin) with Gradle dependency caching.
-2. **Permissions**: Ensures Gradle Wrapper has execute permissions (`chmod +x gradlew`).
-3. **Firebase Configuration**: Injects `app/google-services.json` from the `GOOGLE_SERVICES_JSON` repository secret (or uses `.github/google-services.debug.json` placeholder for testing).
-4. **Environment Variables**: Generates `.env` from the `GEMINI_API_KEY` repository secret (or sets safe fallback values for Secrets Gradle plugin).
-5. **Keystore Generation**: Recreates the debug keystore with standard credentials for deterministic debug signing.
-6. **Compile & Assemble**: Compiles the project using `./gradlew :app:assembleDebug --stacktrace`.
-7. **Artifact Upload**: Uploads `OpenSplit-debug.apk` as a workflow artifact retained for 14 days.
-8. **Release Publishing**: Automatically deploys the APK to the rolling [`nightly`](https://github.com/SutharShantanu/OpenSplit/releases/tag/nightly) release on GitHub.
+```mermaid
+flowchart LR
+  P[push to main] --> B["Build Debug APK<br/>(android.yml)"]
+  B -- success --> N[(nightly release<br/>OpenSplit.apk)]
+  B -- "workflow_run: success" --> R["Publish Release<br/>(release.yml)"]
+  T[push tag v*] --> R
+  M[manual dispatch] --> R
+  R --> V[(release vX.Y.N<br/>APK · AAB · checksums)]
+```
 
-### Optional GitHub Secrets
+- **`android.yml`**: builds a debug APK on every push to `main`, uploads it as an artifact,
+  and recreates the rolling `nightly` release so its date and tag track the current commit.
+- **`release.yml`**: runs after a successful main build (or on a `v*` tag / manual dispatch),
+  builds release APK + AAB, writes SHA-256 checksums, and publishes a versioned release
+  `v<versionName>.<run_number>` with generated notes.
 
-To customize CI builds, configure the following under **Settings > Secrets and variables > Actions**:
+### Secrets
 
-| Secret Name | Description | Default Fallback |
-|-------------|-------------|------------------|
-| `GOOGLE_SERVICES_JSON` | Base64-encoded `google-services.json` from Firebase console (`base64 -w 0 google-services.json`) | Uses `.github/google-services.debug.json` |
-| `GEMINI_API_KEY` | Optional Gemini API key for AI features | Empty string fallback in `.env` |
+Set under **Settings → Secrets and variables → Actions**.
+
+| Secret | Purpose | If missing |
+|---|---|---|
+| `GOOGLE_SERVICES_JSON` | `base64 -w0 app/google-services.json` | Placeholder config; sign-in and sync disabled |
+| `DEBUG_KEYSTORE_BASE64` | `base64 -w0 debug.keystore`; stable SHA-1 for Google sign-in | Throwaway key per build; Google sign-in fails |
+| `GEMINI_API_KEY` | Optional default Gemini key | Empty |
+| `RELEASE_KEYSTORE_BASE64`, `STORE_PASSWORD`, `KEY_ALIAS`, `KEY_PASSWORD` | Real release signing | Falls back to the debug keystore |
+
+---
 
 ## Contributing
 
-Contributions are welcome — see **[CONTRIBUTING.md](CONTRIBUTING.md)**.
+See **[CONTRIBUTING.md](CONTRIBUTING.md)**. Short version: keep it free, Material 3 only,
+respect the layers, and add tests when you touch money math.
 
 ## License
 
-Open source. (Add your preferred license file, e.g. `LICENSE`, before publishing.)
+Open source. A `LICENSE` file is still to be chosen before wider distribution.

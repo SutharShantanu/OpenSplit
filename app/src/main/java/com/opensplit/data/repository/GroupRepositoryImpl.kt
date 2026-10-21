@@ -64,7 +64,9 @@ class GroupRepositoryImpl(
             val docRef = groupsCollection.document()
             val newGroup = group.copy(id = docRef.id)
             com.opensplit.data.local.InMemoryDataStore.addGroup(newGroup)
-            docRef.set(newGroup).awaitWrite()
+            // Local cache is updated synchronously; don't hold the "Creating group…" overlay
+            // for the server ack (up to 2.5 s per write, never arrives offline).
+            docRef.set(newGroup).enqueue()
             activityRepository.logActivity(
                 docRef.id,
                 Activity(

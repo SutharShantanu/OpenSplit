@@ -207,8 +207,21 @@ class UserPreferencesRepositoryImpl(private val context: Context) : UserPreferen
      * the plain DataStore. Keys written by older builds are migrated on first read and wiped.
      */
     private val secureKeys by lazy {
+        try {
+            openSecureKeys()
+        } catch (e: Exception) {
+            // Ciphertext restored from backup (or a reinstall) no longer matches the keystore
+            // master key -> AEADBadTagException. Drop the unreadable file and start fresh
+            // rather than crash on every launch; the user re-enters their keys.
+            android.util.Log.w("UserPreferences", "ai_keys unreadable, resetting", e)
+            context.deleteSharedPreferences("ai_keys")
+            openSecureKeys()
+        }
+    }
+
+    private fun openSecureKeys(): android.content.SharedPreferences {
         val masterKey = MasterKey.Builder(context).setKeyScheme(MasterKey.KeyScheme.AES256_GCM).build()
-        EncryptedSharedPreferences.create(
+        return EncryptedSharedPreferences.create(
             context, "ai_keys", masterKey,
             EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
             EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM

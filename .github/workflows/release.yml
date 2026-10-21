@@ -94,12 +94,16 @@ jobs:
             echo "KEY_PASSWORD=${{ secrets.KEY_PASSWORD || secrets.STORE_PASSWORD }}" >> $GITHUB_ENV
             echo "Using repository release keystore."
           else
-            # Recreate debug keystore so release signing falls back seamlessly
-            keytool -genkeypair -v -keystore debug.keystore \
-              -storepass android -keypass android -alias androiddebugkey \
-              -keyalg RSA -keysize 2048 -validity 10000 \
-              -dname "CN=Android Debug,O=Android,C=US"
-            echo "No RELEASE_KEYSTORE_BASE64 set — signing with fallback keystore."
+            # Fall back to the stable debug keystore (same SHA-1 registered in Firebase).
+            if [ -n "${{ secrets.DEBUG_KEYSTORE_BASE64 }}" ]; then
+              echo "${{ secrets.DEBUG_KEYSTORE_BASE64 }}" | base64 -d > debug.keystore
+            else
+              keytool -genkeypair -v -keystore debug.keystore \
+                -storepass android -keypass android -alias androiddebugkey \
+                -keyalg RSA -keysize 2048 -validity 10000 \
+                -dname "CN=Android Debug,O=Android,C=US"
+            fi
+            echo "No RELEASE_KEYSTORE_BASE64 set — signing with debug keystore."
           fi
 
       - name: Build Release APK and App Bundle

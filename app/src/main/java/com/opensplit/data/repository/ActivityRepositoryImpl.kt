@@ -53,7 +53,7 @@ class ActivityRepositoryImpl(
         return try {
             val docRef = firestore.collection("groups").document(groupId)
                 .collection("activity").document()
-            docRef.set(activity).awaitWrite()
+            docRef.set(activity).enqueue()
             Result.success(docRef.id)
         } catch (e: Exception) {
             Result.failure(e)
