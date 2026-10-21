@@ -75,6 +75,14 @@ jobs:
 
       # Publish to a rolling "nightly" Release so there's a permanent download URL:
       # https://github.com/SutharShantanu/OpenSplit/releases/download/nightly/OpenSplit-debug.apk
+      # Delete first so the release date and the `nightly` tag track the current
+      # commit; softprops only swaps assets on an existing release.
+      - name: Reset nightly release
+        if: github.ref == 'refs/heads/main'
+        run: gh release delete nightly --cleanup-tag -y || true
+        env:
+          GH_TOKEN: ${{ github.token }}
+
       - name: Publish APK to Releases
         if: github.ref == 'refs/heads/main'
         uses: softprops/action-gh-release@v2
