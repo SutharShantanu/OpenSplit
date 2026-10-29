@@ -224,15 +224,4 @@ class HomeViewModel(private val appContainer: AppContainer) : ViewModel() {
         }
         return net
     }
-
-    fun seedMockData(onDone: (Boolean) -> Unit = {}) {
-        viewModelScope.launch {
-            val uid = appContainer.authRepository.getCurrentUserId() ?: run {
-                onDone(false)
-                return@launch
-            }
-            val result = com.opensplit.util.MockDataSeeder.seedMockData(appContainer.firestore, uid)
-            onDone(result.isSuccess)
-        }
-    }
 }

@@ -2,6 +2,8 @@
 
 package com.opensplit.ui.screens
 
+import com.opensplit.ui.components.FilterChip
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.opensplit.ui.theme.Symbol
 import com.opensplit.ui.components.SymbolIcon
 import com.opensplit.ui.components.LocalSnackbarController
@@ -73,10 +75,11 @@ fun AddExpenseScreen(
     onNavigateBack: () -> Unit,
     editingExpense: Expense? = null
 ) {
-    val uiState by viewModel.uiState.collectAsState()
+    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val context = LocalContext.current
     val snackbar = LocalSnackbarController.current
     val busy = com.opensplit.ui.components.LocalBusy.current
+    val haptics = androidx.compose.ui.platform.LocalHapticFeedback.current
     // Add Expense is the one full-height sheet in the app; a half-open form reads as cut off.
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
@@ -91,7 +94,7 @@ fun AddExpenseScreen(
             is ScreenState.Empty -> Box(Modifier.fillMaxWidth().padding(48.dp), contentAlignment = Alignment.Center) { Text(st.message.ifBlank { "Nothing here yet" }) }
             is ScreenState.Error -> Column(Modifier.fillMaxWidth().padding(32.dp), horizontalAlignment = Alignment.CenterHorizontally) {
                 Text(st.message, color = MaterialTheme.colorScheme.error, textAlign = TextAlign.Center)
-                TextButton(shapes = ButtonDefaults.shapes(), onClick = st.retry) { Text("Retry") }
+                TextButton(shapes = com.opensplit.ui.theme.appButtonShapes(), onClick = st.retry) { Text("Retry") }
             }
             is ScreenState.Success -> { val data = st.data
             val group = data.group
@@ -108,8 +111,8 @@ fun AddExpenseScreen(
             var categoryTouched by remember { mutableStateOf(isEditing) }
             var categoryFromAi by remember { mutableStateOf(false) }
             val aiService = LocalAiService.current
-            val categorizeAvailable by aiService.availability(AiFeature.CATEGORIZE).collectAsState(initial = false)
-            val aiUnlocked by aiService.unlocked.collectAsState(initial = true)
+            val categorizeAvailable by aiService.availability(AiFeature.CATEGORIZE).collectAsStateWithLifecycle(initialValue = false)
+            val aiUnlocked by aiService.unlocked.collectAsStateWithLifecycle(initialValue = true)
             LaunchedEffect(description, categorizeAvailable) {
                 if (categoryTouched || description.isBlank()) return@LaunchedEffect
                 kotlinx.coroutines.delay(500)
@@ -211,6 +214,8 @@ fun AddExpenseScreen(
 
             // Entry Tab State: 0 = AI Entry, 1 = Manual Entry
             var selectedEntryTab by remember { mutableStateOf(if (isEditing) 1 else 0) }
+            // No AI key: open on Manual Entry rather than a locked tab. Re-runs only if the lock changes.
+            androidx.compose.runtime.LaunchedEffect(aiUnlocked) { if (!aiUnlocked) selectedEntryTab = 1 }
 
             // Receipt scanning via the user's AI provider; prefills merchant, total and items.
             val scope = rememberCoroutineScope()
@@ -405,37 +410,18 @@ fun AddExpenseScreen(
                         style = MaterialTheme.typography.titleLarge,
                         fontWeight = FontWeight.Bold
                     )
-                    IconButton(shapes = IconButtonDefaults.shapes(), onClick = onNavigateBack, enabled = !isSaving) {
+                    IconButton(shapes = com.opensplit.ui.theme.appIconButtonShapes(), onClick = onNavigateBack, enabled = !isSaving) {
                         SymbolIcon(OpenSplitIcons.Close, contentDescription = "Close")
                     }
                 }
 
                 // AI Entry vs Manual Entry Segmented Tab Row
-                androidx.compose.material3.PrimaryTabRow(
-                    selectedTabIndex = selectedEntryTab,
-                    containerColor = androidx.compose.ui.graphics.Color.Transparent,
-                    contentColor = MaterialTheme.colorScheme.primary,
-                    divider = { HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)) }
-                ) {
-                    Tab(
-                        selected = selectedEntryTab == 0,
-                        onClick = { selectedEntryTab = 0 },
-                        text = {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                SymbolIcon(OpenSplitIcons.AutoAwesome, contentDescription = null, modifier = Modifier.size(18.dp))
-                                Spacer(modifier = Modifier.width(6.dp))
-                                Text("AI Entry", fontWeight = if (selectedEntryTab == 0) FontWeight.Bold else FontWeight.Normal)
-                            }
-                        }
-                    )
-                    Tab(
-                        selected = selectedEntryTab == 1,
-                        onClick = { selectedEntryTab = 1 },
-                        text = {
-                            Text("Manual Entry", fontWeight = if (selectedEntryTab == 1) FontWeight.Bold else FontWeight.Normal)
-                        }
-                    )
-                }
+                com.opensplit.ui.components.PillTabs(
+                    selected = selectedEntryTab,
+                    labels = listOf("AI Entry", "Manual Entry"),
+                    icons = listOf(OpenSplitIcons.AutoAwesome, OpenSplitIcons.EditExpense),
+                    onSelect = { selectedEntryTab = it }
+                )
 
                 // Group Context Chip
                 Row(verticalAlignment = Alignment.CenterVertically) {
@@ -465,7 +451,7 @@ fun AddExpenseScreen(
                     // ---- AI ENTRY VIEW ----
                     Card(
                         modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(16.dp),
+                        shape = MaterialTheme.shapes.medium,
                         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
                         border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
                     ) {
@@ -498,7 +484,7 @@ fun AddExpenseScreen(
                                 modifier = Modifier.fillMaxWidth(),
                                 horizontalArrangement = Arrangement.End
                             ) {
-                                IconButton(shapes = IconButtonDefaults.shapes(), onClick = { snackbar.showMessage("Listening for voice input...") }) {
+                                IconButton(shapes = com.opensplit.ui.theme.appIconButtonShapes(), onClick = { snackbar.showMessage("Listening for voice input...") }) {
                                     SymbolIcon(OpenSplitIcons.Activity, contentDescription = "Voice Input")
                                 }
                             }
@@ -525,7 +511,7 @@ fun AddExpenseScreen(
                     Surface(
                         onClick = { showReceiptSource = true },
                         modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(16.dp),
+                        shape = MaterialTheme.shapes.medium,
                         color = MaterialTheme.colorScheme.surfaceContainerLowest,
                         border = androidx.compose.foundation.BorderStroke(2.dp, MaterialTheme.colorScheme.outlineVariant),
                         tonalElevation = 1.dp
@@ -720,7 +706,7 @@ fun AddExpenseScreen(
                                 .focusRequester(descriptionFocusRequester)
                         )
                     } else {
-                        OutlinedButton(shapes = ButtonDefaults.shapes(), 
+                        OutlinedButton(shapes = com.opensplit.ui.theme.appButtonShapes(), 
                             onClick = { isDescriptionEditing = true },
                             modifier = Modifier.fillMaxWidth(),
                             contentPadding = PaddingValues(horizontal = OpenSplitTokens.SpaceMD, vertical = OpenSplitTokens.SpaceMD)
@@ -771,7 +757,7 @@ fun AddExpenseScreen(
                 ) {
                     Text("Date", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                     Spacer(modifier = Modifier.weight(1f))
-                    OutlinedButton(shapes = ButtonDefaults.shapes(), onClick = { showDatePicker = true }) {
+                    OutlinedButton(shapes = com.opensplit.ui.theme.appButtonShapes(), onClick = { showDatePicker = true }) {
                         Text(
                             java.text.SimpleDateFormat("MMM d, yyyy", java.util.Locale.getDefault())
                                 .format(java.util.Date(selectedDateMillis))
@@ -794,7 +780,7 @@ fun AddExpenseScreen(
                     )
                     LaunchedEffect(Unit) { notesFocusRequester.requestFocus() }
                 } else {
-                    OutlinedButton(shapes = ButtonDefaults.shapes(), 
+                    OutlinedButton(shapes = com.opensplit.ui.theme.appButtonShapes(), 
                         onClick = { isNotesEditing = true },
                         modifier = Modifier.fillMaxWidth(),
                         contentPadding = PaddingValues(horizontal = OpenSplitTokens.SpaceMD, vertical = OpenSplitTokens.SpaceMD)
@@ -832,7 +818,7 @@ fun AddExpenseScreen(
                                 style = MaterialTheme.typography.bodyMedium,
                                 maxLines = 1
                             )
-                            IconButton(shapes = IconButtonDefaults.shapes(), onClick = {
+                            IconButton(shapes = com.opensplit.ui.theme.appIconButtonShapes(), onClick = {
                                 pickedReceiptUri = null
                                 pickedReceiptName = null
                                 existingReceiptUrl = null
@@ -841,7 +827,7 @@ fun AddExpenseScreen(
                             }
                         }
                     } else {
-                        OutlinedButton(shapes = ButtonDefaults.shapes(), 
+                        OutlinedButton(shapes = com.opensplit.ui.theme.appButtonShapes(), 
                             onClick = { receiptAttachmentPicker.launch(arrayOf("image/*", "application/pdf")) },
                             modifier = Modifier.fillMaxWidth()
                         ) {
@@ -1092,7 +1078,7 @@ fun AddExpenseScreen(
                                 ) {
                                     Text(m.displayName, modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium)
                                     Row(verticalAlignment = Alignment.CenterVertically) {
-                                        OutlinedButton(shapes = ButtonDefaults.shapes(), 
+                                        OutlinedButton(shapes = com.opensplit.ui.theme.appButtonShapes(), 
                                             onClick = { if (currentShares > 1) shares[m.uid] = currentShares - 1 },
                                             contentPadding = PaddingValues(0.dp),
                                             modifier = Modifier.size(36.dp)
@@ -1102,7 +1088,7 @@ fun AddExpenseScreen(
                                             modifier = Modifier.padding(horizontal = OpenSplitTokens.SpaceSM),
                                             style = MaterialTheme.typography.bodyMedium
                                         )
-                                        OutlinedButton(shapes = ButtonDefaults.shapes(), 
+                                        OutlinedButton(shapes = com.opensplit.ui.theme.appButtonShapes(), 
                                             onClick = { shares[m.uid] = currentShares + 1 },
                                             contentPadding = PaddingValues(0.dp),
                                             modifier = Modifier.size(36.dp)
@@ -1114,7 +1100,7 @@ fun AddExpenseScreen(
                     }
                     4 -> { // Itemized
                         Column(verticalArrangement = Arrangement.spacedBy(OpenSplitTokens.SpaceSM)) {
-                            OutlinedButton(shapes = ButtonDefaults.shapes(), 
+                            OutlinedButton(shapes = com.opensplit.ui.theme.appButtonShapes(), 
                                 onClick = { showReceiptSource = true },
                                 enabled = !isScanning && aiUnlocked,
                                 modifier = Modifier.fillMaxWidth()
@@ -1164,7 +1150,7 @@ fun AddExpenseScreen(
                                     )
                                 }
                             }
-                            Button(shapes = ButtonDefaults.shapes(), 
+                            Button(shapes = com.opensplit.ui.theme.appButtonShapes(), 
                                 onClick = {
                                     val p = itemizedPrice.toDoubleOrNull()
                                     if (itemizedName.isNotBlank() && p != null && p > 0 && selectedUidsForItem.isNotEmpty()) {
@@ -1206,7 +1192,7 @@ fun AddExpenseScreen(
                 Spacer(modifier = Modifier.height(OpenSplitTokens.SpaceSM))
 
                 // Save Expense Button with Duplicate Prevention
-                Button(shapes = ButtonDefaults.shapes(), 
+                Button(shapes = com.opensplit.ui.theme.appButtonShapes(), 
                     onClick = {
                         if (isSaving) return@Button
                         val evaluated = splitResult
@@ -1237,6 +1223,7 @@ fun AddExpenseScreen(
                             )
 
                             val onDone: () -> Unit = {
+                                haptics.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.Confirm)
                                 isSaving = false
                                 busy.hide()
                                 onNavigateBack()
@@ -1244,6 +1231,7 @@ fun AddExpenseScreen(
                                 snackbar.showMessage(if (isEditing) "Expense updated" else "Expense saved")
                             }
                             val onError: (String) -> Unit = { msg ->
+                                haptics.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.Reject)
                                 isSaving = false
                                 busy.hide()
                                 saveError = msg
@@ -1282,13 +1270,13 @@ fun AddExpenseScreen(
                     DatePickerDialog(
                         onDismissRequest = { showDatePicker = false },
                         confirmButton = {
-                            TextButton(shapes = ButtonDefaults.shapes(), onClick = {
+                            TextButton(shapes = com.opensplit.ui.theme.appButtonShapes(), onClick = {
                                 dateState.selectedDateMillis?.let { selectedDateMillis = it }
                                 showDatePicker = false
                             }) { Text("OK") }
                         },
                         dismissButton = {
-                            TextButton(shapes = ButtonDefaults.shapes(), onClick = { showDatePicker = false }) { Text("Cancel") }
+                            TextButton(shapes = com.opensplit.ui.theme.appButtonShapes(), onClick = { showDatePicker = false }) { Text("Cancel") }
                         }
                     ) {
                         DatePicker(state = dateState)
@@ -1296,7 +1284,7 @@ fun AddExpenseScreen(
                 }
 
                 if (showInvitePersonDialog) {
-                    val links by viewModel.inviteLinks.collectAsState()
+                    val links by viewModel.inviteLinks.collectAsStateWithLifecycle()
                     com.opensplit.ui.components.GroupInviteSheet(
                         groupId = group.id,
                         groupName = group.name,

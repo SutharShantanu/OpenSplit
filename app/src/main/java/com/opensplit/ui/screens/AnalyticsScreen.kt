@@ -2,6 +2,8 @@
 
 package com.opensplit.ui.screens
 
+import com.opensplit.ui.components.FilterChip
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.opensplit.ui.theme.Symbol
 import com.opensplit.ui.components.SymbolIcon
 import androidx.compose.foundation.Canvas
@@ -39,6 +41,7 @@ import com.opensplit.ui.components.getCategoryIcon
 import com.opensplit.ui.theme.OpenSplitIcons
 import com.opensplit.ui.theme.OpenSplitTokens
 import com.opensplit.ui.viewmodel.AnalyticsViewModel
+import com.opensplit.ui.viewmodel.AnalyticsUiState
 import com.opensplit.ui.viewmodel.CategorySpend
 import com.opensplit.ui.viewmodel.InsightsState
 import com.opensplit.ui.viewmodel.MonthlyBucket
@@ -57,9 +60,9 @@ fun AnalyticsScreen(
     onNavigateBack: (() -> Unit)? = null,
     onNavigateToExpenseDetail: (String, String) -> Unit = { _, _ -> }
 ) {
-    val state by viewModel.uiState.collectAsState()
-    val insights by viewModel.insightsState.collectAsState()
-    val aiAvailable by viewModel.aiAvailable.collectAsState()
+    val state by viewModel.uiState.collectAsStateWithLifecycle()
+    val insights by viewModel.insightsState.collectAsStateWithLifecycle()
+    val aiAvailable by viewModel.aiAvailable.collectAsStateWithLifecycle()
     val currentMonthName = remember {
         SimpleDateFormat("MMMM", Locale.getDefault()).format(Date())
     }
@@ -73,9 +76,7 @@ fun AnalyticsScreen(
                 TopAppBar(
                     title = { Text("Spending Analytics", fontWeight = FontWeight.Bold) },
                     navigationIcon = {
-                        IconButton(shapes = IconButtonDefaults.shapes(), onClick = onNavigateBack) {
-                            SymbolIcon(OpenSplitIcons.ArrowBack, contentDescription = "Back")
-                        }
+                        com.opensplit.ui.components.RoundBackButton(onClick = onNavigateBack)
                     },
                     colors = TopAppBarDefaults.topAppBarColors(
                         containerColor = MaterialTheme.colorScheme.surface
@@ -123,7 +124,8 @@ fun AnalyticsScreen(
                             .wrapContentWidth(Alignment.CenterHorizontally)
                             .widthIn(max = 860.dp)
                             .verticalScroll(scrollState)
-                            .padding(horizontal = OpenSplitTokens.SpaceLG, vertical = OpenSplitTokens.SpaceMD),
+                            .padding(horizontal = OpenSplitTokens.SpaceLG)
+                            .padding(top = OpenSplitTokens.SpaceMD, bottom = com.opensplit.ui.components.FloatingNavBarClearance),
                         verticalArrangement = Arrangement.spacedBy(OpenSplitTokens.SpaceMD)
                     ) {
 
@@ -192,7 +194,7 @@ fun AnalyticsScreen(
                     // Historical Navigator (Only when not "All Time")
                     if (analyticsState.periodType != AnalyticsPeriodType.ALL_TIME) {
                         Surface(
-                            shape = RoundedCornerShape(16.dp),
+                            shape = MaterialTheme.shapes.medium,
                             color = MaterialTheme.colorScheme.surfaceContainerHigh,
                             modifier = Modifier.fillMaxWidth()
                         ) {
@@ -276,7 +278,7 @@ fun AnalyticsScreen(
                 // 1. Hero Summary Card (Total Spent)
                 Card(
                     modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(28.dp),
+                    shape = MaterialTheme.shapes.large,
                     colors = CardDefaults.cardColors(
                         containerColor = MaterialTheme.colorScheme.primaryContainer,
                         contentColor = MaterialTheme.colorScheme.onPrimaryContainer
@@ -352,10 +354,16 @@ fun AnalyticsScreen(
                     }
                 }
 
+                // 1b. This month vs last month, and how much of the budgets is used
+                if (analyticsState.periodType == AnalyticsPeriodType.MONTH) {
+                    val monthBudgets by viewModel.budgets.collectAsStateWithLifecycle()
+                    MonthSummaryCard(analyticsState, monthBudgets)
+                }
+
                 // 2. Cash Flow Line Chart Card
                 Card(
                     modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(28.dp),
+                    shape = MaterialTheme.shapes.large,
                     colors = CardDefaults.cardColors(
                         containerColor = MaterialTheme.colorScheme.surfaceContainer
                     )
@@ -448,7 +456,7 @@ fun AnalyticsScreen(
                 if (analyticsState.categoryBreakdown.isNotEmpty()) {
                     Card(
                         modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(28.dp),
+                        shape = MaterialTheme.shapes.large,
                         colors = CardDefaults.cardColors(
                             containerColor = MaterialTheme.colorScheme.surfaceContainer
                         )
@@ -527,7 +535,7 @@ fun AnalyticsScreen(
                 if (analyticsState.localInsights.isNotEmpty()) {
                     Card(
                         modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(24.dp),
+                        shape = MaterialTheme.shapes.large,
                         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer)
                     ) {
                         Column(modifier = Modifier.padding(OpenSplitTokens.SpaceLG), verticalArrangement = Arrangement.spacedBy(OpenSplitTokens.SpaceSM)) {
@@ -543,17 +551,17 @@ fun AnalyticsScreen(
                     }
                 }
 
-                val budgets by viewModel.budgets.collectAsState()
+                val budgets by viewModel.budgets.collectAsStateWithLifecycle()
                 var budgetEditCategory by remember { mutableStateOf<String?>(null) }
                 Card(
                     modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(24.dp),
+                    shape = MaterialTheme.shapes.large,
                     colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer)
                 ) {
                     Column(modifier = Modifier.padding(OpenSplitTokens.SpaceLG), verticalArrangement = Arrangement.spacedBy(OpenSplitTokens.SpaceSM)) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Text("Monthly budgets", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
-                            TextButton(shapes = ButtonDefaults.shapes(), onClick = { budgetEditCategory = "" }) { Text("Add") }
+                            TextButton(shapes = com.opensplit.ui.theme.appButtonShapes(), onClick = { budgetEditCategory = "" }) { Text("Add") }
                         }
                         if (budgets.isEmpty()) {
                             Text("Set a limit per category and watch this month's share fill it up.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -605,14 +613,14 @@ fun AnalyticsScreen(
                             }
                         },
                         confirmButton = {
-                            Button(shapes = ButtonDefaults.shapes(), enabled = amount.toDoubleOrNull()?.let { it > 0 } == true, onClick = {
+                            Button(shapes = com.opensplit.ui.theme.appButtonShapes(), enabled = amount.toDoubleOrNull()?.let { it > 0 } == true, onClick = {
                                 viewModel.setBudget(cat, amount.toDoubleOrNull()); budgetEditCategory = null
                             }) { Text("Save") }
                         },
                         dismissButton = {
                             Row {
-                                if (editing.isNotBlank()) TextButton(shapes = ButtonDefaults.shapes(), onClick = { viewModel.setBudget(editing, null); budgetEditCategory = null }) { Text("Remove") }
-                                TextButton(shapes = ButtonDefaults.shapes(), onClick = { budgetEditCategory = null }) { Text("Cancel") }
+                                if (editing.isNotBlank()) TextButton(shapes = com.opensplit.ui.theme.appButtonShapes(), onClick = { viewModel.setBudget(editing, null); budgetEditCategory = null }) { Text("Remove") }
+                                TextButton(shapes = com.opensplit.ui.theme.appButtonShapes(), onClick = { budgetEditCategory = null }) { Text("Cancel") }
                             }
                         }
                     )
@@ -902,7 +910,7 @@ private fun AnalyticsStatCard(
 ) {
     Card(
         modifier = modifier,
-        shape = RoundedCornerShape(20.dp),
+        shape = MaterialTheme.shapes.medium,
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surfaceContainer
         )
@@ -941,7 +949,7 @@ private fun AiInsightsCard(
 ) {
     Card(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(24.dp),
+        shape = MaterialTheme.shapes.large,
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.35f)
         )
@@ -1010,7 +1018,7 @@ private fun AiInsightsCard(
                         }
                     }
                     Spacer(modifier = Modifier.height(OpenSplitTokens.SpaceSM))
-                    TextButton(shapes = ButtonDefaults.shapes(), onClick = onGenerate) {
+                    TextButton(shapes = com.opensplit.ui.theme.appButtonShapes(), onClick = onGenerate) {
                         Text("Regenerate")
                     }
                 }
@@ -1112,7 +1120,7 @@ private fun PeriodPickerDialog(
                                     val mIdx = row * 3 + col
                                     val isSelected = (mIdx == selectedMonth && tempYear == selectedYear)
                                     Surface(
-                                        shape = RoundedCornerShape(12.dp),
+                                        shape = MaterialTheme.shapes.small,
                                         color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceContainerHighest,
                                         modifier = Modifier
                                             .weight(1f)
@@ -1142,9 +1150,83 @@ private fun PeriodPickerDialog(
         },
         confirmButton = {},
         dismissButton = {
-            TextButton(shapes = ButtonDefaults.shapes(), onClick = onDismiss) {
+            TextButton(shapes = com.opensplit.ui.theme.appButtonShapes(), onClick = onDismiss) {
                 Text("Cancel")
             }
         }
     )
+}
+
+/**
+ * Month summary: your share this month next to last month, the change, and how much of the
+ * category budgets this month's spending has used.
+ */
+@Composable
+private fun MonthSummaryCard(state: AnalyticsUiState, budgets: Map<String, Double>) {
+    val symbol = CurrencyFormatter.getCurrencySymbol(state.currency)
+    fun money(v: Double) = symbol + CurrencyFormatter.format(v, showSymbol = false)
+    Surface(
+        shape = MaterialTheme.shapes.extraLarge,
+        color = MaterialTheme.colorScheme.surfaceContainer,
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Column(modifier = Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+            Text("Month summary", style = MaterialTheme.typography.titleMedium)
+            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                listOf(state.periodLabel to state.monthlySpendTotal, "Last month" to state.previousPeriodTotal)
+                    .forEachIndexed { i, (label, value) ->
+                        Surface(
+                            shape = MaterialTheme.shapes.large,
+                            color = if (i == 0) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceContainerHigh,
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Column(modifier = Modifier.padding(14.dp)) {
+                                Text(label, style = MaterialTheme.typography.labelMedium, maxLines = 1)
+                                Text(money(value), style = MaterialTheme.typography.titleLarge.copy(fontFamily = com.opensplit.ui.theme.MoneyFontFamily), maxLines = 1)
+                            }
+                        }
+                    }
+            }
+            val diff = state.monthlySpendTotal - state.previousPeriodTotal
+            if (state.previousPeriodTotal > 0.009) {
+                Text(
+                    when {
+                        kotlin.math.abs(diff) < 0.01 -> "Same as last month"
+                        diff > 0 -> "${money(diff)} more than last month"
+                        else -> "${money(-diff)} less than last month"
+                    },
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = if (diff > 0) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary
+                )
+            } else {
+                Text("No spending recorded last month", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+            if (budgets.isNotEmpty()) {
+                val totalBudget = budgets.values.sum()
+                val budgetedSpend = budgets.keys.sumOf { cat -> state.categoryBreakdown.firstOrNull { it.category == cat }?.amount ?: 0.0 }
+                val used = (budgetedSpend / totalBudget).coerceAtLeast(0.0)
+                val over = budgetedSpend > totalBudget
+                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Row {
+                        Text("Budget used", style = MaterialTheme.typography.labelLarge, modifier = Modifier.weight(1f))
+                        Text("${(used * 100).toInt()}%", style = MaterialTheme.typography.labelLarge, color = if (over) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary)
+                    }
+                    androidx.compose.material3.LinearWavyProgressIndicator(
+                        progress = { used.coerceAtMost(1.0).toFloat() },
+                        modifier = Modifier.fillMaxWidth(),
+                        color = if (over) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary,
+                        trackColor = MaterialTheme.colorScheme.surfaceContainerHighest
+                    )
+                    Text(
+                        if (over) "${money(budgetedSpend - totalBudget)} over your ${money(totalBudget)} budget"
+                        else "${money(totalBudget - budgetedSpend)} left of ${money(totalBudget)}",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            } else {
+                Text("Set category budgets below to track how much of them you've used.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+        }
+    }
 }

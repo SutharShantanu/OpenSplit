@@ -94,15 +94,19 @@ fun InviteFriendSheet(
         ) {
             Text("Add a friend", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, modifier = Modifier.fillMaxWidth())
             Spacer(Modifier.height(OpenSplitTokens.SpaceSM))
-            androidx.compose.material3.PrimaryTabRow(selectedTabIndex = tab, containerColor = Color.Transparent) {
-                Tab(selected = tab == 0, onClick = { tab = 0 }, text = { Text("My invite") }, icon = { SymbolIcon(OpenSplitIcons.QrCode, contentDescription = null, modifier = Modifier.size(20.dp)) })
-                Tab(selected = tab == 1, onClick = { tab = 1 }, text = { Text("Scan theirs") }, icon = { SymbolIcon(OpenSplitIcons.CameraAlt, contentDescription = null, modifier = Modifier.size(20.dp)) })
-            }
-            Spacer(Modifier.height(OpenSplitTokens.SpaceLG))
-            if (tab == 0) MyInviteTab(link, linkError, onRetry) else ScanTab(
-                onScanned = { handleScanned(it) },
-                pasted = pasted, onPasted = { pasted = it }, onContinue = { handleScanned(pasted) }
+            PillTabs(
+                selected = tab,
+                labels = listOf("My invite", "Scan theirs"),
+                icons = listOf(OpenSplitIcons.QrCode, OpenSplitIcons.CameraAlt),
+                onSelect = { tab = it }
             )
+            Spacer(Modifier.height(OpenSplitTokens.SpaceLG))
+            PillTabContent(tab) { t ->
+                if (t == 0) MyInviteTab(link, linkError, onRetry) else ScanTab(
+                    onScanned = { handleScanned(it) },
+                    pasted = pasted, onPasted = { pasted = it }, onContinue = { handleScanned(pasted) }
+                )
+            }
         }
     }
 }
@@ -115,12 +119,12 @@ private fun MyInviteTab(link: FriendLink?, linkError: String?, onRetry: () -> Un
         linkError != null -> {
             Text("Couldn't create your invite link: $linkError", color = MaterialTheme.colorScheme.error, textAlign = TextAlign.Center)
             Spacer(Modifier.height(OpenSplitTokens.SpaceMD))
-            OutlinedButton(shapes = ButtonDefaults.shapes(), onClick = onRetry) { Text("Try again") }
+            OutlinedButton(shapes = com.opensplit.ui.theme.appButtonShapes(), onClick = onRetry) { Text("Try again") }
         }
         link == null -> InlineBusy("Preparing your invite…")
         else -> {
             val qr = remember(link.url) { qrBitmap(link.url, 640) }
-            Surface(shape = RoundedCornerShape(24.dp), color = Color.White, modifier = Modifier.size(232.dp)) {
+            Surface(shape = MaterialTheme.shapes.large, color = Color.White, modifier = Modifier.size(232.dp)) {
                 Image(bitmap = qr.asImageBitmap(), contentDescription = "QR code that adds you as a friend", modifier = Modifier.padding(14.dp))
             }
             Spacer(Modifier.height(OpenSplitTokens.SpaceSM))
@@ -130,7 +134,7 @@ private fun MyInviteTab(link: FriendLink?, linkError: String?, onRetry: () -> Un
             Surface(shape = OpenSplitTokens.PillShape, color = MaterialTheme.colorScheme.surfaceContainerHigh, modifier = Modifier.fillMaxWidth()) {
                 Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(start = 16.dp, end = 4.dp)) {
                     Text(link.url.removePrefix("https://"), style = MaterialTheme.typography.bodySmall, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
-                    IconButton(shapes = IconButtonDefaults.shapes(), onClick = {
+                    IconButton(shapes = com.opensplit.ui.theme.appIconButtonShapes(), onClick = {
                         runCatching {
                             (context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager).setPrimaryClip(ClipData.newPlainText("OpenSplit friend link", link.url))
                         }.onSuccess { snackbar.showMessage("Link copied") }.onFailure { snackbar.showMessage("Couldn't copy the link") }
@@ -182,5 +186,5 @@ private fun ScanTab(onScanned: (String) -> Unit, pasted: String, onPasted: (Stri
     Spacer(Modifier.height(OpenSplitTokens.SpaceSM))
     OutlinedTextField(value = pasted, onValueChange = onPasted, singleLine = true, placeholder = { Text("Paste the invite link") }, modifier = Modifier.fillMaxWidth())
     Spacer(Modifier.height(OpenSplitTokens.SpaceSM))
-    OutlinedButton(shapes = ButtonDefaults.shapes(), enabled = InviteLink.tokenFrom(pasted) != null, onClick = onContinue, modifier = Modifier.fillMaxWidth()) { Text("Continue") }
+    OutlinedButton(shapes = com.opensplit.ui.theme.appButtonShapes(), enabled = InviteLink.tokenFrom(pasted) != null, onClick = onContinue, modifier = Modifier.fillMaxWidth()) { Text("Continue") }
 }

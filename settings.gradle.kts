@@ -25,3 +25,4 @@ dependencyResolutionManagement {
 rootProject.name = "OpenSplit"
 
 include(":app")
+include(":baselineprofile")

@@ -2,6 +2,8 @@
 
 package com.opensplit.ui.screens
 
+import com.opensplit.ui.components.FilterChip
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import android.content.Context
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -82,6 +84,7 @@ fun SettlementHistoryScreen(
     settlements: List<Settlement> = emptyList(),
     userMap: Map<String, User> = emptyMap(),
     currentUid: String = "",
+    defaultCurrency: String = "INR",
     onNavigateBack: () -> Unit,
     onExportHistory: () -> Unit = {}
 ) {
@@ -92,53 +95,8 @@ fun SettlementHistoryScreen(
     var showExportBottomSheet by rememberSaveable { mutableStateOf(false) }
     var inspectSettlement by remember { mutableStateOf<Settlement?>(null) }
 
-    val resolvedUserMap = remember(userMap) {
-        mapOf(
-            "user_sarah" to User(uid = "user_sarah", displayName = "Sarah Connor"),
-            "user_alex" to User(uid = "user_alex", displayName = "Alex Chen"),
-            "user_mike" to User(uid = "user_mike", displayName = "Mike Miller")
-        ) + userMap
-    }
-
-    val localSettlements by com.opensplit.data.local.InMemoryDataStore.settlements.collectAsState()
-
-    // Sample fallback data if empty
-    val displaySettlements = remember(settlements, localSettlements) {
-        if (settlements.isNotEmpty()) settlements
-        else if (localSettlements.isNotEmpty()) localSettlements
-        else listOf(
-            Settlement(
-                id = "s1",
-                fromUid = currentUid.ifEmpty { "me" },
-                toUid = "user_sarah",
-                amount = 120.0,
-                currency = "USD",
-                method = SettlementMethod.UPI,
-                note = "Apartment utilities",
-                date = com.google.firebase.Timestamp.now()
-            ),
-            Settlement(
-                id = "s2",
-                fromUid = "user_alex",
-                toUid = currentUid.ifEmpty { "me" },
-                amount = 45.50,
-                currency = "USD",
-                method = SettlementMethod.BANK_TRANSFER,
-                note = "Dinner share",
-                date = com.google.firebase.Timestamp(Date(System.currentTimeMillis() - 86400000L * 2))
-            ),
-            Settlement(
-                id = "s3",
-                fromUid = currentUid.ifEmpty { "me" },
-                toUid = "user_mike",
-                amount = 350.0,
-                currency = "USD",
-                method = SettlementMethod.CASH,
-                note = "Trip hotel booking",
-                date = com.google.firebase.Timestamp(Date(System.currentTimeMillis() - 86400000L * 15))
-            )
-        )
-    }
+    val resolvedUserMap = userMap
+    val displaySettlements = settlements
 
     val filteredSettlements = remember(
         displaySettlements,
@@ -182,20 +140,24 @@ fun SettlementHistoryScreen(
     val primaryCurrency = remember(filteredSettlements, displaySettlements) {
         filteredSettlements.firstOrNull()?.currency
             ?: displaySettlements.firstOrNull()?.currency
-            ?: "USD"
+            ?: defaultCurrency
+    }
+    // Totals are shown in one currency, so only settlements in that currency count.
+    val sameCurrency = remember(filteredSettlements, primaryCurrency) {
+        filteredSettlements.filter { it.currency == primaryCurrency }
     }
 
-    val totalSettledAmount = remember(filteredSettlements) {
-        filteredSettlements.sumOf { it.amount }
+    val totalSettledAmount = remember(sameCurrency) {
+        sameCurrency.sumOf { it.amount }
     }
 
-    val totalPaidOut = remember(filteredSettlements, currentUid) {
-        filteredSettlements.filter { it.fromUid == currentUid || (currentUid.isEmpty() && it.fromUid == "me") }
+    val totalPaidOut = remember(sameCurrency, currentUid) {
+        sameCurrency.filter { it.fromUid == currentUid || (currentUid.isEmpty() && it.fromUid == "me") }
             .sumOf { it.amount }
     }
 
-    val totalReceived = remember(filteredSettlements, currentUid) {
-        filteredSettlements.filter { it.toUid == currentUid || (currentUid.isNotEmpty() && it.fromUid != currentUid) || (currentUid.isEmpty() && it.fromUid != "me") }
+    val totalReceived = remember(sameCurrency, currentUid) {
+        sameCurrency.filter { it.toUid == currentUid || (currentUid.isNotEmpty() && it.fromUid != currentUid) || (currentUid.isEmpty() && it.fromUid != "me") }
             .sumOf { it.amount }
     }
 
@@ -212,9 +174,7 @@ fun SettlementHistoryScreen(
                     )
                 },
                 navigationIcon = {
-                    IconButton(shapes = IconButtonDefaults.shapes(), onClick = onNavigateBack) {
-                        SymbolIcon(OpenSplitIcons.Back, contentDescription = "Back")
-                    }
+                    com.opensplit.ui.components.RoundBackButton(onClick = onNavigateBack)
                 },
                 actions = {
                     // Named 'Export' button using distinct M3 FilledTonalButton
@@ -272,7 +232,7 @@ fun SettlementHistoryScreen(
             // Revamped Hero Overview Card
             Surface(
                 modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(24.dp),
+                shape = MaterialTheme.shapes.large,
                 color = MaterialTheme.colorScheme.surfaceContainerHigh,
                 tonalElevation = 2.dp
             ) {
@@ -355,7 +315,7 @@ fun SettlementHistoryScreen(
                         // Paid Out Metric
                         Surface(
                             modifier = Modifier.weight(1f),
-                            shape = RoundedCornerShape(16.dp),
+                            shape = MaterialTheme.shapes.medium,
                             color = MaterialTheme.colorScheme.surfaceContainerLow
                         ) {
                             Row(
@@ -398,7 +358,7 @@ fun SettlementHistoryScreen(
                         // Received Metric
                         Surface(
                             modifier = Modifier.weight(1f),
-                            shape = RoundedCornerShape(16.dp),
+                            shape = MaterialTheme.shapes.medium,
                             color = MaterialTheme.colorScheme.surfaceContainerLow
                         ) {
                             Row(
@@ -594,7 +554,7 @@ fun SettlementHistoryScreen(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .clickable { inspectSettlement = settlement },
-                            shape = RoundedCornerShape(20.dp),
+                            shape = MaterialTheme.shapes.medium,
                             colors = CardDefaults.cardColors(
                                 containerColor = MaterialTheme.colorScheme.surfaceContainerLow
                             )
@@ -902,7 +862,7 @@ fun SettlementReportBottomSheet(
                     )
                 }
 
-                IconButton(shapes = IconButtonDefaults.shapes(), onClick = onDismiss) {
+                IconButton(shapes = com.opensplit.ui.theme.appIconButtonShapes(), onClick = onDismiss) {
                     SymbolIcon(OpenSplitIcons.Close, contentDescription = "Close")
                 }
             }
@@ -926,7 +886,7 @@ fun SettlementReportBottomSheet(
                                 .weight(1f)
                                 .height(46.dp)
                                 .clickable { selectedBasis = basis },
-                            shape = RoundedCornerShape(12.dp),
+                            shape = MaterialTheme.shapes.small,
                             color = if (isSelected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceContainerHigh,
                             border = if (isSelected) androidx.compose.foundation.BorderStroke(1.5.dp, MaterialTheme.colorScheme.primary) else null
                         ) {
@@ -1010,7 +970,7 @@ fun SettlementReportBottomSheet(
                             modifier = Modifier
                                 .weight(1f)
                                 .clickable { selectedFormat = format },
-                            shape = RoundedCornerShape(16.dp),
+                            shape = MaterialTheme.shapes.medium,
                             color = if (isSelected) MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.surfaceContainerHigh,
                             border = if (isSelected) androidx.compose.foundation.BorderStroke(1.5.dp, MaterialTheme.colorScheme.secondary) else null
                         ) {
@@ -1044,7 +1004,7 @@ fun SettlementReportBottomSheet(
             // Live Scope Preview Box
             Surface(
                 modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(16.dp),
+                shape = MaterialTheme.shapes.medium,
                 color = MaterialTheme.colorScheme.surfaceContainerLow
             ) {
                 Row(

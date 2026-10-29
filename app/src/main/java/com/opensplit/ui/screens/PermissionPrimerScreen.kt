@@ -53,7 +53,7 @@ fun PermissionPrimerScreen(
             TopAppBar(
                 title = { Text("Permissions", fontWeight = FontWeight.Bold) },
                 actions = {
-                    TextButton(shapes = ButtonDefaults.shapes(), onClick = {
+                    TextButton(shapes = com.opensplit.ui.theme.appButtonShapes(), onClick = {
                         viewModel.markPrimerCompleted()
                         onComplete()
                     }) {
@@ -156,7 +156,7 @@ fun PermissionPrimerScreen(
 
                     Spacer(modifier = Modifier.height(8.dp))
 
-                    TextButton(shapes = ButtonDefaults.shapes(), 
+                    TextButton(shapes = com.opensplit.ui.theme.appButtonShapes(), 
                         onClick = {
                             viewModel.markPrimerCompleted()
                             onComplete()

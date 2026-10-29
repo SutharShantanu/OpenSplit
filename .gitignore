@@ -17,6 +17,10 @@
 local.properties
 .env
 debug.keystore
+*.keystore
+*.jks
+release-key.jks
+my-upload-key.jks
 
 # Firebase config — supply your own; never commit
 app/google-services.json

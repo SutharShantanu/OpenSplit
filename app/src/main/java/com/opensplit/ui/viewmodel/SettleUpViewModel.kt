@@ -84,8 +84,6 @@ class SettleUpViewModel(
             val toName = _members.value.find { it.uid == toUid }?.displayName ?: "B member"
             val groupNameStr = groupRepository.getGroup(groupId)?.name ?: "Group"
 
-            com.opensplit.data.local.InMemoryDataStore.recordSettlement(settlement, groupNameStr, fromName, toName)
-
             val result = settlementRepository.addSettlement(groupId, settlement)
             if (result.isSuccess) {
                 val formatted = com.opensplit.util.CurrencyFormatter.format(amount, _currency.value)

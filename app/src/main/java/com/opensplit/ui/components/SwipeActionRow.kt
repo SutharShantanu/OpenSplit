@@ -83,6 +83,14 @@ fun SwipeActionRow(
     val latestStart by rememberUpdatedState(startActions)
     val latestEnd by rememberUpdatedState(endActions)
     val close: () -> Unit = { scope.launch { state.animateTo(Reveal.Settled) } }
+    val haptics = androidx.compose.ui.platform.LocalHapticFeedback.current
+    androidx.compose.runtime.LaunchedEffect(state) {
+        androidx.compose.runtime.snapshotFlow { state.settledValue }.collect {
+            if (it != Reveal.Settled) {
+                haptics.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.GestureThresholdActivate)
+            }
+        }
+    }
 
     Box(modifier = modifier.fillMaxWidth().clip(MaterialTheme.shapes.medium)) {
         val offset = state.requireOffset()
@@ -107,12 +115,12 @@ private fun Tray(actions: List<SwipeAction>, modifier: Modifier, close: () -> Un
         actions.forEach { a ->
             val run = { close(); a.onAction() }
             if (a.primary) {
-                FilledIconButton(onClick = run, shapes = IconButtonDefaults.shapes(), modifier = Modifier.size(48.dp)) {
+                FilledIconButton(onClick = run, shapes = com.opensplit.ui.theme.appIconButtonShapes(), modifier = Modifier.size(48.dp)) {
                     SymbolIcon(a.icon, contentDescription = a.label)
                 }
             } else {
                 FilledTonalIconButton(
-                    onClick = run, shapes = IconButtonDefaults.shapes(), modifier = Modifier.size(48.dp),
+                    onClick = run, shapes = com.opensplit.ui.theme.appIconButtonShapes(), modifier = Modifier.size(48.dp),
                     colors = if (a.container != Color.Unspecified) IconButtonDefaults.filledTonalIconButtonColors(containerColor = a.container, contentColor = a.onContainer) else IconButtonDefaults.filledTonalIconButtonColors()
                 ) { SymbolIcon(a.icon, contentDescription = a.label) }
             }

@@ -10,5 +10,7 @@ data class User(
     val createdAt: Timestamp = Timestamp.now(),
     val defaultCurrency: String = "INR",
     val fcmToken: String? = null,
-    val lastSeenActivityTimestamp: Timestamp? = null
+    val lastSeenActivityTimestamp: Timestamp? = null,
+    /** UPI VPA (name@bank) friends pay to from Settle Up. */
+    val upiId: String? = null
 )

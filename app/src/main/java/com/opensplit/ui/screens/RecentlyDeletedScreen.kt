@@ -2,6 +2,7 @@
 
 package com.opensplit.ui.screens
 
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -33,7 +34,6 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -91,7 +91,7 @@ class RecentlyDeletedViewModel(private val container: AppContainer) : ViewModel(
 @Composable
 fun RecentlyDeletedScreen(appContainer: AppContainer, onNavigateBack: () -> Unit) {
     val viewModel: RecentlyDeletedViewModel = viewModel(factory = RecentlyDeletedViewModel.Factory(appContainer))
-    val deleted by viewModel.deleted.collectAsState()
+    val deleted by viewModel.deleted.collectAsStateWithLifecycle()
     val snackbar = LocalSnackbarController.current
     var pendingPurge by remember { mutableStateOf<Expense?>(null) }
     val dateFmt = SimpleDateFormat("MMM d", Locale.getDefault())
@@ -100,7 +100,7 @@ fun RecentlyDeletedScreen(appContainer: AppContainer, onNavigateBack: () -> Unit
         topBar = {
             TopAppBar(
                 title = { Text("Recently deleted", fontWeight = FontWeight.Bold) },
-                navigationIcon = { IconButton(shapes = IconButtonDefaults.shapes(), onClick = onNavigateBack) { SymbolIcon(OpenSplitIcons.Back, contentDescription = "Back") } },
+                navigationIcon = { com.opensplit.ui.components.RoundBackButton(onClick = onNavigateBack) },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.surface)
             )
         }
@@ -149,13 +149,13 @@ fun RecentlyDeletedScreen(appContainer: AppContainer, onNavigateBack: () -> Unit
                         }
                         Spacer(Modifier.height(OpenSplitTokens.SpaceSM))
                         Row(horizontalArrangement = Arrangement.spacedBy(OpenSplitTokens.SpaceSM)) {
-                            FilledTonalButton(shapes = ButtonDefaults.shapes(), onClick = {
+                            FilledTonalButton(shapes = com.opensplit.ui.theme.appButtonShapes(), onClick = {
                                 viewModel.restore(exp) { ok -> snackbar.showMessage(if (ok) "Restored ${exp.description}" else "Couldn't restore") }
                             }) {
                                 SymbolIcon(OpenSplitIcons.Refresh, contentDescription = null, modifier = Modifier.size(16.dp))
                                 Spacer(Modifier.width(6.dp)); Text("Restore")
                             }
-                            TextButton(shapes = ButtonDefaults.shapes(), onClick = { pendingPurge = exp }, colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error)) {
+                            TextButton(shapes = com.opensplit.ui.theme.appButtonShapes(), onClick = { pendingPurge = exp }, colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error)) {
                                 Text("Delete forever")
                             }
                         }
@@ -173,12 +173,12 @@ fun RecentlyDeletedScreen(appContainer: AppContainer, onNavigateBack: () -> Unit
             title = { Text("Delete forever?") },
             text = { Text("\"${exp.description}\" and its comments will be removed permanently. This cannot be undone.") },
             confirmButton = {
-                Button(shapes = ButtonDefaults.shapes(), 
+                Button(shapes = com.opensplit.ui.theme.appButtonShapes(), 
                     onClick = { viewModel.purge(exp) { ok -> snackbar.showMessage(if (ok) "Deleted forever" else "Couldn't delete") }; pendingPurge = null },
                     colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
                 ) { Text("Delete forever") }
             },
-            dismissButton = { TextButton(shapes = ButtonDefaults.shapes(), onClick = { pendingPurge = null }) { Text("Cancel") } }
+            dismissButton = { TextButton(shapes = com.opensplit.ui.theme.appButtonShapes(), onClick = { pendingPurge = null }) { Text("Cancel") } }
         )
     }
 }

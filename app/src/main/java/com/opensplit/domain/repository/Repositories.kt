@@ -13,7 +13,6 @@ interface AuthRepository {
     suspend fun signInWithEmail(email: String, password: String): Result<String>
     suspend fun signUpWithEmail(email: String, password: String): Result<String>
     suspend fun signInWithGoogle(idToken: String): Result<String>
-    suspend fun signInAsDemo(uid: String = "user_elena_demo", displayName: String = "Elena Rodriguez", email: String = "elena.rodriguez@example.com"): Result<String>
     suspend fun sendPasswordResetEmail(email: String): Result<Unit>
     suspend fun confirmPasswordReset(oobCode: String, newPassword: String): Result<Unit>
     suspend fun updateProfile(displayName: String): Result<Unit>
@@ -35,6 +34,7 @@ interface UserRepository {
     suspend fun saveUser(user: User): Result<Unit>
     suspend fun createUserIfNotFound(uid: String, displayName: String?, email: String?, photoUrl: String?): Result<Unit>
     suspend fun updateCurrency(currency: String): Result<Unit>
+    suspend fun updateUpiId(upiId: String?): Result<Unit>
     suspend fun updateUser(user: User): Result<Unit>
     suspend fun updateLastSeenActivity(uid: String, timestamp: com.google.firebase.Timestamp): Result<Unit>
     fun searchUsersByEmail(query: String): Flow<List<User>>

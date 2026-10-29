@@ -2,6 +2,7 @@
 
 package com.opensplit.ui.components
 
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -11,7 +12,6 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
@@ -49,13 +49,13 @@ fun GoogleSignInButton(
     modifier: Modifier = Modifier,
     text: String = "Continue with Google"
 ) {
-    val uiState by viewModel.uiState.collectAsState()
+    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val context = LocalContext.current
     val snackbar = LocalSnackbarController.current
     val scope = rememberCoroutineScope()
     val loading = uiState is AuthUiState.Loading
 
-    Button(shapes = ButtonDefaults.shapes(), 
+    Button(shapes = com.opensplit.ui.theme.appButtonShapes(), 
         onClick = {
             scope.launch {
                 // Resolve the web client id the google-services plugin generates. Missing/blank

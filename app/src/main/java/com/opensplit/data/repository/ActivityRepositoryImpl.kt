@@ -32,9 +32,7 @@ class ActivityRepositoryImpl(
             awaitClose { listener.remove() }
         }.onStart { emit(emptyList<Activity>()) }
 
-        return combine(firestoreFlow, com.opensplit.data.local.InMemoryDataStore.activities) { remote, local ->
-            (remote + local).distinctBy { it.id }.sortedByDescending { it.timestamp.seconds }
-        }
+        return firestoreFlow.map { it.sortedByDescending { a -> a.timestamp.seconds } }
     }
 
     @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)

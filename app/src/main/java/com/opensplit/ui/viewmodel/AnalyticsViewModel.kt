@@ -50,6 +50,8 @@ data class AnalyticsUiState(
     val yourShareTotal: Double = 0.0,
     /** Percentage change vs prior period (+0.15 = +15%); null when prior period had no expenses. */
     val monthOverMonth: Double? = null,
+    /** Your share in the comparison period (last month / last year); 0 when none. */
+    val previousPeriodTotal: Double = 0.0,
     /** Rule-based takeaways that never need an API key. */
     val localInsights: List<String> = emptyList(),
     /** Active time period type (Month, Year, All Time). */
@@ -352,6 +354,7 @@ class AnalyticsViewModel(private val appContainer: AppContainer) : ViewModel() {
                         totalMoneyTracked = periodExpenses.sumOf { it.amount },
                         yourShareTotal = periodUserTotal,
                         monthOverMonth = changePct,
+                        previousPeriodTotal = prevUserTotal,
                         localInsights = com.opensplit.domain.logic.SpendingInsights.describe(
                             currencySymbol,
                             buckets.map { it.amount },

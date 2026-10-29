@@ -2,6 +2,7 @@
 
 package com.opensplit.ui.screens
 
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.opensplit.ui.theme.Symbol
 import com.opensplit.ui.components.SymbolIcon
 import androidx.compose.animation.AnimatedContent
@@ -10,6 +11,10 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -32,7 +37,6 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -51,8 +55,6 @@ import com.opensplit.di.AppContainer
 import com.opensplit.ui.components.CreateGroupDialog
 import com.opensplit.ui.components.GlobalSearchSheet
 import com.opensplit.ui.components.LocalSnackbarController
-import com.opensplit.ui.components.appHazeHeader
-import com.opensplit.ui.components.appHazeSource
 import com.opensplit.ui.theme.OpenSplitIcons
 import com.opensplit.ui.theme.OpenSplitMotion
 import com.opensplit.ui.viewmodel.AccountViewModel
@@ -62,7 +64,6 @@ import com.opensplit.ui.viewmodel.HomeViewModel
 import com.opensplit.ui.viewmodel.MainViewModel
 import com.opensplit.ui.viewmodel.ScreenState
 import com.opensplit.ui.viewmodel.ViewModelFactory
-import dev.chrisbanes.haze.HazeState
 import kotlinx.coroutines.launch
 
 /** Top-level destinations. Order is the bar order. */
@@ -86,7 +87,6 @@ fun MainDashboard(
     onWidgetActionConsumed: () -> Unit = {}
 ) {
     var selectedTab by rememberSaveable { mutableStateOf(DashboardTab.GROUPS) }
-    val hazeState = remember { HazeState() }
     val snackbar = LocalSnackbarController.current
     val busy = com.opensplit.ui.components.LocalBusy.current
     val wide = useNavigationRail(LocalConfiguration.current.screenWidthDp)
@@ -99,15 +99,15 @@ fun MainDashboard(
 
     val currentUid = appContainer.authRepository.currentUserId ?: ""
     val currentUserFlow = remember(currentUid) { appContainer.userRepository.getUserFlow(currentUid) }
-    val currentUserState by currentUserFlow.collectAsState(initial = null)
-    val userGroupsState by mainViewModel.userGroups.collectAsState()
+    val currentUserState by currentUserFlow.collectAsStateWithLifecycle(initialValue = null)
+    val userGroupsState by mainViewModel.userGroups.collectAsStateWithLifecycle()
     val allGroups = (userGroupsState as? ScreenState.Success)?.data ?: emptyList()
     val groupIds = allGroups.map { it.id }
     val activitiesFlow = remember(currentUid, groupIds) {
         appContainer.activityRepository.getActivityForUser(currentUid, groupIds)
     }
-    val activities by activitiesFlow.collectAsState(initial = emptyList())
-    val lastSeenLocal by mainViewModel.lastSeenActivity.collectAsState()
+    val activities by activitiesFlow.collectAsStateWithLifecycle(initialValue = emptyList())
+    val lastSeenLocal by mainViewModel.lastSeenActivity.collectAsStateWithLifecycle()
     val unreadCount = remember(activities, currentUserState, lastSeenLocal) {
         val lastSeen = maxOf(lastSeenLocal, currentUserState?.lastSeenActivityTimestamp?.seconds ?: 0L)
         // Your own actions are never "unread"; only other members' activity counts.
@@ -123,10 +123,10 @@ fun MainDashboard(
     var showSettleUpPicker by remember { mutableStateOf(false) }
     var showCreateGroup by remember { mutableStateOf(false) }
     var showQrSheet by remember { mutableStateOf(false) }
-    val friendsState by mainViewModel.friendsBalances.collectAsState()
+    val friendsState by mainViewModel.friendsBalances.collectAsStateWithLifecycle()
     val hasFriends = ((friendsState as? ScreenState.Success)?.data?.isNotEmpty() == true)
-    val myFriendLink by mainViewModel.friendLink.collectAsState()
-    val myFriendLinkError by mainViewModel.friendLinkError.collectAsState()
+    val myFriendLink by mainViewModel.friendLink.collectAsStateWithLifecycle()
+    val myFriendLinkError by mainViewModel.friendLinkError.collectAsStateWithLifecycle()
     // On wide layouts Groups and People keep their detail open beside the list.
     var detailGroupId by rememberSaveable { mutableStateOf<String?>(null) }
     var detailFriendId by rememberSaveable { mutableStateOf<String?>(null) }
@@ -168,21 +168,30 @@ fun MainDashboard(
 
     // One contextual FAB per tab; tabs without a primary create action have none.
     // No FAB while a tab shows its empty state; the empty state already carries the one call to action.
+    // Both FAB lambdas exist unconditionally; the `when` only picks one. Creating composable
+    // lambdas inside `when` branches shifted the slot table when switching tabs, which made
+    // Compose rebuild everything below (and skip the tab slide).
+    val groupsFab: @Composable () -> Unit = {
+        FloatingActionButton(
+            onClick = { addExpense() },
+            shape = com.opensplit.ui.theme.LocalAppStyle.current.pill,
+            modifier = Modifier.size(72.dp),
+            containerColor = MaterialTheme.colorScheme.primaryContainer,
+            contentColor = MaterialTheme.colorScheme.onPrimaryContainer
+        ) { SymbolIcon(OpenSplitIcons.AddExpense, contentDescription = "Add expense") }
+    }
+    val peopleFab: @Composable () -> Unit = {
+        FloatingActionButton(
+            onClick = { mainViewModel.ensureFriendLink(); showQrSheet = true },
+            shape = com.opensplit.ui.theme.LocalAppStyle.current.pill,
+            modifier = Modifier.size(72.dp),
+            containerColor = MaterialTheme.colorScheme.primaryContainer,
+            contentColor = MaterialTheme.colorScheme.onPrimaryContainer
+        ) { SymbolIcon(OpenSplitIcons.PersonAdd, contentDescription = "Add friend") }
+    }
     val fab: (@Composable () -> Unit)? = when (selectedTab) {
-        DashboardTab.GROUPS -> if (allGroups.none { !it.isDirect }) null else ({
-            FloatingActionButton(
-                onClick = { addExpense() },
-                containerColor = MaterialTheme.colorScheme.primaryContainer,
-                contentColor = MaterialTheme.colorScheme.onPrimaryContainer
-            ) { SymbolIcon(OpenSplitIcons.AddExpense, contentDescription = "Add expense") }
-        })
-        DashboardTab.PEOPLE -> if (!hasFriends) null else ({
-            FloatingActionButton(
-                onClick = { mainViewModel.ensureFriendLink(); showQrSheet = true },
-                containerColor = MaterialTheme.colorScheme.primaryContainer,
-                contentColor = MaterialTheme.colorScheme.onPrimaryContainer
-            ) { SymbolIcon(OpenSplitIcons.PersonAdd, contentDescription = "Add friend") }
-        })
+        DashboardTab.GROUPS -> groupsFab.takeIf { allGroups.any { !it.isDirect } }
+        DashboardTab.PEOPLE -> peopleFab.takeIf { hasFriends }
         else -> null
     }
 
@@ -192,63 +201,45 @@ fun MainDashboard(
         } else content()
     }
 
-    Scaffold(
-        topBar = {
-            if (selectedTab != DashboardTab.SETTINGS) {
-                TopAppBar(
-                    title = { Text(selectedTab.label, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleLarge) },
-                    colors = TopAppBarDefaults.topAppBarColors(
-                        containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.75f)
-                    ),
-                    modifier = Modifier.appHazeHeader(hazeState),
-                    actions = {
-                        if (selectedTab == DashboardTab.GROUPS) {
-                            IconButton(shapes = IconButtonDefaults.shapes(), onClick = { showCreateGroup = true }) {
-                                SymbolIcon(OpenSplitIcons.GroupAdd, contentDescription = "New group")
-                            }
-                            IconButton(shapes = IconButtonDefaults.shapes(), onClick = { rootNavController.navigate("settlement_history") }) {
-                                SymbolIcon(OpenSplitIcons.History, contentDescription = "Settlement history")
-                            }
-                        }
-                        if (selectedTab == DashboardTab.PEOPLE) {
-                            IconButton(shapes = IconButtonDefaults.shapes(), onClick = { mainViewModel.ensureFriendLink(); showQrSheet = true }) {
-                                SymbolIcon(OpenSplitIcons.QrCode, contentDescription = "Show or scan a QR code")
-                            }
-                        }
-                        IconButton(shapes = IconButtonDefaults.shapes(), onClick = { showGlobalSearch = true }) {
-                            SymbolIcon(OpenSplitIcons.Search, contentDescription = "Search")
-                        }
-                    }
+    val dashboardHeader: @Composable (DashboardTab) -> Unit = { tab ->
+        TopAppBar(
+            expandedHeight = 88.dp,
+            windowInsets = androidx.compose.foundation.layout.WindowInsets(0, 0, 0, 0),
+            title = {
+                Text(
+                    tab.label,
+                    style = MaterialTheme.typography.headlineLarge,
+                    color = MaterialTheme.colorScheme.primary
                 )
-            }
-        },
-        floatingActionButton = {
-            // Keep the last FAB around so it can scale out instead of vanishing.
-            val lastFab = remember { mutableStateOf(fab) }
-            if (fab != null) lastFab.value = fab
-            androidx.compose.animation.AnimatedVisibility(
-                visible = !wide && fab != null,
-                enter = androidx.compose.animation.scaleIn(OpenSplitMotion.ExpressiveSpring) + androidx.compose.animation.fadeIn(),
-                exit = androidx.compose.animation.scaleOut() + androidx.compose.animation.fadeOut()
-            ) { lastFab.value?.invoke() }
-        },
-        bottomBar = {
-            if (!wide) {
-                // M3 Expressive short navigation bar: tighter than the classic one, pill indicator built in.
-                androidx.compose.material3.ShortNavigationBar {
-                    DashboardTab.entries.forEach { tab ->
-                        androidx.compose.material3.ShortNavigationBarItem(
-                            selected = selectedTab == tab,
-                            onClick = { selectedTab = tab },
-                            icon = { tabItem(tab) { SymbolIcon(tab.icon, contentDescription = null, filled = selectedTab == tab) } },
-                            label = { Text(tab.label) }
-                        )
-                    }
+            },
+            colors = TopAppBarDefaults.topAppBarColors(containerColor = androidx.compose.ui.graphics.Color.Transparent),
+            actions = {
+                val c = MaterialTheme.colorScheme
+                if (tab == DashboardTab.GROUPS) {
+                    com.opensplit.ui.components.HeaderAction(OpenSplitIcons.GroupAdd, "New group", c.tertiaryContainer, c.onTertiaryContainer) { showCreateGroup = true }
+                    com.opensplit.ui.components.HeaderAction(OpenSplitIcons.History, "Settlement history", c.secondaryContainer, c.onSecondaryContainer) { rootNavController.navigate("settlement_history") }
                 }
+                if (tab == DashboardTab.PEOPLE) {
+                    com.opensplit.ui.components.HeaderAction(OpenSplitIcons.QrCode, "Show or scan a QR code", c.tertiaryContainer, c.onTertiaryContainer) { mainViewModel.ensureFriendLink(); showQrSheet = true }
+                }
+                com.opensplit.ui.components.HeaderAction(OpenSplitIcons.Search, "Search", c.primaryContainer, c.onPrimaryContainer) { showGlobalSearch = true }
+                Spacer(Modifier.width(8.dp))
             }
-        }
-    ) { padding ->
-        Row(modifier = Modifier.fillMaxSize().padding(padding)) {
+        )
+    }
+
+    Box(Modifier.fillMaxSize()) {
+    // Each tab draws its own header (see dashboardHeader) so titles slide with their pages and
+    // switching to Settings (which has its own header) doesn't make the content jump.
+
+        // No Scaffold: none of its slots are used, and its content subcomposition was being
+        // recreated on some tab switches, which reset SlidingTabHost and skipped the slide.
+        Row(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(MaterialTheme.colorScheme.background)
+                .windowInsetsPadding(androidx.compose.material3.ScaffoldDefaults.contentWindowInsets)
+        ) {
             if (wide) {
                 // M3 Expressive wide navigation rail (collapsed): same items, expressive indicator and spacing.
                 androidx.compose.material3.WideNavigationRail(header = { fab?.let { Spacer(Modifier.height(8.dp)); it() } }) {
@@ -277,7 +268,7 @@ fun MainDashboard(
             val pullRefreshEnabled = remember { mutableStateOf(true) }
             androidx.compose.runtime.CompositionLocalProvider(com.opensplit.ui.components.LocalPullRefreshEnabled provides pullRefreshEnabled) {
             androidx.compose.foundation.layout.Box(
-                modifier = Modifier.fillMaxSize().appHazeSource(hazeState).pullToRefresh(
+                modifier = Modifier.fillMaxSize().pullToRefresh(
                 isRefreshing = refreshing,
                 state = pullState,
                 enabled = pullRefreshEnabled.value,
@@ -312,15 +303,17 @@ fun MainDashboard(
                 val pullOffsetPx = with(androidx.compose.ui.platform.LocalDensity.current) {
                     androidx.compose.material3.pulltorefresh.PullToRefreshDefaults.PositionalThreshold.toPx()
                 }
-                // Peers with no spatial relationship cross-fade (M3 fade-through).
-                AnimatedContent(
-                    targetState = selectedTab,
-                    transitionSpec = { OpenSplitMotion.fadeThrough() },
-                    label = "dashboardTab",
+                // Tabs stay composed and slide along the bar's axis (see SlidingTabHost).
+                com.opensplit.ui.components.SlidingTabHost(
+                    selected = selectedTab,
+                    tabs = DashboardTab.entries,
                     modifier = Modifier.graphicsLayer {
                         translationY = pullState.distanceFraction.coerceIn(0f, 1f) * pullOffsetPx
                     }
                 ) { tab ->
+                    androidx.compose.foundation.layout.Column(Modifier.fillMaxSize()) {
+                    if (tab != DashboardTab.SETTINGS) dashboardHeader(tab)
+                    androidx.compose.foundation.layout.Box(Modifier.weight(1f)) {
                     when (tab) {
                         DashboardTab.GROUPS -> ListDetail(wide = wide, detailKey = detailGroupId,
                             list = {
@@ -395,11 +388,30 @@ fun MainDashboard(
                             viewModel = accountViewModel
                         )
                     }
+                    }
+                    }
                 }
             }
             }
             }
         }
+
+    // Floats over the content; lists scroll behind it and keep FloatingNavBarClearance at the end.
+    if (!wide) {
+        com.opensplit.ui.components.FloatingNavBar(
+            items = DashboardTab.entries.map { tab ->
+                com.opensplit.ui.components.FloatingNavItem(
+                    label = tab.label,
+                    icon = tab.icon,
+                    selected = selectedTab == tab,
+                    onClick = { selectedTab = tab },
+                    badge = { icon -> tabItem(tab, icon) }
+                )
+            },
+            action = fab,
+            modifier = Modifier.align(androidx.compose.ui.Alignment.BottomCenter)
+        )
+    }
     }
 
     if (showGlobalSearch) {

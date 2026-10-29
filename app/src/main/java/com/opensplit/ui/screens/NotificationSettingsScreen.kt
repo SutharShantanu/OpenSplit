@@ -2,6 +2,7 @@
 
 package com.opensplit.ui.screens
 
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.opensplit.ui.components.SymbolIcon
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
@@ -38,7 +39,7 @@ fun NotificationSettingsScreen(
 ) {
     val snackbar = LocalSnackbarController.current
     val scope = androidx.compose.runtime.rememberCoroutineScope()
-    val disabled by (prefs?.disabledNotificationTypesFlow ?: kotlinx.coroutines.flow.flowOf(emptySet<String>())).collectAsState(initial = emptySet())
+    val disabled by (prefs?.disabledNotificationTypesFlow ?: kotlinx.coroutines.flow.flowOf(emptySet<String>())).collectAsStateWithLifecycle(initialValue = emptySet())
     fun on(type: com.opensplit.domain.model.NotificationType) = type.id !in disabled
     fun set(type: com.opensplit.domain.model.NotificationType, enabled: Boolean) {
         scope.launch { prefs?.setNotificationTypeEnabled(type.id, enabled) }
@@ -50,18 +51,15 @@ fun NotificationSettingsScreen(
 
     Scaffold(
         topBar = {
-            TopAppBar(
+            androidx.compose.material3.LargeTopAppBar(
                 title = {
                     Text(
                         text = "Settings",
-                        fontWeight = FontWeight.Bold,
-                        style = MaterialTheme.typography.titleLarge
+                        fontWeight = FontWeight.Bold
                     )
                 },
                 navigationIcon = {
-                    IconButton(shapes = IconButtonDefaults.shapes(), onClick = onNavigateBack) {
-                        SymbolIcon(OpenSplitIcons.Back, contentDescription = "Back")
-                    }
+                    com.opensplit.ui.components.RoundBackButton(onClick = onNavigateBack)
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.surface
@@ -102,7 +100,7 @@ fun NotificationSettingsScreen(
             // Expense Alerts Card
             Card(
                 modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(28.dp),
+                shape = MaterialTheme.shapes.large,
                 colors = CardDefaults.cardColors(
                     containerColor = MaterialTheme.colorScheme.secondaryContainer
                 )
@@ -133,7 +131,7 @@ fun NotificationSettingsScreen(
                     }
 
                     Surface(
-                        shape = RoundedCornerShape(16.dp),
+                        shape = MaterialTheme.shapes.medium,
                         color = MaterialTheme.colorScheme.surface,
                         modifier = Modifier.fillMaxWidth()
                     ) {
@@ -170,7 +168,7 @@ fun NotificationSettingsScreen(
             // Settlement Reminders Card
             Card(
                 modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(28.dp),
+                shape = MaterialTheme.shapes.large,
                 colors = CardDefaults.cardColors(
                     containerColor = MaterialTheme.colorScheme.secondaryContainer
                 )
@@ -201,7 +199,7 @@ fun NotificationSettingsScreen(
                     }
 
                     Surface(
-                        shape = RoundedCornerShape(16.dp),
+                        shape = MaterialTheme.shapes.medium,
                         color = MaterialTheme.colorScheme.surface,
                         modifier = Modifier.fillMaxWidth()
                     ) {

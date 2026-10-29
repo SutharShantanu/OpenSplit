@@ -35,4 +35,28 @@ class VersionCompareTest {
         """.trimIndent()
         assertEquals("• fix: stable CI signing key\n• feat: in-app updates", AppUpdater.plainNotes(body))
     }
+
+    @Test
+    fun checksumLookupAndHash() {
+        val listing = "abc123  OpenSplit-v1.0.5.apk\ndef456  OpenSplit-v1.0.5.aab\n"
+        assertEquals("abc123", AppUpdater.expectedSha256(listing, "OpenSplit-v1.0.5.apk"))
+        assertEquals("def456", AppUpdater.expectedSha256(listing, "OpenSplit-v1.0.5.aab"))
+        assertEquals(null, AppUpdater.expectedSha256(listing, "other.apk"))
+        // sha256("abc") from FIPS 180-2
+        assertEquals(
+            "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad",
+            AppUpdater.sha256Hex("abc".byteInputStream())
+        )
+    }
+
+    @Test
+    fun bodyWithoutChangeListHasNoNotes() {
+        assertEquals("", AppUpdater.plainNotes("## OpenSplit v1.0.32\n```bash\nadb install -r x.apk\n```"))
+    }
+
+    @Test
+    fun commitNotesNewestFirstWithoutMerges() {
+        val notes = AppUpdater.commitNotes(listOf("fix: a\n\nbody", "Merge branch 'x'", "feat: b"))
+        assertEquals("• feat: b\n• fix: a", notes)
+    }
 }

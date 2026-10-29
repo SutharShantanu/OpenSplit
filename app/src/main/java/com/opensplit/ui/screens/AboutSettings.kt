@@ -2,6 +2,7 @@
 
 package com.opensplit.ui.screens
 
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.opensplit.ui.theme.Symbol
 import com.opensplit.data.ai.AI_PROVIDERS_CATALOG
 import com.opensplit.data.ai.AiProviderInfo
@@ -72,9 +73,19 @@ fun AboutSupportSubScreen(
 ) {
     val context = LocalContext.current
     val updater = com.opensplit.ui.components.LocalAppUpdater.current
-    val updateState by updater.state.collectAsState()
+    val updateState by updater.state.collectAsStateWithLifecycle()
     val snackbar = LocalSnackbarController.current
     val scope = rememberCoroutineScope()
+    var showLicenses by remember { mutableStateOf(false) }
+    var showChangelog by remember { mutableStateOf(false) }
+
+    if (showChangelog) {
+        com.opensplit.ui.components.ChangelogBottomSheet(onDismiss = { showChangelog = false })
+    }
+    if (showLicenses) {
+        OpenSourceLicenses(onBack = { showLicenses = false })
+        return
+    }
 
     Box(
         modifier = Modifier.fillMaxSize(),
@@ -85,12 +96,10 @@ fun AboutSupportSubScreen(
                 .fillMaxSize()
                 .responsiveContentWidth(maxWidth = 760.dp)
         ) {
-            TopAppBar(
+            androidx.compose.material3.LargeTopAppBar(
                 title = { Text("About OpenSplit", fontWeight = FontWeight.Bold) },
                 navigationIcon = {
-                    IconButton(shapes = IconButtonDefaults.shapes(), onClick = onBack) {
-                        SymbolIcon(OpenSplitIcons.ArrowBack, contentDescription = "Back")
-                    }
+                    com.opensplit.ui.components.RoundBackButton(onClick = onBack)
                 },
                 windowInsets = WindowInsets(0, 0, 0, 0)
             )
@@ -104,7 +113,7 @@ fun AboutSupportSubScreen(
             item {
                 Card(
                     modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(24.dp),
+                    shape = MaterialTheme.shapes.large,
                     colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh)
                 ) {
                     Column(
@@ -154,7 +163,7 @@ fun AboutSupportSubScreen(
             item {
                 Card(
                     modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(24.dp),
+                    shape = MaterialTheme.shapes.large,
                     colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh)
                 ) {
                     val checking = updateState is com.opensplit.data.update.AppUpdater.State.Checking
@@ -171,7 +180,7 @@ fun AboutSupportSubScreen(
                             }
                         },
                         enabled = !checking,
-                        shape = RoundedCornerShape(24.dp),
+                        shape = MaterialTheme.shapes.large,
                         color = Color.Transparent,
                         modifier = Modifier.fillMaxWidth()
                     ) {
@@ -202,21 +211,24 @@ fun AboutSupportSubScreen(
             item {
                 Card(
                     modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(24.dp),
+                    shape = MaterialTheme.shapes.large,
                     colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh)
                 ) {
                     Column(modifier = Modifier.padding(16.dp)) {
                         listOf(
-                            Triple("GitHub Repository", "View open-source project code", "https://github.com"),
+                            Triple("What's new in OpenSplit", "Recent updates and release notes", CHANGELOG),
+                            Triple("GitHub Repository", "View open-source project code", "https://github.com/SutharShantanu/OpenSplit"),
+                            Triple("Open-source licenses", "Libraries OpenSplit is built with", LICENSES),
                             Triple("Privacy Policy", "Learn how your data is handled", "https://opensplit.app/privacy"),
                             Triple("Terms of Service", "Read service terms & conditions", "https://opensplit.app/terms")
                         ).forEach { (title, subtitle, url) ->
                             Surface(
                                 onClick = {
-                                    val intent = Intent(Intent.ACTION_VIEW, Uri.parse(url))
-                                    context.startActivity(intent)
+                                    if (url == CHANGELOG) showChangelog = true
+                                    else if (url == LICENSES) showLicenses = true
+                                    else context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
                                 },
-                                shape = RoundedCornerShape(12.dp),
+                                shape = MaterialTheme.shapes.small,
                                 color = Color.Transparent,
                                 modifier = Modifier.fillMaxWidth()
                             ) {
@@ -238,4 +250,30 @@ fun AboutSupportSubScreen(
         }
     }
 }
+}
+
+private const val LICENSES = "licenses"
+private const val CHANGELOG = "changelog"
+
+/** Third-party licenses, generated at build time by the AboutLibraries Gradle plugin. */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun OpenSourceLicenses(onBack: () -> Unit) {
+    androidx.activity.compose.BackHandler(onBack = onBack)
+    val context = LocalContext.current
+    val libraries by com.mikepenz.aboutlibraries.ui.compose.produceLibraries {
+        kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+            context.resources.openRawResource(com.opensplit.R.raw.aboutlibraries).bufferedReader().use { it.readText() }
+        }
+    }
+    Column(Modifier.fillMaxSize()) {
+        androidx.compose.material3.LargeTopAppBar(
+            title = { Text("Open-source licenses", fontWeight = FontWeight.Bold) },
+            navigationIcon = {
+                com.opensplit.ui.components.RoundBackButton(onClick = onBack)
+            },
+            windowInsets = WindowInsets(0, 0, 0, 0)
+        )
+        com.mikepenz.aboutlibraries.ui.compose.m3.LibrariesContainer(libraries, Modifier.fillMaxSize())
+    }
 }

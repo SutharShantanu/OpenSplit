@@ -1,5 +1,8 @@
 package com.opensplit.ui.theme
 
+import android.app.Activity
+import android.content.Context
+import android.content.ContextWrapper
 import android.os.Build
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
@@ -10,84 +13,17 @@ import androidx.compose.material3.dynamicDarkColorScheme
 import androidx.compose.material3.dynamicLightColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.SideEffect
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.toArgb
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.unit.dp
+import androidx.core.graphics.ColorUtils
+import androidx.core.view.WindowCompat
 
-private val DarkColorScheme =
-  darkColorScheme(
-    primary = PrimaryDark,
-    onPrimary = OnPrimaryDark,
-    primaryContainer = PrimaryContainerDark,
-    onPrimaryContainer = OnPrimaryContainerDark,
-    secondary = SecondaryDark,
-    onSecondary = OnSecondaryDark,
-    secondaryContainer = SecondaryContainerDark,
-    onSecondaryContainer = OnSecondaryContainerDark,
-    tertiary = TertiaryDark,
-    onTertiary = OnTertiaryDark,
-    tertiaryContainer = TertiaryContainerDark,
-    onTertiaryContainer = OnTertiaryContainerDark,
-    surface = SurfaceDark,
-    onSurface = OnSurfaceDark,
-    surfaceVariant = SurfaceVariantDark,
-    onSurfaceVariant = OnSurfaceVariantDark,
-    surfaceContainerLowest = SurfaceContainerLowestDark,
-    surfaceContainerLow = SurfaceContainerLowDark,
-    surfaceContainer = SurfaceContainerDark,
-    surfaceContainerHigh = SurfaceContainerHighDark,
-    surfaceContainerHighest = SurfaceContainerHighestDark,
-    surfaceBright = SurfaceBrightDark,
-    surfaceDim = SurfaceDimDark,
-    background = SurfaceDark,
-    onBackground = OnSurfaceDark,
-    error = ErrorDark,
-    onError = OnErrorDark,
-    errorContainer = ErrorContainerDark,
-    onErrorContainer = OnErrorContainerDark,
-    outline = OutlineDark,
-    outlineVariant = OutlineVariantDark,
-    inverseSurface = InverseSurfaceDark,
-    inverseOnSurface = InverseOnSurfaceDark,
-    inversePrimary = InversePrimaryDark
-  )
 
-private val LightColorScheme =
-  lightColorScheme(
-    primary = PrimaryLight,
-    onPrimary = OnPrimaryLight,
-    primaryContainer = PrimaryContainerLight,
-    onPrimaryContainer = OnPrimaryContainerLight,
-    secondary = SecondaryLight,
-    onSecondary = OnSecondaryLight,
-    secondaryContainer = SecondaryContainerLight,
-    onSecondaryContainer = OnSecondaryContainerLight,
-    tertiary = TertiaryLight,
-    onTertiary = OnTertiaryLight,
-    tertiaryContainer = TertiaryContainerLight,
-    onTertiaryContainer = OnTertiaryContainerLight,
-    surface = SurfaceLight,
-    onSurface = OnSurfaceLight,
-    surfaceVariant = SurfaceVariantLight,
-    onSurfaceVariant = OnSurfaceVariantLight,
-    surfaceContainerLowest = SurfaceContainerLowestLight,
-    surfaceContainerLow = SurfaceContainerLowLight,
-    surfaceContainer = SurfaceContainerLight,
-    surfaceContainerHigh = SurfaceContainerHighLight,
-    surfaceContainerHighest = SurfaceContainerHighestLight,
-    surfaceBright = SurfaceBrightLight,
-    surfaceDim = SurfaceDimLight,
-    background = SurfaceLight,
-    onBackground = OnSurfaceLight,
-    error = ErrorLight,
-    onError = OnErrorLight,
-    errorContainer = ErrorContainerLight,
-    onErrorContainer = OnErrorContainerLight,
-    outline = OutlineLight,
-    outlineVariant = OutlineVariantLight,
-    inverseSurface = InverseSurfaceLight,
-    inverseOnSurface = InverseOnSurfaceLight,
-    inversePrimary = InversePrimaryLight
-  )
 
 // ==========================================
 // Monochrome Palette (Minimalist B&W / Slate)
@@ -153,192 +89,151 @@ private val MonochromeDarkColorScheme = darkColorScheme(
 )
 
 // ==========================================
-// Emerald Palette (Mint / Forest Green)
+// Sage (default): Material tonal scheme from a green seed, so surfaces carry a
+// soft tint instead of flat grey, like Pixel apps.
 // ==========================================
-private val EmeraldLightColorScheme = lightColorScheme(
-    primary = Color(0xFF059669),
-    onPrimary = Color(0xFFFFFFFF),
-    primaryContainer = Color(0xFFD1FAE5),
-    onPrimaryContainer = Color(0xFF065F46),
-    secondary = Color(0xFF0D9488),
-    onSecondary = Color(0xFFFFFFFF),
-    secondaryContainer = Color(0xFFCCFBF1),
-    onSecondaryContainer = Color(0xFF115E59),
-    tertiary = Color(0xFF0284C7),
-    onTertiary = Color(0xFFFFFFFF),
-    tertiaryContainer = Color(0xFFE0F2FE),
-    onTertiaryContainer = Color(0xFF0369A1),
-    surface = Color(0xFFF6FBF7),
-    onSurface = Color(0xFF0F291E),
-    surfaceVariant = Color(0xFFDCECE1),
-    onSurfaceVariant = Color(0xFF3D5348),
-    surfaceContainerLowest = Color(0xFFFFFFFF),
-    surfaceContainerLow = Color(0xFFF0F8F3),
-    surfaceContainer = Color(0xFFE7F3EB),
-    surfaceContainerHigh = Color(0xFFDEEDE3),
-    surfaceContainerHighest = Color(0xFFD5E7DB),
-    surfaceBright = Color(0xFFF6FBF7),
-    surfaceDim = Color(0xFFD5E7DB),
-    background = Color(0xFFF6FBF7),
-    onBackground = Color(0xFF0F291E),
-    outline = Color(0xFF6E9480),
-    outlineVariant = Color(0xFFB8D5C4)
+private val SageLightColorScheme = lightColorScheme(
+    primary = Color(0xFF4C662B), onPrimary = Color(0xFFFFFFFF),
+    primaryContainer = Color(0xFFCDEDA3), onPrimaryContainer = Color(0xFF354E16),
+    secondary = Color(0xFF586249), onSecondary = Color(0xFFFFFFFF),
+    secondaryContainer = Color(0xFFDCE7C8), onSecondaryContainer = Color(0xFF404A33),
+    tertiary = Color(0xFF386663), onTertiary = Color(0xFFFFFFFF),
+    tertiaryContainer = Color(0xFFBCECE7), onTertiaryContainer = Color(0xFF1F4E4B),
+    surface = Color(0xFFF9FAEF), onSurface = Color(0xFF1A1C16),
+    surfaceVariant = Color(0xFFE1E4D5), onSurfaceVariant = Color(0xFF44483D),
+    surfaceContainerLowest = Color(0xFFFFFFFF), surfaceContainerLow = Color(0xFFF3F4E9),
+    surfaceContainer = Color(0xFFEEEFE3), surfaceContainerHigh = Color(0xFFE8E9DE),
+    surfaceContainerHighest = Color(0xFFE2E3D8),
+    surfaceBright = Color(0xFFF9FAEF), surfaceDim = Color(0xFFDADBD0),
+    background = Color(0xFFF9FAEF), onBackground = Color(0xFF1A1C16),
+    outline = Color(0xFF75796C), outlineVariant = Color(0xFFC5C8BA),
+    inverseSurface = Color(0xFF2F312A), inverseOnSurface = Color(0xFFF1F2E6),
+    inversePrimary = Color(0xFFB1D18A)
 )
 
-private val EmeraldDarkColorScheme = darkColorScheme(
-    primary = Color(0xFF6EE7B7),
-    onPrimary = Color(0xFF064E3B),
-    primaryContainer = Color(0xFF065F46),
-    onPrimaryContainer = Color(0xFFA7F3D0),
-    secondary = Color(0xFF5EEAD4),
-    onSecondary = Color(0xFF134E4A),
-    secondaryContainer = Color(0xFF115E59),
-    onSecondaryContainer = Color(0xFF99F6E4),
-    tertiary = Color(0xFF38BDF8),
-    onTertiary = Color(0xFF082F49),
-    tertiaryContainer = Color(0xFF0369A1),
-    onTertiaryContainer = Color(0xFFBAE6FD),
-    surface = Color(0xFF0B1712),
-    onSurface = Color(0xFFE1EFE7),
-    surfaceVariant = Color(0xFF1F352B),
-    onSurfaceVariant = Color(0xFF9EB5A8),
-    surfaceContainerLowest = Color(0xFF060F0B),
-    surfaceContainerLow = Color(0xFF10211A),
-    surfaceContainer = Color(0xFF162B22),
-    surfaceContainerHigh = Color(0xFF1E352B),
-    surfaceContainerHighest = Color(0xFF264035),
-    surfaceBright = Color(0xFF2E4B3E),
-    surfaceDim = Color(0xFF0B1712),
-    background = Color(0xFF0B1712),
-    onBackground = Color(0xFFE1EFE7),
-    outline = Color(0xFF688777),
-    outlineVariant = Color(0xFF274235)
+private val SageDarkColorScheme = darkColorScheme(
+    primary = Color(0xFFB1D18A), onPrimary = Color(0xFF1F3701),
+    primaryContainer = Color(0xFF354E16), onPrimaryContainer = Color(0xFFCDEDA3),
+    secondary = Color(0xFFBFCBAD), onSecondary = Color(0xFF2A331E),
+    secondaryContainer = Color(0xFF404A33), onSecondaryContainer = Color(0xFFDCE7C8),
+    tertiary = Color(0xFFA0D0CB), onTertiary = Color(0xFF003735),
+    tertiaryContainer = Color(0xFF1F4E4B), onTertiaryContainer = Color(0xFFBCECE7),
+    surface = Color(0xFF12140E), onSurface = Color(0xFFE2E3D8),
+    surfaceVariant = Color(0xFF44483D), onSurfaceVariant = Color(0xFFC5C8BA),
+    surfaceContainerLowest = Color(0xFF0C0F09), surfaceContainerLow = Color(0xFF1A1C16),
+    surfaceContainer = Color(0xFF1E201A), surfaceContainerHigh = Color(0xFF282B24),
+    surfaceContainerHighest = Color(0xFF33362E),
+    surfaceBright = Color(0xFF383A32), surfaceDim = Color(0xFF12140E),
+    background = Color(0xFF12140E), onBackground = Color(0xFFE2E3D8),
+    outline = Color(0xFF8F9285), outlineVariant = Color(0xFF44483D),
+    inverseSurface = Color(0xFFE2E3D8), inverseOnSurface = Color(0xFF2F312A),
+    inversePrimary = Color(0xFF4C662B)
 )
 
-// ==========================================
-// Ocean Palette (Sapphire / Azure)
-// ==========================================
-private val OceanLightColorScheme = lightColorScheme(
-    primary = Color(0xFF0284C7),
-    onPrimary = Color(0xFFFFFFFF),
-    primaryContainer = Color(0xFFE0F2FE),
-    onPrimaryContainer = Color(0xFF0369A1),
-    secondary = Color(0xFF2563EB),
-    onSecondary = Color(0xFFFFFFFF),
-    secondaryContainer = Color(0xFFDBEAFE),
-    onSecondaryContainer = Color(0xFF1E40AF),
-    tertiary = Color(0xFF0D9488),
-    onTertiary = Color(0xFFFFFFFF),
-    tertiaryContainer = Color(0xFFCCFBF1),
-    onTertiaryContainer = Color(0xFF115E59),
-    surface = Color(0xFFF7FAFD),
-    onSurface = Color(0xFF0E2538),
-    surfaceVariant = Color(0xFFDCE7F2),
-    onSurfaceVariant = Color(0xFF3C4D5D),
-    surfaceContainerLowest = Color(0xFFFFFFFF),
-    surfaceContainerLow = Color(0xFFF0F5FA),
-    surfaceContainer = Color(0xFFE7EFF7),
-    surfaceContainerHigh = Color(0xFFDEE9F3),
-    surfaceContainerHighest = Color(0xFFD4E2EE),
-    surfaceBright = Color(0xFFF7FAFD),
-    surfaceDim = Color(0xFFD4E2EE),
-    background = Color(0xFFF7FAFD),
-    onBackground = Color(0xFF0E2538),
-    outline = Color(0xFF6C8296),
-    outlineVariant = Color(0xFFBDD0E2)
+private tailrec fun Context.findActivity(): Activity? = when (this) {
+    is Activity -> this
+    is ContextWrapper -> baseContext.findActivity()
+    else -> null
+}
+
+/**
+ * Pixel-style edge-to-edge system bar controller with automatic luminance contrast calculation.
+ * Ensures transparent status and navigation bars with legible icon colors.
+ */
+@Composable
+fun OpenSplitStatusBarStyle(
+    color: Color,
+    useDarkIcons: Boolean = ColorUtils.calculateLuminance(color.toArgb()) > 0.55,
+    navigationColor: Color? = null,
+    useDarkNavigationIcons: Boolean = navigationColor
+        ?.let { ColorUtils.calculateLuminance(it.toArgb()) > 0.55 }
+        ?: useDarkIcons
+) {
+    val view = LocalView.current
+    if (view.isInEditMode) return
+
+    val updateNavigationBar = navigationColor != null
+    SideEffect {
+        val window = view.context.findActivity()?.window ?: return@SideEffect
+        window.statusBarColor = android.graphics.Color.TRANSPARENT
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            window.isStatusBarContrastEnforced = false
+        }
+
+        WindowCompat.getInsetsController(window, view).run {
+            isAppearanceLightStatusBars = useDarkIcons
+
+            if (updateNavigationBar) {
+                window.navigationBarColor = android.graphics.Color.TRANSPARENT
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                    window.isNavigationBarContrastEnforced = false
+                }
+                isAppearanceLightNavigationBars = useDarkNavigationIcons
+            }
+        }
+    }
+}
+
+/**
+ * Per-theme component styling that Material's Shapes don't cover: the "pill" used by buttons,
+ * chips, tabs and the nav bar, and segmented-list corners. Material = round and soft;
+ * Monochrome = squarer, Nothing-style.
+ */
+data class AppStyle(
+    val monochrome: Boolean,
+    val pill: androidx.compose.ui.graphics.Shape,
+    val pillPressed: androidx.compose.ui.graphics.Shape,
+    val segmentOuter: androidx.compose.ui.unit.Dp,
+    val segmentInner: androidx.compose.ui.unit.Dp
 )
 
-private val OceanDarkColorScheme = darkColorScheme(
-    primary = Color(0xFF7DD3FC),
-    onPrimary = Color(0xFF082F49),
-    primaryContainer = Color(0xFF0369A1),
-    onPrimaryContainer = Color(0xFFBAE6FD),
-    secondary = Color(0xFF93C5FD),
-    onSecondary = Color(0xFF172554),
-    secondaryContainer = Color(0xFF1E40AF),
-    onSecondaryContainer = Color(0xFFBFDBFE),
-    tertiary = Color(0xFF5EEAD4),
-    onTertiary = Color(0xFF134E4A),
-    tertiaryContainer = Color(0xFF115E59),
-    onTertiaryContainer = Color(0xFF99F6E4),
-    surface = Color(0xFF0A141D),
-    onSurface = Color(0xFFE0ECF6),
-    surfaceVariant = Color(0xFF1C2F40),
-    onSurfaceVariant = Color(0xFF98ACB9),
-    surfaceContainerLowest = Color(0xFF050C12),
-    surfaceContainerLow = Color(0xFF0E1C27),
-    surfaceContainer = Color(0xFF142432),
-    surfaceContainerHigh = Color(0xFF1B2E3E),
-    surfaceContainerHighest = Color(0xFF23384A),
-    surfaceBright = Color(0xFF2D4559),
-    surfaceDim = Color(0xFF0A141D),
-    background = Color(0xFF0A141D),
-    onBackground = Color(0xFFE0ECF6),
-    outline = Color(0xFF62798A),
-    outlineVariant = Color(0xFF223647)
+private val MaterialStyle = AppStyle(
+    monochrome = false,
+    pill = androidx.compose.foundation.shape.CircleShape,
+    pillPressed = androidx.compose.foundation.shape.RoundedCornerShape(16.dp),
+    segmentOuter = 28.dp,
+    segmentInner = 6.dp
 )
 
-// ==========================================
-// Sunset Palette (Warm Amber / Coral)
-// ==========================================
-private val SunsetLightColorScheme = lightColorScheme(
-    primary = Color(0xFFD97706),
-    onPrimary = Color(0xFFFFFFFF),
-    primaryContainer = Color(0xFFFEF3C7),
-    onPrimaryContainer = Color(0xFF92400E),
-    secondary = Color(0xFFEA580C),
-    onSecondary = Color(0xFFFFFFFF),
-    secondaryContainer = Color(0xFFFFEDD5),
-    onSecondaryContainer = Color(0xFF9A3412),
-    tertiary = Color(0xFFB45309),
-    onTertiary = Color(0xFFFFFFFF),
-    tertiaryContainer = Color(0xFFFDE68A),
-    onTertiaryContainer = Color(0xFF78350F),
-    surface = Color(0xFFFFFDF8),
-    onSurface = Color(0xFF2E1C0A),
-    surfaceVariant = Color(0xFFEFE2D2),
-    onSurfaceVariant = Color(0xFF534536),
-    surfaceContainerLowest = Color(0xFFFFFFFF),
-    surfaceContainerLow = Color(0xFFFAF4EB),
-    surfaceContainer = Color(0xFFF4ECE0),
-    surfaceContainerHigh = Color(0xFFEFE4D4),
-    surfaceContainerHighest = Color(0xFFE8DCCB),
-    surfaceBright = Color(0xFFFFFDF8),
-    surfaceDim = Color(0xFFE8DCCB),
-    background = Color(0xFFFFFDF8),
-    onBackground = Color(0xFF2E1C0A),
-    outline = Color(0xFF867462),
-    outlineVariant = Color(0xFFDACBB9)
+private val MonochromeStyle = AppStyle(
+    monochrome = true,
+    pill = androidx.compose.foundation.shape.RoundedCornerShape(10.dp),
+    pillPressed = androidx.compose.foundation.shape.RoundedCornerShape(6.dp),
+    segmentOuter = 14.dp,
+    segmentInner = 3.dp
 )
 
-private val SunsetDarkColorScheme = darkColorScheme(
-    primary = Color(0xFFFBBF24),
-    onPrimary = Color(0xFF451A03),
-    primaryContainer = Color(0xFF92400E),
-    onPrimaryContainer = Color(0xFFFEF3C7),
-    secondary = Color(0xFFFB923C),
-    onSecondary = Color(0xFF431407),
-    secondaryContainer = Color(0xFF9A3412),
-    onSecondaryContainer = Color(0xFFFFEDD5),
-    tertiary = Color(0xFFF59E0B),
-    onTertiary = Color(0xFF451A03),
-    tertiaryContainer = Color(0xFF78350F),
-    onTertiaryContainer = Color(0xFFFDE68A),
-    surface = Color(0xFF191209),
-    onSurface = Color(0xFFF7EFE4),
-    surfaceVariant = Color(0xFF35291C),
-    onSurfaceVariant = Color(0xFFAFA091),
-    surfaceContainerLowest = Color(0xFF0F0A04),
-    surfaceContainerLow = Color(0xFF21190E),
-    surfaceContainer = Color(0xFF2A2013),
-    surfaceContainerHigh = Color(0xFF342819),
-    surfaceContainerHighest = Color(0xFF3E3120),
-    surfaceBright = Color(0xFF4D3D2A),
-    surfaceDim = Color(0xFF191209),
-    background = Color(0xFF191209),
-    onBackground = Color(0xFFF7EFE4),
-    outline = Color(0xFF7A6D5E),
-    outlineVariant = Color(0xFF382C1F)
+val LocalAppStyle = androidx.compose.runtime.staticCompositionLocalOf { MaterialStyle }
+
+/** Button shapes that follow the active theme style (pill in Material, squarer in Monochrome). */
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
+@Composable
+fun appButtonShapes() = LocalAppStyle.current.let {
+    androidx.compose.material3.ButtonShapes(shape = it.pill, pressedShape = it.pillPressed)
+}
+
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
+@Composable
+fun appIconButtonShapes() = LocalAppStyle.current.let {
+    androidx.compose.material3.IconButtonShapes(shape = it.pill, pressedShape = it.pillPressed)
+}
+
+/** Monochrome: tight corners for a flatter, technical look. */
+private val MonoShapes = androidx.compose.material3.Shapes(
+    extraSmall = androidx.compose.foundation.shape.RoundedCornerShape(4.dp),
+    small = androidx.compose.foundation.shape.RoundedCornerShape(6.dp),
+    medium = androidx.compose.foundation.shape.RoundedCornerShape(10.dp),
+    large = androidx.compose.foundation.shape.RoundedCornerShape(14.dp),
+    extraLarge = androidx.compose.foundation.shape.RoundedCornerShape(18.dp)
+)
+
+/** Large, soft corners throughout, as in Pixel / M3 Expressive apps. */
+val OpenSplitShapes = androidx.compose.material3.Shapes(
+    extraSmall = androidx.compose.foundation.shape.RoundedCornerShape(8.dp),
+    small = androidx.compose.foundation.shape.RoundedCornerShape(12.dp),
+    medium = androidx.compose.foundation.shape.RoundedCornerShape(20.dp),
+    large = androidx.compose.foundation.shape.RoundedCornerShape(28.dp),
+    extraLarge = androidx.compose.foundation.shape.RoundedCornerShape(36.dp)
 )
 
 @Composable
@@ -346,25 +241,23 @@ private val SunsetDarkColorScheme = darkColorScheme(
 fun OpenSplitTheme(
   darkTheme: Boolean = isSystemInDarkTheme(),
   amoled: Boolean = false,
-  dynamicColor: Boolean = true,
-  palette: String = if (dynamicColor) "dynamic" else "lavender",
+  palette: String = "material",
   content: @Composable () -> Unit,
 ) {
   val context = LocalContext.current
   val baseScheme = when (palette) {
-    "dynamic" -> {
-      if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-        if (darkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
-      } else {
-        if (darkTheme) DarkColorScheme else LightColorScheme
-      }
-    }
     "monochrome" -> if (darkTheme) MonochromeDarkColorScheme else MonochromeLightColorScheme
-    "emerald" -> if (darkTheme) EmeraldDarkColorScheme else EmeraldLightColorScheme
-    "ocean" -> if (darkTheme) OceanDarkColorScheme else OceanLightColorScheme
-    "sunset" -> if (darkTheme) SunsetDarkColorScheme else SunsetLightColorScheme
-    else -> if (darkTheme) DarkColorScheme else LightColorScheme
+    // "material" (and any legacy palette id): wallpaper colours when they carry some hue,
+    // otherwise Sage. Monochrome wallpapers (e.g. Nothing OS) would yield a flat grey scheme.
+    else -> {
+      val dynamic = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+        if (darkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
+      } else null
+      if (dynamic != null && isColourful(dynamic.primary)) dynamic
+      else if (darkTheme) SageDarkColorScheme else SageLightColorScheme
+    }
   }
+
 
   // AMOLED only replaces surface tokens, so brand or dynamic accents stay intact.
   val colorScheme =
@@ -383,11 +276,27 @@ fun OpenSplitTheme(
       )
     } else baseScheme
 
-  MaterialExpressiveTheme(
-    colorScheme = colorScheme,
-    motionScheme = MotionScheme.expressive(),
-    typography = Typography,
-    content = content
+  OpenSplitStatusBarStyle(
+      color = colorScheme.background,
+      navigationColor = colorScheme.background
   )
+
+  val mono = palette == "monochrome"
+  androidx.compose.runtime.CompositionLocalProvider(LocalAppStyle provides if (mono) MonochromeStyle else MaterialStyle) {
+    MaterialExpressiveTheme(
+      colorScheme = colorScheme,
+      motionScheme = MotionScheme.expressive(),
+      typography = if (mono) MonoTypography else Typography,
+      shapes = if (mono) MonoShapes else OpenSplitShapes,
+      content = content
+    )
+  }
 }
 
+
+/** True when [color] has enough saturation to read as a hue rather than a grey. */
+private fun isColourful(color: Color): Boolean {
+  val hsv = FloatArray(3)
+  android.graphics.Color.colorToHSV(color.toArgb(), hsv)
+  return hsv[1] >= 0.18f
+}

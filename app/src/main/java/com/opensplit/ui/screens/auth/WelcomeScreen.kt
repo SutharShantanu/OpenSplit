@@ -2,6 +2,7 @@
 
 package com.opensplit.ui.screens.auth
 
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.opensplit.ui.components.SymbolIcon
 import androidx.compose.animation.*
 import androidx.compose.animation.core.tween
@@ -43,7 +44,7 @@ import kotlinx.coroutines.launch
  */
 @Composable
 fun WelcomeScreen(viewModel: AuthViewModel) {
-    val uiState by viewModel.uiState.collectAsState()
+    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val snackbar = LocalSnackbarController.current
     var showLoginDirectly by remember { mutableStateOf(false) }
 
@@ -94,7 +95,7 @@ private fun OnboardingCarousel(
             horizontalArrangement = Arrangement.End
         ) {
             if (pagerState.currentPage < 2) {
-                TextButton(shapes = ButtonDefaults.shapes(), onClick = onSkip) {
+                TextButton(shapes = com.opensplit.ui.theme.appButtonShapes(), onClick = onSkip) {
                     Text(
                         text = "Skip",
                         style = MaterialTheme.typography.labelLarge,
@@ -231,7 +232,7 @@ private fun OnboardingSlide1() {
             modifier = Modifier
                 .fillMaxWidth(0.92f)
                 .height(280.dp),
-            shape = RoundedCornerShape(28.dp),
+            shape = MaterialTheme.shapes.large,
             color = MaterialTheme.colorScheme.secondaryContainer
         ) {
             Box(contentAlignment = Alignment.Center) {
@@ -255,7 +256,7 @@ private fun OnboardingSlide1() {
                     }
                     Spacer(modifier = Modifier.height(16.dp))
                     Surface(
-                        shape = RoundedCornerShape(16.dp),
+                        shape = MaterialTheme.shapes.medium,
                         color = MaterialTheme.colorScheme.surface.copy(alpha = 0.9f),
                         modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp)
                     ) {
@@ -317,7 +318,7 @@ private fun OnboardingSlide2() {
             modifier = Modifier
                 .fillMaxWidth(0.92f)
                 .height(280.dp),
-            shape = RoundedCornerShape(28.dp),
+            shape = MaterialTheme.shapes.large,
             color = MaterialTheme.colorScheme.primaryContainer
         ) {
             Box(contentAlignment = Alignment.Center) {
@@ -400,7 +401,7 @@ private fun OnboardingSlide3() {
             modifier = Modifier
                 .fillMaxWidth(0.92f)
                 .height(280.dp),
-            shape = RoundedCornerShape(28.dp),
+            shape = MaterialTheme.shapes.large,
             color = MaterialTheme.colorScheme.tertiaryContainer
         ) {
             Box(contentAlignment = Alignment.Center) {
@@ -493,7 +494,7 @@ private fun LoginView(
         ) {
             // Top back button
             Row(modifier = Modifier.fillMaxWidth()) {
-                IconButton(shapes = IconButtonDefaults.shapes(), onClick = onBackToOnboarding) {
+                IconButton(shapes = com.opensplit.ui.theme.appIconButtonShapes(), onClick = onBackToOnboarding) {
                     SymbolIcon(
                         symbol = OpenSplitIcons.Back,
                         contentDescription = "Back",

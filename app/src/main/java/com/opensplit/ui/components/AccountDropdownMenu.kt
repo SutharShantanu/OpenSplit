@@ -153,7 +153,7 @@ fun AccountDropdownMenu(
             title = { Text("Sign out of OpenSplit?") },
             text = { Text("You will need to sign in again to access your groups and balances.") },
             confirmButton = {
-                Button(shapes = ButtonDefaults.shapes(), onClick = {
+                Button(shapes = com.opensplit.ui.theme.appButtonShapes(), onClick = {
                     showSignOutDialog = false
                     onSignOut()
                 }) {
@@ -161,7 +161,7 @@ fun AccountDropdownMenu(
                 }
             },
             dismissButton = {
-                TextButton(shapes = ButtonDefaults.shapes(), onClick = { showSignOutDialog = false }) {
+                TextButton(shapes = com.opensplit.ui.theme.appButtonShapes(), onClick = { showSignOutDialog = false }) {
                     Text("Cancel")
                 }
             }
@@ -176,7 +176,7 @@ fun AccountDropdownMenu(
                 Text("OpenSplit v1.0.0\n\nA modern, real-time expense splitter built with Jetpack Compose, Material 3, and Firebase.\n\nKeep track of shared expenses, balances, settlements, and export financial summaries seamlessly.")
             },
             confirmButton = {
-                TextButton(shapes = ButtonDefaults.shapes(), onClick = { showAboutDialog = false }) {
+                TextButton(shapes = com.opensplit.ui.theme.appButtonShapes(), onClick = { showAboutDialog = false }) {
                     Text("Close")
                 }
             }
@@ -191,7 +191,7 @@ fun AccountDropdownMenu(
                 Text("Manage theme preferences under My Account -> Preferences for light, dark, or system default mode.")
             },
             confirmButton = {
-                Button(shapes = ButtonDefaults.shapes(), onClick = {
+                Button(shapes = com.opensplit.ui.theme.appButtonShapes(), onClick = {
                     showThemeDialog = false
                     onNavigateToAccount()
                 }) {
@@ -199,7 +199,7 @@ fun AccountDropdownMenu(
                 }
             },
             dismissButton = {
-                TextButton(shapes = ButtonDefaults.shapes(), onClick = { showThemeDialog = false }) {
+                TextButton(shapes = com.opensplit.ui.theme.appButtonShapes(), onClick = { showThemeDialog = false }) {
                     Text("Cancel")
                 }
             }

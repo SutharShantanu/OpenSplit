@@ -11,7 +11,7 @@ object OpenSplitIcons {
     // Navigation
     val Home                   = Symbol(0xe9b2) // home
     val Groups                 = Symbol(0xea21) // group
-    val Friends                = Symbol(0xea21) // people
+    val Friends                = Symbol(0xf0d3) // person
     val Analytics              = Symbol(0xe26b) // bar_chart
     val Activity               = Symbol(0xe7f5) // notifications
     val Account                = Symbol(0xf20b) // account_circle

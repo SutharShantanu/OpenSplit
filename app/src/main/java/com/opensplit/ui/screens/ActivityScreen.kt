@@ -2,6 +2,8 @@
 
 package com.opensplit.ui.screens
 
+import com.opensplit.ui.components.FilterChip
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.opensplit.ui.theme.Symbol
 import com.opensplit.ui.components.SymbolIcon
 import androidx.compose.foundation.background
@@ -98,7 +100,7 @@ fun ActivityScreen(
     onOpenExpense: (groupId: String, expenseId: String) -> Unit = { _, _ -> },
     onOpenGroup: (groupId: String) -> Unit = {}
 ) {
-    val state by viewModel.uiState.collectAsState()
+    val state by viewModel.uiState.collectAsStateWithLifecycle()
     val hazeState = remember { HazeState() }
 
     Scaffold(
@@ -108,9 +110,7 @@ fun ActivityScreen(
                 TopAppBar(
                     title = { Text("Activity Feed", fontWeight = FontWeight.Bold) },
                     navigationIcon = {
-                        IconButton(shapes = IconButtonDefaults.shapes(), onClick = onNavigateBack) {
-                            SymbolIcon(OpenSplitIcons.Back, contentDescription = "Back")
-                        }
+                        com.opensplit.ui.components.RoundBackButton(onClick = onNavigateBack)
                     },
                     colors = TopAppBarDefaults.topAppBarColors(
                         containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.75f)
@@ -352,7 +352,7 @@ fun ActivityScreen(
                             DatePickerDialog(
                                 onDismissRequest = { showCustomRangeDialog = false },
                                 confirmButton = {
-                                    TextButton(shapes = ButtonDefaults.shapes(), onClick = {
+                                    TextButton(shapes = com.opensplit.ui.theme.appButtonShapes(), onClick = {
                                         val start = rangeState.selectedStartDateMillis
                                         val end = rangeState.selectedEndDateMillis ?: start
                                         if (start != null && end != null) {
@@ -365,7 +365,7 @@ fun ActivityScreen(
                                     }) { Text("Apply") }
                                 },
                                 dismissButton = {
-                                    TextButton(shapes = ButtonDefaults.shapes(), onClick = { showCustomRangeDialog = false }) { Text("Cancel") }
+                                    TextButton(shapes = com.opensplit.ui.theme.appButtonShapes(), onClick = { showCustomRangeDialog = false }) { Text("Cancel") }
                                 }
                             ) {
                                 DateRangePicker(state = rangeState, modifier = Modifier.weight(1f))
@@ -443,35 +443,41 @@ fun ActivityScreen(
                         androidx.compose.runtime.LaunchedEffect(newestId) {
                             if (listState.firstVisibleItemIndex <= 1) listState.scrollToItem(0)
                         }
-                        LazyColumn(
-                            state = listState,
-                            modifier = Modifier.fillMaxSize(),
-                            verticalArrangement = Arrangement.spacedBy(OpenSplitTokens.SpaceXS),
-                            contentPadding = PaddingValues(bottom = OpenSplitTokens.SpaceLG)
-                        ) {
-                            grouped.forEach { (label, activitiesForDay) ->
-                                item(key = "header_$label") {
-                                    Text(
-                                        text = label,
-                                        style = MaterialTheme.typography.titleSmall,
-                                        fontWeight = FontWeight.Bold,
-                                        color = MaterialTheme.colorScheme.primary,
-                                        modifier = Modifier.padding(vertical = OpenSplitTokens.SpaceXS)
-                                    )
-                                }
-                                items(activitiesForDay, key = { it.id }) { act ->
-                                    val isUnread = lastSeen != null && act.timestamp.seconds > lastSeen.seconds
-                                    androidx.compose.foundation.layout.Box(Modifier.animateItem()) {
-                                        ActivityRow(
-                                            act = act,
-                                            isUnread = isUnread,
-                                            onOpenExpense = onOpenExpense,
-                                            onOpenGroup = onOpenGroup
+                        Box(Modifier.fillMaxSize()) {
+                            LazyColumn(
+                                state = listState,
+                                modifier = Modifier.fillMaxSize(),
+                                verticalArrangement = Arrangement.spacedBy(OpenSplitTokens.SpaceXS),
+                                contentPadding = PaddingValues(bottom = com.opensplit.ui.components.FloatingNavBarClearance)
+                            ) {
+                                grouped.forEach { (label, activitiesForDay) ->
+                                    item(key = "header_$label") {
+                                        Text(
+                                            text = label,
+                                            style = MaterialTheme.typography.titleSmall,
+                                            fontWeight = FontWeight.Bold,
+                                            color = MaterialTheme.colorScheme.primary,
+                                            modifier = Modifier.padding(vertical = OpenSplitTokens.SpaceXS)
                                         )
                                     }
-                                    HorizontalDivider(color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+                                    items(activitiesForDay, key = { it.id }) { act ->
+                                        val isUnread = lastSeen != null && act.timestamp.seconds > lastSeen.seconds
+                                        androidx.compose.foundation.layout.Box(Modifier.animateItem()) {
+                                            ActivityRow(
+                                                act = act,
+                                                isUnread = isUnread,
+                                                onOpenExpense = onOpenExpense,
+                                                onOpenGroup = onOpenGroup
+                                            )
+                                        }
+                                        Spacer(Modifier.height(6.dp))
+                                    }
                                 }
                             }
+                            com.opensplit.ui.components.ExpressiveScrollBar(
+                                listState = listState,
+                                modifier = Modifier.align(Alignment.CenterEnd)
+                            )
                         }
                     }
                 }
@@ -514,7 +520,7 @@ private fun ActivityRow(
                 }
             },
         colors = ListItemDefaults.colors(
-            containerColor = if (isUnread) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.25f) else Color.Transparent
+            containerColor = if (isUnread) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f) else MaterialTheme.colorScheme.surfaceContainerLow
         ),
         headlineContent = {
             Text(

@@ -18,13 +18,7 @@ class UserRepositoryImpl(
     private val prefs by lazy { context?.getSharedPreferences("user_cache", Context.MODE_PRIVATE) }
 
     private fun loadCachedUsers(): Map<String, User> {
-        val base = mutableMapOf(
-            "user_elena_demo" to User(
-                uid = "user_elena_demo",
-                displayName = "Elena Rodriguez",
-                email = "elena.rodriguez@example.com"
-            )
-        )
+        val base = mutableMapOf<String, User>()
         prefs?.all?.forEach { (key, value) ->
             if (value is String) {
                 try {
@@ -69,9 +63,6 @@ class UserRepositoryImpl(
         val cached = localUsers.value[uid]
         if (cached != null) return cached
 
-        val localMatch = com.opensplit.data.local.InMemoryDataStore.friends.value.find { it.uid == uid }
-        if (localMatch != null) return localMatch
-
         val current = com.google.firebase.auth.FirebaseAuth.getInstance().currentUser
         if (current != null && current.uid == uid) {
             val user = User(
@@ -96,7 +87,7 @@ class UserRepositoryImpl(
     override fun getUserFlow(uid: String): Flow<User?> {
         if (uid.isBlank()) {
             return localUsers.map { local ->
-                local[uid] ?: com.opensplit.data.local.InMemoryDataStore.friends.value.find { it.uid == uid }
+                local[uid]
             }
         }
         val firestoreFlow = callbackFlow<User?> {
@@ -127,7 +118,7 @@ class UserRepositoryImpl(
         }.onStart { emit(null) }
 
         return combine(firestoreFlow, localUsers) { remote, local ->
-            local[uid] ?: remote ?: com.opensplit.data.local.InMemoryDataStore.friends.value.find { it.uid == uid }
+            local[uid] ?: remote
         }
     }
 
@@ -186,6 +177,15 @@ class UserRepositoryImpl(
         }
     }
 
+    override suspend fun updateUpiId(upiId: String?): Result<Unit> {
+        val uid = com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.uid
+            ?: return Result.failure(Exception("No user"))
+        val existing = localUsers.value[uid] ?: getUser(uid) ?: User(uid = uid)
+        localUsers.value = localUsers.value + (uid to existing.copy(upiId = upiId))
+        usersCollection.document(uid).update("upiId", upiId).enqueue()
+        return Result.success(Unit)
+    }
+
     override suspend fun updateUser(user: User): Result<Unit> {
         if (user.uid.isBlank()) return Result.failure(IllegalArgumentException("User ID cannot be blank"))
         return try {
@@ -218,7 +218,7 @@ class UserRepositoryImpl(
             close()
             return@callbackFlow
         }
-        val localMatches = (localUsers.value.values + com.opensplit.data.local.InMemoryDataStore.friends.value)
+        val localMatches = localUsers.value.values
             .filter { it.email.contains(query, ignoreCase = true) || it.displayName.contains(query, ignoreCase = true) }
         trySend(localMatches)
 

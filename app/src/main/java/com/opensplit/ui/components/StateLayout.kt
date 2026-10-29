@@ -16,6 +16,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.opensplit.ui.theme.OpenSplitIcons
 import com.opensplit.ui.theme.OpenSplitTokens
+import com.opensplit.ui.theme.Symbol
 import com.opensplit.ui.viewmodel.ScreenState
 
 @Composable
@@ -28,7 +29,7 @@ fun SectionErrorBanner(
         modifier = modifier
             .fillMaxWidth()
             .padding(vertical = OpenSplitTokens.SpaceSM),
-        shape = RoundedCornerShape(12.dp),
+        shape = MaterialTheme.shapes.small,
         color = MaterialTheme.colorScheme.errorContainer,
         contentColor = MaterialTheme.colorScheme.onErrorContainer,
         tonalElevation = 2.dp
@@ -72,7 +73,7 @@ fun SectionErrorBanner(
                 FilledTonalButton(
                     onClick = onRetry,
                     contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp),
-                    shape = RoundedCornerShape(8.dp),
+                    shape = MaterialTheme.shapes.extraSmall,
                     colors = ButtonDefaults.filledTonalButtonColors(
                         containerColor = MaterialTheme.colorScheme.error,
                         contentColor = MaterialTheme.colorScheme.onError
@@ -95,6 +96,9 @@ fun <T> StateLayout(
     modifier: Modifier = Modifier,
     emptyTitle: String = "No items found",
     emptySubtitle: String? = null,
+    emptySymbol: Symbol? = null,
+    emptyActionLabel: String? = null,
+    onEmptyAction: (() -> Unit)? = null,
     emptyIllustration: @Composable (() -> Unit)? = null,
     onSuccess: @Composable (T) -> Unit
 ) {
@@ -114,39 +118,44 @@ fun <T> StateLayout(
         when (state) {
             is ScreenState.Loading -> androidx.compose.material3.ContainedLoadingIndicator()
             is ScreenState.Empty -> {
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(OpenSplitTokens.SpaceXL),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Column(
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.Center
+                if (emptyIllustration != null) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(OpenSplitTokens.SpaceXL),
+                        contentAlignment = Alignment.Center
                     ) {
-                        if (emptyIllustration != null) {
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.Center
+                        ) {
                             emptyIllustration()
                             Spacer(modifier = Modifier.height(OpenSplitTokens.SpaceLG))
-                        } else {
-                            WalletIllustration(size = 130.dp)
-                            Spacer(modifier = Modifier.height(OpenSplitTokens.SpaceLG))
-                        }
-                        Text(
-                            text = if (state.message.isNotBlank()) state.message else emptyTitle,
-                            style = MaterialTheme.typography.titleLarge,
-                            fontWeight = FontWeight.Bold,
-                            textAlign = TextAlign.Center
-                        )
-                        if (!emptySubtitle.isNullOrBlank()) {
-                            Spacer(modifier = Modifier.height(OpenSplitTokens.SpaceSM))
                             Text(
-                                text = emptySubtitle,
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                text = if (state.message.isNotBlank()) state.message else emptyTitle,
+                                style = MaterialTheme.typography.titleLarge,
+                                fontWeight = FontWeight.Bold,
                                 textAlign = TextAlign.Center
                             )
+                            if (!emptySubtitle.isNullOrBlank()) {
+                                Spacer(modifier = Modifier.height(OpenSplitTokens.SpaceSM))
+                                Text(
+                                    text = emptySubtitle,
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    textAlign = TextAlign.Center
+                                )
+                            }
                         }
                     }
+                } else {
+                    ExpressiveEmptyState(
+                        title = if (state.message.isNotBlank()) state.message else emptyTitle,
+                        subtitle = emptySubtitle ?: "Nothing to show right now.",
+                        symbol = emptySymbol,
+                        actionLabel = emptyActionLabel,
+                        onActionClick = onEmptyAction
+                    )
                 }
             }
             is ScreenState.Error -> {

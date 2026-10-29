@@ -64,7 +64,7 @@ fun QrScannerView(onScanned: (String) -> Unit, modifier: Modifier = Modifier) {
     val latestOnScanned by rememberUpdatedState(onScanned)
 
     if (!granted) {
-        Surface(shape = RoundedCornerShape(24.dp), color = MaterialTheme.colorScheme.surfaceContainerHigh, modifier = modifier) {
+        Surface(shape = MaterialTheme.shapes.large, color = MaterialTheme.colorScheme.surfaceContainerHigh, modifier = modifier) {
             Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.padding(24.dp)) {
                 SymbolIcon(OpenSplitIcons.CameraAlt, contentDescription = null, modifier = Modifier.size(40.dp), tint = MaterialTheme.colorScheme.primary)
                 Spacer(Modifier.height(12.dp))
@@ -74,7 +74,7 @@ fun QrScannerView(onScanned: (String) -> Unit, modifier: Modifier = Modifier) {
                     style = MaterialTheme.typography.bodyMedium, textAlign = TextAlign.Center
                 )
                 Spacer(Modifier.height(16.dp))
-                Button(shapes = ButtonDefaults.shapes(), onClick = { permission.launch(Manifest.permission.CAMERA) }) { Text(if (denied) "Try again" else "Allow camera") }
+                Button(shapes = com.opensplit.ui.theme.appButtonShapes(), onClick = { permission.launch(Manifest.permission.CAMERA) }) { Text(if (denied) "Try again" else "Allow camera") }
             }
         }
         return
@@ -147,14 +147,14 @@ fun QrScannerView(onScanned: (String) -> Unit, modifier: Modifier = Modifier) {
         ) {
             val hasFlash = camera?.cameraInfo?.hasFlashUnit() == true
             androidx.compose.material3.FilledTonalIconButton(
-                shapes = androidx.compose.material3.IconButtonDefaults.shapes(),
+                shapes = com.opensplit.ui.theme.appIconButtonShapes(),
                 enabled = hasFlash,
                 onClick = { torchOn = !torchOn }
             ) {
                 SymbolIcon(if (torchOn) OpenSplitIcons.FlashOff else OpenSplitIcons.FlashOn, contentDescription = if (torchOn) "Turn flashlight off" else "Turn flashlight on")
             }
             androidx.compose.material3.FilledTonalIconButton(
-                shapes = androidx.compose.material3.IconButtonDefaults.shapes(),
+                shapes = com.opensplit.ui.theme.appIconButtonShapes(),
                 onClick = { galleryPicker.launch(androidx.activity.result.PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) }
             ) { SymbolIcon(OpenSplitIcons.PhotoLibrary, contentDescription = "Scan a QR code from a photo") }
         }

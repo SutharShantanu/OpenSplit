@@ -2,12 +2,15 @@
 
 package com.opensplit.ui.screens
 
+import com.opensplit.ui.components.FilterChip
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.opensplit.ui.theme.Symbol
 import com.opensplit.ui.components.SymbolIcon
 import com.opensplit.ui.components.LocalSnackbarController
 
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.background
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -47,7 +50,7 @@ fun GroupDetailScreen(
     onNavigateToSettleUp: (fromUid: String?, toUid: String?, amount: Double?) -> Unit = { _, _, _ -> },
     onNavigateToEditExpense: (String, String) -> Unit = { _, _ -> }
 ) {
-    val uiState by viewModel.uiState.collectAsState()
+    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val busy = com.opensplit.ui.components.LocalBusy.current
     var showAddMember by remember { mutableStateOf(false) }
     var showExportSheet by remember { mutableStateOf(false) }
@@ -77,22 +80,16 @@ fun GroupDetailScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text(groupName, fontWeight = FontWeight.Bold) },
+                title = { Text(groupName, style = MaterialTheme.typography.headlineSmall, maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis) },
                 navigationIcon = {
-                    IconButton(shapes = IconButtonDefaults.shapes(), onClick = onNavigateBack) {
-                        SymbolIcon(OpenSplitIcons.Back, contentDescription = "Back")
-                    }
+                    com.opensplit.ui.components.RoundBackButton(onClick = onNavigateBack)
                 },
                 actions = {
-                    IconButton(shapes = IconButtonDefaults.shapes(), onClick = { showFilterSortSheet = true }) {
-                        SymbolIcon(OpenSplitIcons.Filter, contentDescription = "Filter and Sort")
-                    }
-                    IconButton(shapes = IconButtonDefaults.shapes(), onClick = { showExportSheet = true }) {
-                        SymbolIcon(OpenSplitIcons.Export, contentDescription = "Export Group Expenses")
-                    }
-                    IconButton(shapes = IconButtonDefaults.shapes(), onClick = { showSettings = true }) {
-                        SymbolIcon(OpenSplitIcons.More, contentDescription = "Group settings")
-                    }
+                    val c = MaterialTheme.colorScheme
+                    com.opensplit.ui.components.HeaderAction(OpenSplitIcons.Filter, "Filter and Sort", c.secondaryContainer, c.onSecondaryContainer) { showFilterSortSheet = true }
+                    com.opensplit.ui.components.HeaderAction(OpenSplitIcons.Export, "Export Group Expenses", c.tertiaryContainer, c.onTertiaryContainer) { showExportSheet = true }
+                    com.opensplit.ui.components.HeaderAction(OpenSplitIcons.More, "Group settings") { showSettings = true }
+                    Spacer(Modifier.width(8.dp))
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.75f)
@@ -154,35 +151,14 @@ fun GroupDetailScreen(
                         .widthIn(max = 900.dp)
                         .appHazeSource(hazeState)
                 ) {
-                    // Secondary Tab Row
-                    SecondaryTabRow(selectedTabIndex = selectedTab) {
-                        tabTitles.forEachIndexed { index, title ->
-                            Tab(
-                                selected = selectedTab == index,
-                                onClick = { selectedTab = index },
-                                text = {
-                                    Row(
-                                        verticalAlignment = Alignment.CenterVertically,
-                                        horizontalArrangement = Arrangement.Center
-                                    ) {
-                                        Text(title)
-                                        if (index == 0 && data.expenses.isNotEmpty()) {
-                                            Spacer(modifier = Modifier.width(6.dp))
-                                            Badge(
-                                                containerColor = MaterialTheme.colorScheme.primaryContainer,
-                                                contentColor = MaterialTheme.colorScheme.onPrimaryContainer
-                                            ) {
-                                                Text(
-                                                    "${data.expenses.size}",
-                                                    style = MaterialTheme.typography.labelSmall
-                                                )
-                                            }
-                                        }
-                                    }
-                                }
-                            )
-                        }
-                    }
+                    com.opensplit.ui.components.PillTabs(
+                        selected = selectedTab,
+                        labels = tabTitles.mapIndexed { index, title ->
+                            if (index == 0 && data.expenses.isNotEmpty()) "$title · ${data.expenses.size}" else title
+                        },
+                        onSelect = { selectedTab = it },
+                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+                    )
 
                     // Expenses / Balances / Members are peer views — fade through between them.
                     AnimatedContent(
@@ -206,7 +182,7 @@ fun GroupDetailScreen(
                                             .fillMaxWidth()
                                             .animateContentSize()
                                             .padding(bottom = OpenSplitTokens.SpaceMD),
-                                        shape = RoundedCornerShape(28.dp),
+                                        shape = MaterialTheme.shapes.large,
                                         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
                                         border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.surfaceVariant)
                                     ) {
@@ -264,7 +240,7 @@ fun GroupDetailScreen(
                                             modifier = Modifier
                                                 .fillMaxWidth()
                                                 .padding(bottom = OpenSplitTokens.SpaceMD),
-                                            shape = RoundedCornerShape(24.dp),
+                                            shape = MaterialTheme.shapes.large,
                                             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow)
                                         ) {
                                             Row(modifier = Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -281,7 +257,7 @@ fun GroupDetailScreen(
                                                         style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant
                                                     )
                                                 }
-                                                TextButton(shapes = ButtonDefaults.shapes(), onClick = { onNavigateToSettleUp(top.fromUid, top.toUid, top.amount) }) { Text("Settle up") }
+                                                TextButton(shapes = com.opensplit.ui.theme.appButtonShapes(), onClick = { onNavigateToSettleUp(top.fromUid, top.toUid, top.amount) }) { Text("Settle up") }
                                             }
                                         }
                                     }
@@ -304,114 +280,110 @@ fun GroupDetailScreen(
                                     }
 
                                 if (filteredExpenses.isEmpty()) {
-                                    Box(
-                                        modifier = Modifier.fillMaxSize(),
-                                        contentAlignment = Alignment.Center
-                                    ) {
-                                        Column(
-                                            horizontalAlignment = Alignment.CenterHorizontally,
-                                            modifier = Modifier.padding(OpenSplitTokens.SpaceXL)
-                                        ) {
-                                            ReceiptIllustration(size = 120.dp)
-                                            Spacer(modifier = Modifier.height(OpenSplitTokens.SpaceLG))
-                                            Text(
-                                                text = "No expenses yet \u2014 add the first one and OpenSplit handles the math",
-                                                style = MaterialTheme.typography.bodyLarge,
-                                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                                textAlign = androidx.compose.ui.text.style.TextAlign.Center
-                                            )
-                                            Spacer(modifier = Modifier.height(OpenSplitTokens.SpaceLG))
-                                            Button(shapes = ButtonDefaults.shapes(), onClick = onNavigateToAddExpense) {
-                                                SymbolIcon(OpenSplitIcons.AddExpense, contentDescription = null)
-                                                Spacer(modifier = Modifier.width(OpenSplitTokens.SpaceSM))
-                                                Text("Add Expense")
-                                            }
-                                        }
-                                    }
+                                    ExpressiveEmptyState(
+                                        title = "No expenses yet",
+                                        subtitle = "Add the first expense for this group to start splitting costs.",
+                                        symbol = OpenSplitIcons.ReceiptLong,
+                                        actionLabel = "Add Expense",
+                                        onActionClick = onNavigateToAddExpense
+                                    )
                                 } else {
-                                    LazyColumn(
-                                        state = listState,
-                                        verticalArrangement = Arrangement.spacedBy(OpenSplitTokens.SpaceXS),
-                                        modifier = Modifier.fillMaxSize()
-                                    ) {
-                                        items(filteredExpenses, key = { it.id }) { exp ->
-                                            val categoryIcon = getCategoryIcon(exp.category)
-                                            val categoryColor = getCategoryColor(exp.category)
-                                            val dateStr = remember(exp.date) {
-                                                try {
-                                                    SimpleDateFormat("MMM d", Locale.getDefault()).format(exp.date.toDate())
-                                                } catch (e: Exception) { "" }
-                                            }
-
-                                            com.opensplit.ui.components.SwipeActionRow(
-                                                modifier = Modifier.animateItem(),
-                                                startAction = com.opensplit.ui.components.SwipeAction(
-                                                    icon = OpenSplitIcons.Edit, label = "Edit",
-                                                    container = MaterialTheme.colorScheme.primaryContainer,
-                                                    onContainer = MaterialTheme.colorScheme.onPrimaryContainer
-                                                ) { onNavigateToEditExpense(data.group.id, exp.id) },
-                                                endAction = com.opensplit.ui.components.SwipeAction(
-                                                    icon = OpenSplitIcons.Delete, label = "Delete",
-                                                    container = MaterialTheme.colorScheme.errorContainer,
-                                                    onContainer = MaterialTheme.colorScheme.onErrorContainer,
-                                                    primary = false
-                                                ) {
-                                                    busy.show("Deleting expense…")
-                                                    viewModel.deleteExpense(exp.id) { ok ->
-                                                        busy.hide()
-                                                        if (ok) snackbar.showUndo("Deleted ${exp.description}") { viewModel.restoreExpense(exp.id) }
-                                                        else snackbar.showMessage("Couldn't delete ${exp.description}")
-                                                    }
+                                    Box(modifier = Modifier.fillMaxSize()) {
+                                        LazyColumn(
+                                            state = listState,
+                                            verticalArrangement = Arrangement.spacedBy(OpenSplitTokens.SpaceXS),
+                                            modifier = Modifier.fillMaxSize()
+                                        ) {
+                                            items(filteredExpenses, key = { it.id }) { exp ->
+                                                val categoryIcon = getCategoryIcon(exp.category)
+                                                val categoryColor = getCategoryColor(exp.category)
+                                                val dateStr = remember(exp.date) {
+                                                    try {
+                                                        SimpleDateFormat("MMM d", Locale.getDefault()).format(exp.date.toDate())
+                                                    } catch (e: Exception) { "" }
                                                 }
-                                            ) {
-                                            ListItem(
-                                                modifier = Modifier
-                                                    .fillMaxWidth()
-                                                    .clip(MaterialTheme.shapes.medium)
-                                                    .clickable { onNavigateToExpenseDetail(data.group.id, exp.id) },
-                                                headlineContent = {
-                                                    Text(
-                                                        text = exp.description,
-                                                        style = MaterialTheme.typography.titleMedium,
-                                                        fontWeight = FontWeight.SemiBold
-                                                    )
-                                                },
-                                                supportingContent = {
-                                                    val payerName = data.members.find { it.uid == exp.paidBy }?.displayName ?: "Unknown"
-                                                    Text(
-                                                        text = "Paid by $payerName • $dateStr",
-                                                        style = MaterialTheme.typography.bodySmall,
-                                                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                                                    )
-                                                },
-                                                leadingContent = {
-                                                    Surface(
-                                                        shape = CircleShape,
-                                                        color = categoryColor.copy(alpha = 0.15f),
-                                                        modifier = Modifier.size(40.dp)
+
+                                                com.opensplit.ui.components.SwipeActionRow(
+                                                    modifier = Modifier.animateItem(),
+                                                    startAction = com.opensplit.ui.components.SwipeAction(
+                                                        icon = OpenSplitIcons.Edit, label = "Edit",
+                                                        container = MaterialTheme.colorScheme.primaryContainer,
+                                                        onContainer = MaterialTheme.colorScheme.onPrimaryContainer
+                                                    ) { onNavigateToEditExpense(data.group.id, exp.id) },
+                                                    endAction = com.opensplit.ui.components.SwipeAction(
+                                                        icon = OpenSplitIcons.Delete, label = "Delete",
+                                                        container = MaterialTheme.colorScheme.errorContainer,
+                                                        onContainer = MaterialTheme.colorScheme.onErrorContainer,
+                                                        primary = false
                                                     ) {
-                                                        Box(contentAlignment = Alignment.Center) {
-                                                            SymbolIcon(
-                                                                symbol = categoryIcon,
-                                                                contentDescription = exp.category,
-                                                                tint = categoryColor,
-                                                                modifier = Modifier.size(20.dp)
-                                                            )
+                                                        busy.show("Deleting expense…")
+                                                        viewModel.deleteExpense(exp.id) { ok ->
+                                                            busy.hide()
+                                                            if (ok) snackbar.showUndo("Deleted ${exp.description}") { viewModel.restoreExpense(exp.id) }
+                                                            else snackbar.showMessage("Couldn't delete ${exp.description}")
                                                         }
                                                     }
-                                                },
-                                                trailingContent = {
-                                                    Text(
-                                                        text = com.opensplit.util.CurrencyFormatter.format(exp.amount, exp.currency) +
-                                                            if (exp.currency != data.group.currency) " ${exp.currency}" else "",
-                                                        style = MaterialTheme.typography.titleMedium,
-                                                        fontWeight = FontWeight.Bold
-                                                    )
+                                                ) {
+                                                ListItem(
+                                                    colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
+                                                    modifier = Modifier
+                                                        .fillMaxWidth()
+                                                        .clip(MaterialTheme.shapes.medium)
+                                                        .clickable { onNavigateToExpenseDetail(data.group.id, exp.id) },
+                                                    headlineContent = {
+                                                        Text(
+                                                            text = exp.description,
+                                                            style = MaterialTheme.typography.titleMedium,
+                                                            fontWeight = FontWeight.SemiBold
+                                                        )
+                                                    },
+                                                    supportingContent = {
+                                                        val payerName = data.members.find { it.uid == exp.paidBy }?.displayName ?: "Unknown"
+                                                        Text(
+                                                            text = "Paid by $payerName • $dateStr",
+                                                            style = MaterialTheme.typography.bodySmall,
+                                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                                        )
+                                                    },
+                                                    leadingContent = {
+                                                        Surface(
+                                                            shape = CircleShape,
+                                                            color = categoryColor.copy(alpha = 0.15f),
+                                                            modifier = Modifier.size(40.dp)
+                                                        ) {
+                                                            Box(contentAlignment = Alignment.Center) {
+                                                                SymbolIcon(
+                                                                    symbol = categoryIcon,
+                                                                    contentDescription = exp.category,
+                                                                    tint = categoryColor,
+                                                                    modifier = Modifier.size(20.dp)
+                                                                )
+                                                            }
+                                                        }
+                                                    },
+                                                    trailingContent = {
+                                                        Text(
+                                                            text = com.opensplit.util.CurrencyFormatter.format(exp.amount, exp.currency) +
+                                                                if (exp.currency != data.group.currency) " ${exp.currency}" else "",
+                                                            style = MaterialTheme.typography.titleMedium,
+                                                            fontWeight = FontWeight.Bold
+                                                        )
+                                                    }
+                                                )
                                                 }
-                                            )
+                                                Spacer(Modifier.height(6.dp))
                                             }
-                                            HorizontalDivider(color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
                                         }
+
+                                        ExpressiveScrollBar(
+                                            listState = listState,
+                                            modifier = Modifier
+                                                .align(Alignment.CenterEnd)
+                                                .fillMaxHeight(),
+                                            labelResolver = { index ->
+                                                filteredExpenses.getOrNull(index)?.description?.take(1)?.uppercase()
+                                            }
+                                        )
                                     }
                                 }
                             }
@@ -427,32 +399,13 @@ fun GroupDetailScreen(
                                     data.members.find { it.uid == uid }?.displayName ?: uid.take(6)
                                 }
                                 if (data.members.isEmpty()) {
-                                    Box(
-                                        modifier = Modifier.fillMaxSize(),
-                                        contentAlignment = Alignment.Center
-                                    ) {
-                                        Column(
-                                            horizontalAlignment = Alignment.CenterHorizontally,
-                                            modifier = Modifier.padding(OpenSplitTokens.SpaceXL)
-                                        ) {
-                                            com.opensplit.ui.components.HandshakeIllustration(size = 120.dp)
-                                            Spacer(modifier = Modifier.height(OpenSplitTokens.SpaceLG))
-                                            Text(
-                                                text = "No balances yet",
-                                                style = MaterialTheme.typography.titleLarge,
-                                                fontWeight = FontWeight.Bold
-                                            )
-                                            Spacer(modifier = Modifier.height(OpenSplitTokens.SpaceSM))
-                                            Text(
-                                                text = "Balances show up once this group has members.",
-                                                style = MaterialTheme.typography.bodyMedium,
-                                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                                textAlign = androidx.compose.ui.text.style.TextAlign.Center
-                                            )
-                                        }
-                                    }
+                                    ExpressiveEmptyState(
+                                        title = "No balances yet",
+                                        subtitle = "Balances show up once this group has members and expenses.",
+                                        symbol = OpenSplitIcons.SplitEqual
+                                    )
                                 } else {
-                                Button(shapes = ButtonDefaults.shapes(), 
+                                Button(shapes = com.opensplit.ui.theme.appButtonShapes(), 
                                     onClick = {
                                         if (data.members.size > 1) {
                                             val s = data.simplifiedSettlements.firstOrNull()
@@ -574,7 +527,7 @@ fun GroupDetailScreen(
                                     modifier = Modifier
                                         .fillMaxWidth()
                                         .padding(bottom = OpenSplitTokens.SpaceMD),
-                                    shape = RoundedCornerShape(20.dp),
+                                    shape = MaterialTheme.shapes.medium,
                                     colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
                                     border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.surfaceVariant)
                                 ) {
@@ -633,32 +586,11 @@ fun GroupDetailScreen(
                                 }
 
                                 if (data.members.isEmpty()) {
-                                    Box(
-                                        modifier = Modifier
-                                            .fillMaxSize()
-                                            .padding(OpenSplitTokens.SpaceXL),
-                                        contentAlignment = Alignment.Center
-                                    ) {
-                                        Column(
-                                            horizontalAlignment = Alignment.CenterHorizontally,
-                                            verticalArrangement = Arrangement.Center
-                                        ) {
-                                            com.opensplit.ui.components.HandshakeIllustration(size = 120.dp)
-                                            Spacer(modifier = Modifier.height(OpenSplitTokens.SpaceLG))
-                                            Text(
-                                                text = "No members yet",
-                                                style = MaterialTheme.typography.titleLarge,
-                                                fontWeight = FontWeight.Bold
-                                            )
-                                            Spacer(modifier = Modifier.height(OpenSplitTokens.SpaceSM))
-                                            Text(
-                                                text = "Use \"Add New Member\" below to bring people into this group.",
-                                                style = MaterialTheme.typography.bodyMedium,
-                                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                                textAlign = androidx.compose.ui.text.style.TextAlign.Center
-                                            )
-                                        }
-                                    }
+                                    ExpressiveEmptyState(
+                                        title = "No members yet",
+                                        subtitle = "Use \"Add New Member\" below to bring people into this group.",
+                                        symbol = OpenSplitIcons.GroupAdd
+                                    )
                                 } else {
                                     LazyColumn(
                                         modifier = Modifier.weight(1f),
@@ -782,7 +714,7 @@ fun GroupDetailScreen(
                                                         }
                                                     },
                                                     trailingContent = {
-                                                        TextButton(shapes = ButtonDefaults.shapes(), 
+                                                        TextButton(shapes = com.opensplit.ui.theme.appButtonShapes(), 
                                                             onClick = {
                                                                 viewModel.revokeInvite(invite.id)
                                                                 snackbar.showUndo("Invite revoked for ${invite.email}") {
@@ -839,7 +771,7 @@ fun GroupDetailScreen(
     }
 
     if (showAddMember) {
-        val links by viewModel.inviteLinks.collectAsState()
+        val links by viewModel.inviteLinks.collectAsStateWithLifecycle()
         val success = uiState as? ScreenState.Success
         val gName = success?.data?.group?.name ?: groupName
         val gId = success?.data?.group?.id ?: viewModel.groupId
@@ -883,7 +815,15 @@ fun GroupDetailScreen(
                         .padding(OpenSplitTokens.SpaceLG),
                     verticalArrangement = Arrangement.spacedBy(OpenSplitTokens.SpaceMD)
                 ) {
-                    Text("Group settings", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                    Text("Group settings", style = MaterialTheme.typography.headlineSmall)
+                    val section: @Composable (String) -> Unit = {
+                        Text(
+                            it,
+                            style = MaterialTheme.typography.titleSmall,
+                            color = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.padding(start = 4.dp, top = 8.dp)
+                        )
+                    }
 
                     // Avatar
                     Row(verticalAlignment = Alignment.CenterVertically) {
@@ -894,7 +834,7 @@ fun GroupDetailScreen(
                             GroupAvatar(name = group.name, avatarKey = group.avatarKey, size = 56.dp)
                         }
                         Spacer(modifier = Modifier.width(OpenSplitTokens.SpaceMD))
-                        TextButton(shapes = ButtonDefaults.shapes(), onClick = {
+                        TextButton(shapes = com.opensplit.ui.theme.appButtonShapes(), onClick = {
                             showSettings = false
                             showAvatarPicker = true
                         }) {
@@ -910,18 +850,18 @@ fun GroupDetailScreen(
                         singleLine = true,
                         modifier = Modifier.fillMaxWidth()
                     )
-                    Button(shapes = ButtonDefaults.shapes(), 
+                    Button(shapes = com.opensplit.ui.theme.appButtonShapes(), 
                         onClick = {
                             viewModel.renameGroup(renameText)
                             snackbar.showMessage("Group renamed")
                         },
                         enabled = renameText.isNotBlank() && renameText.trim() != group.name,
-                        modifier = Modifier.fillMaxWidth()
+                        modifier = Modifier.fillMaxWidth().height(52.dp)
                     ) { Text("Rename") }
 
                     // Currency: locked once the group has expenses, so balances stay consistent.
                     val currencyLocked = success.data.expenses.isNotEmpty()
-                    Text("Currency", fontWeight = FontWeight.SemiBold)
+                    section("Currency")
                     if (currencyLocked) {
                         Text(
                             "Can't be changed once a group has expenses. Each expense can still use its own currency.",
@@ -945,7 +885,7 @@ fun GroupDetailScreen(
                     }
 
                     // Default split for new expenses
-                    Text("Default split", fontWeight = FontWeight.SemiBold)
+                    section("Default split")
                     FlowRow(horizontalArrangement = Arrangement.spacedBy(OpenSplitTokens.SpaceSM)) {
                         com.opensplit.domain.model.SplitType.entries.forEach { st ->
                             FilterChip(
@@ -957,9 +897,17 @@ fun GroupDetailScreen(
                     }
 
                     // Simplify debts toggle
-                    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(top = 8.dp)
+                            .clip(MaterialTheme.shapes.large)
+                            .background(MaterialTheme.colorScheme.surfaceContainer)
+                            .padding(16.dp)
+                    ) {
                         Column(modifier = Modifier.weight(1f)) {
-                            Text("Simplify debts", fontWeight = FontWeight.SemiBold)
+                            Text("Simplify debts", style = MaterialTheme.typography.titleMedium)
                             Text(
                                 "Minimize the number of payments to settle up",
                                 style = MaterialTheme.typography.bodySmall,
@@ -973,12 +921,20 @@ fun GroupDetailScreen(
                     }
 
                     // Members (remove; can't remove the creator)
-                    Text("Members", fontWeight = FontWeight.SemiBold)
-                    members.forEach { m ->
-                        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
-                            Text(m.displayName, modifier = Modifier.weight(1f))
+                    section("Members")
+                    Column(verticalArrangement = Arrangement.spacedBy(3.dp)) { members.forEachIndexed { i, m ->
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(com.opensplit.ui.components.segmentShape(i, members.size))
+                                .background(MaterialTheme.colorScheme.surfaceContainer)
+                                .padding(horizontal = 16.dp, vertical = 8.dp)
+                                .heightIn(min = 40.dp)
+                        ) {
+                            Text(m.displayName, style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
                             if (m.uid != group.createdBy) {
-                                TextButton(shapes = ButtonDefaults.shapes(), onClick = {
+                                TextButton(shapes = com.opensplit.ui.theme.appButtonShapes(), onClick = {
                                     viewModel.removeMember(m.uid)
                                     snackbar.showUndo("Removed ${m.displayName}") {
                                         viewModel.restoreMember(m.uid)
@@ -990,15 +946,13 @@ fun GroupDetailScreen(
                                 Text("Owner", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                             }
                         }
-                    }
-
-                    HorizontalDivider()
+                    } }
 
                     Row(
                         horizontalArrangement = Arrangement.spacedBy(OpenSplitTokens.SpaceSM),
                         modifier = Modifier.fillMaxWidth()
                     ) {
-                        OutlinedButton(shapes = ButtonDefaults.shapes(), 
+                        FilledTonalButton(shapes = com.opensplit.ui.theme.appButtonShapes(),
                             onClick = {
                                 val myBalance = currentUid?.let { viewModel.balanceOf(it) } ?: 0.0
                                 if (kotlin.math.abs(myBalance) > 0.01) {
@@ -1008,18 +962,21 @@ fun GroupDetailScreen(
                                     snackbar.showMessage("Left ${group.name}. Your past expenses stay in the history.")
                                 }
                             },
-                            modifier = Modifier.weight(1f)
-                        ) { Text("Leave group") }
+                            modifier = Modifier.weight(1f).height(56.dp)
+                        ) { Text("Leave group", style = MaterialTheme.typography.titleSmall) }
 
                         if (currentUid == group.createdBy) {
-                            Button(shapes = ButtonDefaults.shapes(), 
+                            Button(shapes = com.opensplit.ui.theme.appButtonShapes(), 
                                 onClick = {
                                     showSettings = false
                                     confirmDelete = true
                                 },
-                                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error),
-                                modifier = Modifier.weight(1f)
-                            ) { Text("Delete group") }
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = MaterialTheme.colorScheme.errorContainer,
+                                    contentColor = MaterialTheme.colorScheme.onErrorContainer
+                                ),
+                                modifier = Modifier.weight(1f).height(56.dp)
+                            ) { Text("Delete group", style = MaterialTheme.typography.titleSmall) }
                         }
                     }
                     Spacer(modifier = Modifier.height(OpenSplitTokens.SpaceXXL))
@@ -1035,7 +992,7 @@ fun GroupDetailScreen(
             title = { Text("Delete group?") },
             text = { Text("This permanently deletes '${activeGroup.name}' and its expenses for everyone.") },
             confirmButton = {
-                Button(shapes = ButtonDefaults.shapes(), 
+                Button(shapes = com.opensplit.ui.theme.appButtonShapes(), 
                     onClick = {
                         confirmDelete = false
                         viewModel.deleteGroup { onNavigateBack() }
@@ -1045,7 +1002,7 @@ fun GroupDetailScreen(
                 ) { Text("Delete") }
             },
             dismissButton = {
-                TextButton(shapes = ButtonDefaults.shapes(), onClick = { confirmDelete = false }) { Text("Cancel") }
+                TextButton(shapes = com.opensplit.ui.theme.appButtonShapes(), onClick = { confirmDelete = false }) { Text("Cancel") }
             }
         )
     }

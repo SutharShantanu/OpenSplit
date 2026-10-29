@@ -31,7 +31,7 @@ fun AppSearchBar(
             if (isLoading) {
                 AppLoadingIndicator(size = 20.dp)
             } else if (query.isNotEmpty()) {
-                IconButton(shapes = IconButtonDefaults.shapes(), onClick = { onQueryChange("") }) {
+                IconButton(shapes = com.opensplit.ui.theme.appIconButtonShapes(), onClick = { onQueryChange("") }) {
                     SymbolIcon(OpenSplitIcons.Close, contentDescription = "Clear")
                 }
             }

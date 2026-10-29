@@ -2,6 +2,7 @@
 
 package com.opensplit.ui.screens
 
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.opensplit.ui.theme.Symbol
 import com.opensplit.ui.components.SymbolIcon
 import androidx.compose.foundation.clickable
@@ -36,7 +37,7 @@ fun PersonBalanceScreen(
     onNavigateToGroup: ((groupId: String) -> Unit)? = null,
     onNavigateToAddExpense: ((groupId: String) -> Unit)? = null
 ) {
-    val state by viewModel.uiState.collectAsState()
+    val state by viewModel.uiState.collectAsStateWithLifecycle()
     val snackbar = com.opensplit.ui.components.LocalSnackbarController.current
 
     Scaffold(
@@ -44,9 +45,7 @@ fun PersonBalanceScreen(
             TopAppBar(
                 title = { Text("Friend Balance", fontWeight = FontWeight.Bold) },
                 navigationIcon = {
-                    IconButton(shapes = IconButtonDefaults.shapes(), onClick = onNavigateBack) {
-                        SymbolIcon(OpenSplitIcons.ArrowBack, contentDescription = "Back")
-                    }
+                    com.opensplit.ui.components.RoundBackButton(onClick = onNavigateBack)
                 }
             )
         }
@@ -74,7 +73,7 @@ fun PersonBalanceScreen(
                     // Header card with Friend profile & balance status
                     Card(
                         modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(28.dp),
+                        shape = MaterialTheme.shapes.large,
                         colors = CardDefaults.cardColors(
                             containerColor = MaterialTheme.colorScheme.surfaceContainer
                         )
@@ -206,7 +205,7 @@ fun PersonBalanceScreen(
                                     modifier = Modifier
                                         .width(180.dp)
                                         .clickable { onNavigateToGroup?.invoke(group.id) },
-                                    shape = RoundedCornerShape(20.dp),
+                                    shape = MaterialTheme.shapes.medium,
                                     colors = CardDefaults.cardColors(
                                         containerColor = MaterialTheme.colorScheme.surfaceContainer
                                     )
@@ -289,7 +288,7 @@ fun PersonBalanceScreen(
                             items(uiState.sharedExpenses, key = { it.id }) { expense ->
                                 Card(
                                     modifier = Modifier.fillMaxWidth(),
-                                    shape = RoundedCornerShape(16.dp),
+                                    shape = MaterialTheme.shapes.medium,
                                     colors = CardDefaults.cardColors(
                                         containerColor = MaterialTheme.colorScheme.surfaceContainerLow
                                     )

@@ -166,7 +166,7 @@ fun ExportBottomSheet(
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
-                IconButton(shapes = IconButtonDefaults.shapes(), onClick = onDismiss) {
+                IconButton(shapes = com.opensplit.ui.theme.appIconButtonShapes(), onClick = onDismiss) {
                     SymbolIcon(OpenSplitIcons.Close, contentDescription = "Close")
                 }
             }
@@ -190,7 +190,7 @@ fun ExportBottomSheet(
                                 .weight(1f)
                                 .height(46.dp)
                                 .clickable { selectedBasis = basis },
-                            shape = RoundedCornerShape(12.dp),
+                            shape = MaterialTheme.shapes.small,
                             color = if (isSelected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceContainerHigh,
                             border = if (isSelected) BorderStroke(1.5.dp, MaterialTheme.colorScheme.primary) else null
                         ) {
@@ -229,7 +229,7 @@ fun ExportBottomSheet(
                                 .weight(1f)
                                 .height(46.dp)
                                 .clickable { selectedScope = scope },
-                            shape = RoundedCornerShape(12.dp),
+                            shape = MaterialTheme.shapes.small,
                             color = if (isSelected) MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.surfaceContainerHigh,
                             border = if (isSelected) BorderStroke(1.5.dp, MaterialTheme.colorScheme.secondary) else null
                         ) {
@@ -267,7 +267,7 @@ fun ExportBottomSheet(
                             selected = isSelected,
                             onClick = { selectedPeriod = period },
                             label = { Text(period.title) },
-                            shape = RoundedCornerShape(10.dp),
+                            shape = MaterialTheme.shapes.extraSmall,
                             colors = FilterChipDefaults.filterChipColors(
                                 selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
                                 selectedLabelColor = MaterialTheme.colorScheme.onPrimaryContainer
@@ -296,7 +296,7 @@ fun ExportBottomSheet(
                                 .weight(1f)
                                 .height(64.dp)
                                 .clickable { selectedFormat = format },
-                            shape = RoundedCornerShape(14.dp),
+                            shape = MaterialTheme.shapes.small,
                             color = if (isSelected) MaterialTheme.colorScheme.tertiaryContainer else MaterialTheme.colorScheme.surfaceContainerHigh,
                             border = if (isSelected) BorderStroke(1.5.dp, MaterialTheme.colorScheme.tertiary) else null
                         ) {
@@ -329,7 +329,7 @@ fun ExportBottomSheet(
             // 5. Summary Card
             Card(
                 modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(16.dp),
+                shape = MaterialTheme.shapes.medium,
                 colors = CardDefaults.cardColors(
                     containerColor = MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.7f)
                 )
@@ -365,7 +365,7 @@ fun ExportBottomSheet(
 
             // 6. Action Button
             FilledTonalButton(
-                shapes = ButtonDefaults.shapes(),
+                shapes = com.opensplit.ui.theme.appButtonShapes(),
                 onClick = {
                     if (filteredExpenses.isEmpty()) {
                         snackbar.showMessage("No expenses match the selected filters")

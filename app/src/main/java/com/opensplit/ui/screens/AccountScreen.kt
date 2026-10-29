@@ -2,6 +2,7 @@
 
 package com.opensplit.ui.screens
 
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.opensplit.ui.theme.Symbol
 import com.opensplit.data.ai.AI_PROVIDERS_CATALOG
 import com.opensplit.data.ai.AiProviderInfo
@@ -19,6 +20,7 @@ import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.tasks.await
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -117,22 +119,22 @@ fun AccountScreen(
 ) {
     val context = LocalContext.current
     val snackbar = LocalSnackbarController.current
-    val uiState by viewModel.uiState.collectAsState()
+    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
 
-    val theme by viewModel.themeFlow.collectAsState(initial = "system")
-    val colorPalette by viewModel.colorPaletteFlow.collectAsState(initial = "dynamic")
-    val amoledPref by viewModel.amoledFlow.collectAsState(initial = false)
-    val dynamicColor by viewModel.dynamicColorFlow.collectAsState(initial = Build.VERSION.SDK_INT >= Build.VERSION_CODES.S)
-    val notificationsEnabled by viewModel.notificationsEnabledFlow.collectAsState(initial = true)
-    val aiProvider by viewModel.aiProviderFlow.collectAsState(initial = "openai")
-    val providerApiKeys by viewModel.providerApiKeysFlow.collectAsState(initial = emptyMap())
-    val customEndpoint by viewModel.customEndpointFlow.collectAsState(initial = "http://localhost:11434/v1")
-    val customModel by viewModel.customModelFlow.collectAsState(initial = "llama3:latest")
-    val aiEnabled by viewModel.aiEnabledFlow.collectAsState(initial = true)
-    val aiDisabledFeatures by viewModel.aiDisabledFeaturesFlow.collectAsState(initial = emptySet())
-    val providerModels by viewModel.providerModelsFlow.collectAsState(initial = emptyMap())
-    val aiUsage by viewModel.aiUsageFlow.collectAsState(initial = emptyMap())
-    val aiTokens by viewModel.aiTokensFlow.collectAsState(initial = emptyMap())
+    val theme by viewModel.themeFlow.collectAsStateWithLifecycle(initialValue = "system")
+    val colorPalette by viewModel.colorPaletteFlow.collectAsStateWithLifecycle(initialValue = "material")
+    val amoledPref by viewModel.amoledFlow.collectAsStateWithLifecycle(initialValue = false)
+    val dynamicColor by viewModel.dynamicColorFlow.collectAsStateWithLifecycle(initialValue = Build.VERSION.SDK_INT >= Build.VERSION_CODES.S)
+    val notificationsEnabled by viewModel.notificationsEnabledFlow.collectAsStateWithLifecycle(initialValue = true)
+    val aiProvider by viewModel.aiProviderFlow.collectAsStateWithLifecycle(initialValue = "openai")
+    val providerApiKeys by viewModel.providerApiKeysFlow.collectAsStateWithLifecycle(initialValue = emptyMap())
+    val customEndpoint by viewModel.customEndpointFlow.collectAsStateWithLifecycle(initialValue = "http://localhost:11434/v1")
+    val customModel by viewModel.customModelFlow.collectAsStateWithLifecycle(initialValue = "llama3:latest")
+    val aiEnabled by viewModel.aiEnabledFlow.collectAsStateWithLifecycle(initialValue = true)
+    val aiDisabledFeatures by viewModel.aiDisabledFeaturesFlow.collectAsStateWithLifecycle(initialValue = emptySet())
+    val providerModels by viewModel.providerModelsFlow.collectAsStateWithLifecycle(initialValue = emptyMap())
+    val aiUsage by viewModel.aiUsageFlow.collectAsStateWithLifecycle(initialValue = emptyMap())
+    val aiTokens by viewModel.aiTokensFlow.collectAsStateWithLifecycle(initialValue = emptyMap())
 
     var selectedCategory by rememberSaveable { mutableStateOf<AccountCategory?>(null) }
 
@@ -252,9 +254,9 @@ fun AccountScreen(
                             DataBackupSubScreen(
                                 expenseCount = data.allExpenses.size,
                                 onExportClick = { showExportBottomSheet = true },
-                                onClearCache = {
-                                    snackbar.showMessage("Application cache cleared successfully")
-                                },
+                                onClearCache = { com.opensplit.util.StorageStats.clearCache(context) },
+                                onBackupSettings = { appContainer.userPreferencesRepository.exportSettings() },
+                                onRestoreSettings = { appContainer.userPreferencesRepository.importSettings(it) },
                                 onOpenRecurring = { rootNavController.navigate("recurring_expenses") },
                                 onOpenRecentlyDeleted = { rootNavController.navigate("recently_deleted") },
                                 onBack = { selectedCategory = null }
@@ -266,6 +268,10 @@ fun AccountScreen(
                                 onUpdateDisplayName = { newName ->
                                     viewModel.updateDisplayName(newName)
                                     snackbar.showMessage("Display name updated to $newName")
+                                },
+                                onUpdateUpiId = { upi ->
+                                    viewModel.updateUpiId(upi)
+                                    snackbar.showMessage(if (upi == null) "UPI ID removed" else "UPI ID saved")
                                 },
                                 onSendPasswordReset = { email ->
                                     viewModel.sendPasswordResetEmail(email) { result ->
@@ -311,7 +317,7 @@ fun AccountScreen(
             text = { Text("Are you sure you want to log out?") },
             confirmButton = {
                 Button(
-                    shapes = ButtonDefaults.shapes(),
+                    shapes = com.opensplit.ui.theme.appButtonShapes(),
                     onClick = {
                         viewModel.signOut()
                         showSignOutDialog = false
@@ -322,7 +328,7 @@ fun AccountScreen(
                 }
             },
             dismissButton = {
-                TextButton(shapes = ButtonDefaults.shapes(), onClick = { showSignOutDialog = false }) {
+                TextButton(shapes = com.opensplit.ui.theme.appButtonShapes(), onClick = { showSignOutDialog = false }) {
                     Text("Cancel")
                 }
             }
@@ -337,7 +343,7 @@ fun AccountScreen(
             text = { Text("This will permanently remove your account and all data. This cannot be undone.") },
             confirmButton = {
                 Button(
-                    shapes = ButtonDefaults.shapes(),
+                    shapes = com.opensplit.ui.theme.appButtonShapes(),
                     onClick = {
                         viewModel.deleteAccount()
                         showDeleteAccountDialog = false
@@ -348,7 +354,7 @@ fun AccountScreen(
                 }
             },
             dismissButton = {
-                TextButton(shapes = ButtonDefaults.shapes(), onClick = { showDeleteAccountDialog = false }) {
+                TextButton(shapes = com.opensplit.ui.theme.appButtonShapes(), onClick = { showDeleteAccountDialog = false }) {
                     Text("Cancel")
                 }
             }
@@ -384,10 +390,21 @@ fun AccountOverviewScreen(
     var isSyncingNow by remember { mutableStateOf(false) }
     var syncProgress by remember { mutableFloatStateOf(0f) }
     var syncStatusText by remember { mutableStateOf("All balances up to date") }
-    var lastSyncPingMs by remember { mutableIntStateOf(32) }
+    var lastSyncPingMs by remember { mutableIntStateOf(0) }
+    // null while checking; a server read (not the local cache) decides it.
+    var serverReachable by remember { mutableStateOf<Boolean?>(null) }
+    androidx.compose.runtime.LaunchedEffect(data.user.uid) {
+        serverReachable = isServerReachable(data.user.uid)
+    }
 
     var isClearingCache by remember { mutableStateOf(false) }
-    var cacheMb by remember { mutableFloatStateOf(14.2f) }
+    val storageContext = LocalContext.current
+    var cacheBytes by remember { mutableStateOf(0L) }
+    var appDataBytes by remember { mutableStateOf(0L) }
+    androidx.compose.runtime.LaunchedEffect(Unit) {
+        cacheBytes = com.opensplit.util.StorageStats.cacheBytes(storageContext)
+        appDataBytes = com.opensplit.util.StorageStats.appDataBytes(storageContext)
+    }
     var showSyncBottomSheet by remember { mutableStateOf(false) }
     var showStorageBottomSheet by remember { mutableStateOf(false) }
     val coroutineScope = rememberCoroutineScope()
@@ -404,7 +421,7 @@ fun AccountOverviewScreen(
                     onValueChange = { newDisplayName = it },
                     label = { Text("Your Name") },
                     singleLine = true,
-                    shape = RoundedCornerShape(12.dp),
+                    shape = MaterialTheme.shapes.small,
                     modifier = Modifier.fillMaxWidth()
                 )
             },
@@ -416,7 +433,7 @@ fun AccountOverviewScreen(
                         }
                         showEditNameDialog = false
                     },
-                    shape = RoundedCornerShape(10.dp)
+                    shape = MaterialTheme.shapes.extraSmall
                 ) {
                     Text("Save")
                 }
@@ -429,6 +446,8 @@ fun AccountOverviewScreen(
         )
     }
 
+    var settingsSearchQuery by rememberSaveable { mutableStateOf("") }
+
     Box(
         modifier = Modifier.fillMaxSize(),
         contentAlignment = Alignment.TopCenter
@@ -439,11 +458,12 @@ fun AccountOverviewScreen(
                 .responsiveContentWidth(maxWidth = 760.dp)
         ) {
             TopAppBar(
+                expandedHeight = 88.dp,
                 title = {
                     Text(
                         text = "Settings",
-                        fontWeight = FontWeight.Bold,
-                        style = MaterialTheme.typography.titleLarge
+                        style = MaterialTheme.typography.headlineLarge,
+                        color = MaterialTheme.colorScheme.primary
                     )
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
@@ -451,20 +471,77 @@ fun AccountOverviewScreen(
                 ),
                 windowInsets = WindowInsets(0, 0, 0, 0),
                 actions = {
-                    IconButton(onClick = onNavigateToHistory) {
-                        SymbolIcon(
-                            symbol = OpenSplitIcons.History,
-                            contentDescription = "Settlement History"
-                        )
-                    }
+                    com.opensplit.ui.components.HeaderAction(
+                        OpenSplitIcons.History, "Settlement History",
+                        MaterialTheme.colorScheme.secondaryContainer, MaterialTheme.colorScheme.onSecondaryContainer,
+                        onClick = onNavigateToHistory
+                    )
+                    Spacer(Modifier.width(8.dp))
                 }
             )
+
+            data class CategoryGroup(
+                val sectionTitle: String,
+                val categories: List<AccountCategory>
+            )
+
+            val groupedSections = remember {
+                listOf(
+                    CategoryGroup(
+                        sectionTitle = "Sync & Storage",
+                        categories = listOf(
+                            AccountCategory.SYNC,
+                            AccountCategory.STORAGE
+                        )
+                    ),
+                    CategoryGroup(
+                        sectionTitle = "Preferences",
+                        categories = listOf(
+                            AccountCategory.THEME,
+                            AccountCategory.CURRENCIES,
+                            AccountCategory.NOTIFICATIONS
+                        )
+                    ),
+                    CategoryGroup(
+                        sectionTitle = "Intelligence",
+                        categories = listOf(
+                            AccountCategory.AI_PROVIDERS
+                        )
+                    ),
+                    CategoryGroup(
+                        sectionTitle = "Data & Backup",
+                        categories = listOf(
+                            AccountCategory.DATA_BACKUP
+                        )
+                    ),
+                    CategoryGroup(
+                        sectionTitle = "Security & About",
+                        categories = listOf(
+                            AccountCategory.SECURITY,
+                            AccountCategory.ABOUT
+                        )
+                    )
+                )
+            }
+
+            val filteredSections = remember(groupedSections, settingsSearchQuery) {
+                if (settingsSearchQuery.isBlank()) groupedSections
+                else {
+                    groupedSections.mapNotNull { group ->
+                        val matchingCats = group.categories.filter { cat ->
+                            cat.title.contains(settingsSearchQuery, ignoreCase = true) ||
+                            group.sectionTitle.contains(settingsSearchQuery, ignoreCase = true)
+                        }
+                        if (matchingCats.isNotEmpty()) group.copy(categories = matchingCats) else null
+                    }
+                }
+            }
 
             LazyColumn(
                 modifier = Modifier
                     .fillMaxWidth()
                     .weight(1f),
-                contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 4.dp, bottom = 100.dp),
+                contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 4.dp, bottom = com.opensplit.ui.components.FloatingNavBarClearance),
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
             // ---------------------------------------------------------------------------------
@@ -472,7 +549,7 @@ fun AccountOverviewScreen(
             // ---------------------------------------------------------------------------------
             item {
                 Card(
-                    shape = RoundedCornerShape(24.dp),
+                    shape = MaterialTheme.shapes.large,
                     colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh),
                     modifier = Modifier.fillMaxWidth()
                 ) {
@@ -536,7 +613,7 @@ fun AccountOverviewScreen(
                             }
                             Spacer(modifier = Modifier.height(4.dp))
                             Surface(
-                                shape = RoundedCornerShape(8.dp),
+                                shape = MaterialTheme.shapes.extraSmall,
                                 color = MaterialTheme.colorScheme.surfaceContainerHighest
                             ) {
                                 Row(
@@ -580,7 +657,7 @@ fun AccountOverviewScreen(
 
                         FilledTonalButton(
                             onClick = { showEditNameDialog = true },
-                            shape = RoundedCornerShape(10.dp),
+                            shape = MaterialTheme.shapes.extraSmall,
                             contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
                             modifier = Modifier.height(34.dp)
                         ) {
@@ -592,81 +669,50 @@ fun AccountOverviewScreen(
 
 
 
-            // ---------------------------------------------------------------------------------
-            // M3 EXPRESSIVE GROUPED CATEGORIES (SINGLE-LINE SCANNABLE ITEMS)
-            // ---------------------------------------------------------------------------------
-            data class CategoryGroup(
-                val sectionTitle: String,
-                val categories: List<AccountCategory>
-            )
-
-            val groupedSections = listOf(
-                CategoryGroup(
-                    sectionTitle = "Sync & Storage",
-                    categories = listOf(
-                        AccountCategory.SYNC,
-                        AccountCategory.STORAGE
-                    )
-                ),
-                CategoryGroup(
-                    sectionTitle = "Preferences",
-                    categories = listOf(
-                        AccountCategory.THEME,
-                        AccountCategory.CURRENCIES,
-                        AccountCategory.NOTIFICATIONS
-                    )
-                ),
-                CategoryGroup(
-                    sectionTitle = "Intelligence",
-                    categories = listOf(
-                        AccountCategory.AI_PROVIDERS
-                    )
-                ),
-                CategoryGroup(
-                    sectionTitle = "Data & Backup",
-                    categories = listOf(
-                        AccountCategory.DATA_BACKUP
-                    )
-                ),
-                CategoryGroup(
-                    sectionTitle = "Security & About",
-                    categories = listOf(
-                        AccountCategory.SECURITY,
-                        AccountCategory.ABOUT
-                    )
+            item {
+                com.opensplit.ui.components.AppSearchBar(
+                    query = settingsSearchQuery,
+                    onQueryChange = { settingsSearchQuery = it },
+                    placeholderText = "Search preferences, themes, sync..."
                 )
-            )
+            }
 
-            groupedSections.forEach { group ->
+            if (filteredSections.isEmpty()) {
+                item {
+                    com.opensplit.ui.components.ExpressiveEmptyState(
+                        title = "No settings found",
+                        subtitle = "No preferences match \"$settingsSearchQuery\"",
+                        symbol = OpenSplitIcons.Search
+                    )
+                }
+            }
+
+            filteredSections.forEach { group ->
                 item {
                     Text(
                         text = group.sectionTitle,
-                        style = MaterialTheme.typography.labelLarge,
-                        fontWeight = FontWeight.Bold,
+                        style = MaterialTheme.typography.titleSmall,
                         color = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.padding(start = 4.dp, bottom = 4.dp)
+                        modifier = Modifier.padding(start = 8.dp, bottom = 8.dp)
                     )
 
-                    Card(
-                        shape = RoundedCornerShape(20.dp),
-                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh),
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Column {
+                    // Segmented list: rows are separate tiles, big outer corners, tight inner ones.
+                    Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                        run {
                             group.categories.forEachIndexed { idx, cat ->
-                                if (idx > 0) {
-                                    HorizontalDivider(
-                                        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f),
-                                        modifier = Modifier.padding(horizontal = 16.dp)
-                                    )
-                                }
 
                                 val badgeText = when (cat) {
                                     AccountCategory.SYNC -> {
-                                        if (isSyncingNow) "Syncing..." else "Synced · ${lastSyncPingMs}ms"
+                                        when {
+                                            isSyncingNow -> "Syncing..."
+                                            serverReachable == null -> "Checking…"
+                                            serverReachable == false -> "Offline"
+                                            lastSyncPingMs > 0 -> "Synced · ${lastSyncPingMs}ms"
+                                            else -> "Synced"
+                                        }
                                     }
                                     AccountCategory.STORAGE -> {
-                                        "${String.format("%.1f", cacheMb + 14.4f)} MB"
+                                        com.opensplit.util.StorageStats.formatMb(cacheBytes + appDataBytes)
                                     }
                                     AccountCategory.THEME -> {
                                         val modeLabel = when (theme) {
@@ -676,12 +722,8 @@ fun AccountOverviewScreen(
                                             else -> "System"
                                         }
                                         val palLabel = when (colorPalette) {
-                                            "monochrome" -> "Mono"
-                                            "emerald" -> "Emerald"
-                                            "ocean" -> "Ocean"
-                                            "sunset" -> "Sunset"
-                                            "lavender" -> "Violet"
-                                            else -> "Dynamic"
+                                            "monochrome" -> "Monochrome"
+                                            else -> "Material"
                                         }
                                         "$modeLabel · $palLabel"
                                     }
@@ -701,6 +743,8 @@ fun AccountOverviewScreen(
                                 Row(
                                     modifier = Modifier
                                         .fillMaxWidth()
+                                        .clip(com.opensplit.ui.components.segmentShape(idx, group.categories.size))
+                                        .background(MaterialTheme.colorScheme.surfaceContainer)
                                         .clickable {
                                             when (cat) {
                                                 AccountCategory.SYNC -> showSyncBottomSheet = true
@@ -708,30 +752,30 @@ fun AccountOverviewScreen(
                                                 else -> onSelectCategory(cat)
                                             }
                                         }
-                                        .padding(horizontal = 16.dp, vertical = 12.dp),
+                                        .padding(horizontal = 16.dp, vertical = 16.dp),
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
+                                    val (iconBg, iconFg) = com.opensplit.ui.components.toneFor(cat.ordinal)
                                     Surface(
-                                        shape = RoundedCornerShape(10.dp),
-                                        color = MaterialTheme.colorScheme.primaryContainer,
-                                        modifier = Modifier.size(36.dp)
+                                        shape = CircleShape,
+                                        color = iconBg,
+                                        modifier = Modifier.size(48.dp)
                                     ) {
                                         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                                             SymbolIcon(
                                                 symbol = cat.icon,
                                                 contentDescription = null,
-                                                tint = MaterialTheme.colorScheme.onPrimaryContainer,
-                                                modifier = Modifier.size(20.dp)
+                                                tint = iconFg,
+                                                modifier = Modifier.size(24.dp)
                                             )
                                         }
                                     }
 
-                                    Spacer(modifier = Modifier.width(14.dp))
+                                    Spacer(modifier = Modifier.width(16.dp))
 
                                     Text(
                                         text = cat.title,
-                                        style = MaterialTheme.typography.bodyLarge,
-                                        fontWeight = FontWeight.SemiBold,
+                                        style = MaterialTheme.typography.titleMedium,
                                         color = MaterialTheme.colorScheme.onSurface,
                                         modifier = Modifier.weight(1f)
                                     )
@@ -746,12 +790,12 @@ fun AccountOverviewScreen(
                                             verticalAlignment = Alignment.CenterVertically,
                                             modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
                                         ) {
-                                            if (cat == AccountCategory.SYNC && !isSyncingNow) {
+                                            if (cat == AccountCategory.SYNC && !isSyncingNow && serverReachable != null) {
                                                 Box(
                                                     modifier = Modifier
                                                         .size(6.dp)
                                                         .clip(CircleShape)
-                                                        .background(Color(0xFF10B981))
+                                                        .background(if (serverReachable == true) Color(0xFF10B981) else MaterialTheme.colorScheme.error)
                                                 )
                                                 Spacer(modifier = Modifier.width(5.dp))
                                             } else if (cat == AccountCategory.SYNC && isSyncingNow) {
@@ -766,7 +810,11 @@ fun AccountOverviewScreen(
                                                 text = badgeText,
                                                 style = MaterialTheme.typography.labelSmall,
                                                 fontWeight = FontWeight.Medium,
-                                                color = if (cat == AccountCategory.SYNC && !isSyncingNow) Color(0xFF059669) else MaterialTheme.colorScheme.onSurfaceVariant
+                                                color = when {
+                                                    cat != AccountCategory.SYNC || isSyncingNow || serverReachable == null -> MaterialTheme.colorScheme.onSurfaceVariant
+                                                    serverReachable == true -> Color(0xFF059669)
+                                                    else -> MaterialTheme.colorScheme.error
+                                                }
                                             )
                                         }
                                     }
@@ -794,7 +842,7 @@ fun AccountOverviewScreen(
 
                 OutlinedButton(
                     onClick = onSignOutClick,
-                    shape = RoundedCornerShape(12.dp),
+                    shape = MaterialTheme.shapes.small,
                     colors = ButtonDefaults.outlinedButtonColors(
                         contentColor = MaterialTheme.colorScheme.error
                     ),
@@ -854,6 +902,7 @@ fun AccountOverviewScreen(
                 syncProgress = syncProgress,
                 syncStatusText = syncStatusText,
                 lastSyncPingMs = lastSyncPingMs,
+                reachable = serverReachable,
                 userEmail = data.user.email,
                 onDismiss = { showSyncBottomSheet = false },
                 onSyncNow = {
@@ -861,18 +910,27 @@ fun AccountOverviewScreen(
                         isSyncingNow = true
                         syncProgress = 0f
                         coroutineScope.launch {
-                            syncStatusText = "Connecting..."
-                            syncProgress = 0.35f
-                            kotlinx.coroutines.delay(350)
                             syncStatusText = "Syncing..."
-                            syncProgress = 0.75f
-                            kotlinx.coroutines.delay(400)
+                            syncProgress = 0.5f
+                            // Real round-trip: wait until every local write is acknowledged by the server.
+                            val started = System.currentTimeMillis()
+                            val ok = runCatching {
+                                kotlinx.coroutines.withTimeout(15_000) {
+                                    com.google.firebase.firestore.FirebaseFirestore.getInstance()
+                                        .waitForPendingWrites().await()
+                                }
+                            }.isSuccess && isServerReachable(data.user.uid)
+                            serverReachable = ok
                             syncProgress = 1f
-                            lastSyncPingMs = (24..38).random()
-                            syncStatusText = "Synced (${lastSyncPingMs}ms)"
-                            kotlinx.coroutines.delay(300)
                             isSyncingNow = false
-                            snackbar.showMessage("All balances synced with cloud (${lastSyncPingMs}ms)")
+                            if (ok) {
+                                lastSyncPingMs = (System.currentTimeMillis() - started).toInt()
+                                syncStatusText = "Synced (${lastSyncPingMs}ms)"
+                                snackbar.showMessage("All changes synced with cloud")
+                            } else {
+                                syncStatusText = "Offline: changes will sync when connected"
+                                snackbar.showMessage("Couldn't reach the server; changes are saved on this device")
+                            }
                         }
                     }
                 }
@@ -881,18 +939,18 @@ fun AccountOverviewScreen(
 
         if (showStorageBottomSheet) {
             DeviceStorageBottomSheet(
-                cacheMb = cacheMb,
+                cacheBytes = cacheBytes,
+                appDataBytes = appDataBytes,
                 isClearing = isClearingCache,
                 onDismiss = { showStorageBottomSheet = false },
                 onClearCache = {
-                    if (!isClearingCache && cacheMb > 0f) {
+                    if (!isClearingCache && cacheBytes > 0) {
                         isClearingCache = true
                         coroutineScope.launch {
-                            kotlinx.coroutines.delay(500)
-                            val freedMb = cacheMb
-                            cacheMb = 0f
+                            val freed = com.opensplit.util.StorageStats.clearCache(storageContext)
+                            cacheBytes = com.opensplit.util.StorageStats.cacheBytes(storageContext)
                             isClearingCache = false
-                            snackbar.showMessage("Cache cleared successfully (freed ${String.format("%.1f", freedMb)} MB)")
+                            snackbar.showMessage("Cache cleared (freed ${com.opensplit.util.StorageStats.formatMb(freed)})")
                         }
                     }
                 }
@@ -909,6 +967,7 @@ private fun CloudSyncBottomSheet(
     syncProgress: Float,
     syncStatusText: String,
     lastSyncPingMs: Int,
+    reachable: Boolean?,
     userEmail: String?,
     onDismiss: () -> Unit,
     onSyncNow: () -> Unit
@@ -933,7 +992,7 @@ private fun CloudSyncBottomSheet(
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Surface(
-                    shape = RoundedCornerShape(12.dp),
+                    shape = MaterialTheme.shapes.small,
                     color = MaterialTheme.colorScheme.primaryContainer,
                     modifier = Modifier.size(44.dp)
                 ) {
@@ -965,7 +1024,7 @@ private fun CloudSyncBottomSheet(
             }
 
             Card(
-                shape = RoundedCornerShape(16.dp),
+                shape = MaterialTheme.shapes.medium,
                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh),
                 modifier = Modifier.fillMaxWidth()
             ) {
@@ -983,9 +1042,14 @@ private fun CloudSyncBottomSheet(
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
+                        val statusColor = when (reachable) {
+                            true -> Color(0xFF10B981)
+                            false -> MaterialTheme.colorScheme.error
+                            null -> MaterialTheme.colorScheme.onSurfaceVariant
+                        }
                         Surface(
                             shape = CircleShape,
-                            color = Color(0xFF10B981).copy(alpha = 0.15f)
+                            color = statusColor.copy(alpha = 0.15f)
                         ) {
                             Row(
                                 verticalAlignment = Alignment.CenterVertically,
@@ -995,14 +1059,18 @@ private fun CloudSyncBottomSheet(
                                     modifier = Modifier
                                         .size(6.dp)
                                         .clip(CircleShape)
-                                        .background(Color(0xFF10B981))
+                                        .background(statusColor)
                                 )
                                 Spacer(modifier = Modifier.width(4.dp))
                                 Text(
-                                    text = "Connected · ${lastSyncPingMs}ms",
+                                    text = when (reachable) {
+                                        null -> "Checking…"
+                                        false -> "Can't reach server"
+                                        true -> if (lastSyncPingMs > 0) "Connected · ${lastSyncPingMs}ms" else "Connected"
+                                    },
                                     style = MaterialTheme.typography.labelSmall,
                                     fontWeight = FontWeight.SemiBold,
-                                    color = Color(0xFF059669)
+                                    color = statusColor
                                 )
                             }
                         }
@@ -1040,7 +1108,7 @@ private fun CloudSyncBottomSheet(
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                         Text(
-                            text = if (isSyncing) syncStatusText else "All balances up to date",
+                            text = syncStatusText,
                             style = MaterialTheme.typography.bodyMedium,
                             fontWeight = FontWeight.SemiBold,
                             color = MaterialTheme.colorScheme.primary
@@ -1063,7 +1131,7 @@ private fun CloudSyncBottomSheet(
             FilledTonalButton(
                 onClick = onSyncNow,
                 enabled = !isSyncing,
-                shape = RoundedCornerShape(12.dp),
+                shape = MaterialTheme.shapes.small,
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(48.dp)
@@ -1093,13 +1161,14 @@ private fun CloudSyncBottomSheet(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun DeviceStorageBottomSheet(
-    cacheMb: Float,
+    cacheBytes: Long,
+    appDataBytes: Long,
     isClearing: Boolean,
     onDismiss: () -> Unit,
     onClearCache: () -> Unit
 ) {
-    val totalMb = String.format("%.1f", cacheMb + 14.4f)
-    val storageRatio = ((cacheMb + 14.4f) / 100f).coerceIn(0.05f, 1f)
+    val totalMb = String.format("%.1f", (cacheBytes + appDataBytes) / 1_048_576.0)
+    val storageRatio = ((cacheBytes + appDataBytes) / (100.0 * 1_048_576)).toFloat().coerceIn(0.05f, 1f)
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
@@ -1121,7 +1190,7 @@ private fun DeviceStorageBottomSheet(
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Surface(
-                    shape = RoundedCornerShape(12.dp),
+                    shape = MaterialTheme.shapes.small,
                     color = MaterialTheme.colorScheme.secondaryContainer,
                     modifier = Modifier.size(44.dp)
                 ) {
@@ -1153,7 +1222,7 @@ private fun DeviceStorageBottomSheet(
             }
 
             Card(
-                shape = RoundedCornerShape(16.dp),
+                shape = MaterialTheme.shapes.medium,
                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh),
                 modifier = Modifier.fillMaxWidth()
             ) {
@@ -1195,9 +1264,9 @@ private fun DeviceStorageBottomSheet(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        val cacheFormatted = String.format("%.1f MB", cacheMb)
+                        val cacheFormatted = com.opensplit.util.StorageStats.formatMb(cacheBytes)
                         Surface(
-                            shape = RoundedCornerShape(10.dp),
+                            shape = MaterialTheme.shapes.extraSmall,
                             color = MaterialTheme.colorScheme.surfaceContainerHighest,
                             modifier = Modifier.weight(1f)
                         ) {
@@ -1208,25 +1277,14 @@ private fun DeviceStorageBottomSheet(
                             }
                         }
                         Surface(
-                            shape = RoundedCornerShape(10.dp),
+                            shape = MaterialTheme.shapes.extraSmall,
                             color = MaterialTheme.colorScheme.surfaceContainerHighest,
                             modifier = Modifier.weight(1f)
                         ) {
                             Column(modifier = Modifier.padding(10.dp)) {
-                                Text("Database", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                Text("App data", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                                 Spacer(modifier = Modifier.height(2.dp))
-                                Text("4.8 MB", style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold)
-                            }
-                        }
-                        Surface(
-                            shape = RoundedCornerShape(10.dp),
-                            color = MaterialTheme.colorScheme.surfaceContainerHighest,
-                            modifier = Modifier.weight(1f)
-                        ) {
-                            Column(modifier = Modifier.padding(10.dp)) {
-                                Text("Receipts", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                                Spacer(modifier = Modifier.height(2.dp))
-                                Text("9.6 MB", style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold)
+                                Text(com.opensplit.util.StorageStats.formatMb(appDataBytes), style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold)
                             }
                         }
                     }
@@ -1235,8 +1293,8 @@ private fun DeviceStorageBottomSheet(
 
             OutlinedButton(
                 onClick = onClearCache,
-                enabled = !isClearing && cacheMb > 0f,
-                shape = RoundedCornerShape(12.dp),
+                enabled = !isClearing && cacheBytes > 0,
+                shape = MaterialTheme.shapes.small,
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(48.dp)
@@ -1257,7 +1315,7 @@ private fun DeviceStorageBottomSheet(
                     )
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(
-                        text = if (cacheMb > 0f) "Clear Cache (${String.format("%.1f", cacheMb)} MB)" else "Cache is Clean",
+                        text = if (cacheBytes > 0) "Clear Cache (${com.opensplit.util.StorageStats.formatMb(cacheBytes)})" else "Cache is Clean",
                         fontWeight = FontWeight.SemiBold
                     )
                 }
@@ -1266,3 +1324,12 @@ private fun DeviceStorageBottomSheet(
     }
 }
 
+
+/** One server read (bypassing the offline cache) to tell whether sync can actually reach Firestore. */
+private suspend fun isServerReachable(uid: String): Boolean = uid.isNotBlank() && runCatching {
+    kotlinx.coroutines.withTimeout(8_000) {
+        com.google.firebase.firestore.FirebaseFirestore.getInstance()
+            .collection("users").document(uid)
+            .get(com.google.firebase.firestore.Source.SERVER).await()
+    }
+}.isSuccess

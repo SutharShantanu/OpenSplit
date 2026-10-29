@@ -103,7 +103,7 @@ fun SetNewPasswordScreen(
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                         Spacer(modifier = Modifier.height(OpenSplitTokens.SpaceLG))
-                        Button(shapes = ButtonDefaults.shapes(), onClick = onDone) { Text("Continue") }
+                        Button(shapes = com.opensplit.ui.theme.appButtonShapes(), onClick = onDone) { Text("Continue") }
                     }
                 }
                 errorMessage != null -> {
@@ -127,7 +127,7 @@ fun SetNewPasswordScreen(
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                         Spacer(modifier = Modifier.height(OpenSplitTokens.SpaceLG))
-                        Button(shapes = ButtonDefaults.shapes(), onClick = onDone) { Text("Close") }
+                        Button(shapes = com.opensplit.ui.theme.appButtonShapes(), onClick = onDone) { Text("Close") }
                     }
                 }
                 else -> {
@@ -145,7 +145,7 @@ fun SetNewPasswordScreen(
                         visualTransformation = if (newVisible) VisualTransformation.None else PasswordVisualTransformation(),
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
                         trailingIcon = {
-                            IconButton(shapes = IconButtonDefaults.shapes(), onClick = { newVisible = !newVisible }) {
+                            IconButton(shapes = com.opensplit.ui.theme.appIconButtonShapes(), onClick = { newVisible = !newVisible }) {
                                 SymbolIcon(
                                     if (newVisible) OpenSplitIcons.VisibilityOff else OpenSplitIcons.VisibilityOn,
                                     contentDescription = if (newVisible) "Hide password" else "Show password"
@@ -188,7 +188,7 @@ fun SetNewPasswordScreen(
                         visualTransformation = if (repeatVisible) VisualTransformation.None else PasswordVisualTransformation(),
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
                         trailingIcon = {
-                            IconButton(shapes = IconButtonDefaults.shapes(), onClick = { repeatVisible = !repeatVisible }) {
+                            IconButton(shapes = com.opensplit.ui.theme.appIconButtonShapes(), onClick = { repeatVisible = !repeatVisible }) {
                                 SymbolIcon(
                                     if (repeatVisible) OpenSplitIcons.VisibilityOff else OpenSplitIcons.VisibilityOn,
                                     contentDescription = if (repeatVisible) "Hide password" else "Show password"
@@ -205,7 +205,7 @@ fun SetNewPasswordScreen(
 
                     Spacer(modifier = Modifier.weight(1f))
 
-                    Button(shapes = ButtonDefaults.shapes(), 
+                    Button(shapes = com.opensplit.ui.theme.appButtonShapes(), 
                         onClick = {
                             isSubmitting = true
                             scope.launch {
@@ -230,7 +230,7 @@ fun SetNewPasswordScreen(
                         }
                     }
 
-                    TextButton(shapes = ButtonDefaults.shapes(), onClick = onDone, modifier = Modifier.fillMaxWidth()) {
+                    TextButton(shapes = com.opensplit.ui.theme.appButtonShapes(), onClick = onDone, modifier = Modifier.fillMaxWidth()) {
                         Text("Cancel")
                     }
                 }

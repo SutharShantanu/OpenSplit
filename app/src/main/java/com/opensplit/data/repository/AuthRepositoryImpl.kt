@@ -13,13 +13,11 @@ class AuthRepositoryImpl(
     private val auth: FirebaseAuth
 ) : AuthRepository {
 
-    private val _demoUserFlow = kotlinx.coroutines.flow.MutableStateFlow<String?>(null)
-
     override val currentUser: com.google.firebase.auth.FirebaseUser? get() = auth.currentUser
-    override val currentUserId: String? get() = auth.currentUser?.uid ?: _demoUserFlow.value
-    
+    override val currentUserId: String? get() = auth.currentUser?.uid
+
     override fun getAuthState(): Flow<AuthState> {
-        val firebaseAuthFlow = callbackFlow<AuthState> {
+        return callbackFlow<AuthState> {
             val listener = FirebaseAuth.AuthStateListener { firebaseAuth ->
                 val user = firebaseAuth.currentUser
                 if (user != null) {
@@ -31,28 +29,12 @@ class AuthRepositoryImpl(
             auth.addAuthStateListener(listener)
             awaitClose { auth.removeAuthStateListener(listener) }
         }
-
-        return kotlinx.coroutines.flow.combine(firebaseAuthFlow, _demoUserFlow) { firebaseState, demoUid ->
-            if (demoUid != null) {
-                AuthState.LoggedIn(demoUid)
-            } else {
-                firebaseState
-            }
-        }
     }
 
     override suspend fun getCurrentUserId(): String? {
-        return auth.currentUser?.uid ?: _demoUserFlow.value
+        return auth.currentUser?.uid
     }
     
-    override suspend fun signInAsDemo(
-        uid: String,
-        displayName: String,
-        email: String
-    ): Result<String> {
-        _demoUserFlow.value = uid
-        return Result.success(uid)
-    }
 
     override suspend fun signInWithEmail(email: String, password: String): Result<String> {
         return try {
@@ -159,7 +141,6 @@ class AuthRepositoryImpl(
     }
 
     override suspend fun signOut() {
-        _demoUserFlow.value = null
         try {
             auth.signOut()
         } catch (e: Exception) {

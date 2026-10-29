@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Long-press launcher shortcuts. They reuse the widget deep-link extra handled in MainActivity. -->
+<shortcuts xmlns:android="http://schemas.android.com/apk/res/android">
+    <shortcut
+        android:shortcutId="add_expense"
+        android:enabled="true"
+        android:icon="@drawable/ic_shortcut_add"
+        android:shortcutShortLabel="@string/shortcut_add_expense">
+        <intent
+            android:action="android.intent.action.VIEW"
+            android:targetPackage="open.split_07"
+            android:targetClass="com.opensplit.MainActivity">
+            <extra android:name="com.opensplit.WIDGET_ACTION" android:value="add_expense" />
+        </intent>
+    </shortcut>
+    <shortcut
+        android:shortcutId="settle_up"
+        android:enabled="true"
+        android:icon="@drawable/ic_shortcut_settle"
+        android:shortcutShortLabel="@string/shortcut_settle_up">
+        <intent
+            android:action="android.intent.action.VIEW"
+            android:targetPackage="open.split_07"
+            android:targetClass="com.opensplit.MainActivity">
+            <extra android:name="com.opensplit.WIDGET_ACTION" android:value="settle_up" />
+        </intent>
+    </shortcut>
+    <shortcut
+        android:shortcutId="scan_qr"
+        android:enabled="true"
+        android:icon="@drawable/ic_shortcut_qr"
+        android:shortcutShortLabel="@string/shortcut_scan_qr">
+        <intent
+            android:action="android.intent.action.VIEW"
+            android:targetPackage="open.split_07"
+            android:targetClass="com.opensplit.MainActivity">
+            <extra android:name="com.opensplit.WIDGET_ACTION" android:value="scan_qr" />
+        </intent>
+    </shortcut>
+</shortcuts>

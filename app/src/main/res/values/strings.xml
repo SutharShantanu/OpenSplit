@@ -18,4 +18,10 @@
     <string name="widget_status_settled">ALL SETTLED UP</string>
     <string name="widget_status_not_logged_in">SIGN IN TO VIEW</string>
     <string name="widget_prompt_sign_in">Tap here to sign in and track your group balances</string>
+
+    <!-- Launcher shortcuts and Quick Settings tile -->
+    <string name="shortcut_add_expense">Add expense</string>
+    <string name="shortcut_settle_up">Settle up</string>
+    <string name="shortcut_scan_qr">Scan QR</string>
+    <string name="tile_add_expense">Add expense</string>
 </resources>

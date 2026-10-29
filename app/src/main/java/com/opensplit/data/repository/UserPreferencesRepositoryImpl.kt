@@ -177,7 +177,7 @@ class UserPreferencesRepositoryImpl(private val context: Context) : UserPreferen
 
     override val colorPaletteFlow: Flow<String> = context.dataStore.data
         .map { preferences ->
-            preferences[COLOR_PALETTE_KEY] ?: "dynamic"
+            preferences[COLOR_PALETTE_KEY] ?: "material"
         }
 
     override suspend fun setColorPalette(palette: String) {
@@ -329,5 +329,73 @@ class UserPreferencesRepositoryImpl(private val context: Context) : UserPreferen
     override val lastSeenActivityFlow: Flow<Long> = context.dataStore.data.map { it[LAST_SEEN_ACTIVITY_KEY] ?: 0L }
     override suspend fun setLastSeenActivity(epochSeconds: Long) {
         context.dataStore.edit { it[LAST_SEEN_ACTIVITY_KEY] = epochSeconds }
+    }
+
+    override suspend fun exportSettings(): String = SettingsBackup.encode(context.dataStore.data.first())
+
+    override suspend fun importSettings(json: String): Int {
+        var restored = 0
+        context.dataStore.edit { prefs -> restored = SettingsBackup.decodeInto(json, prefs) }
+        return restored
+    }
+}
+
+/** Versioned JSON form of the DataStore settings, for Backup & Export. */
+internal object SettingsBackup {
+    private const val FORMAT = "opensplit-settings"
+    private const val VERSION = 1
+
+    /** Secrets never leave the device; the primer flag is per-install. */
+    private fun portable(key: String) = !key.contains("api_key") && key != "has_completed_permission_primer"
+
+    fun encode(prefs: Preferences): String {
+        val values = org.json.JSONObject()
+        for ((key, value) in prefs.asMap()) {
+            if (!portable(key.name)) continue
+            val (type, v) = when (value) {
+                is Boolean -> "b" to value
+                is Int -> "i" to value
+                is Long -> "l" to value
+                is Float -> "f" to value.toDouble()
+                is Double -> "d" to value
+                is String -> "s" to value
+                is Set<*> -> "ss" to org.json.JSONArray(value.filterIsInstance<String>())
+                else -> continue
+            }
+            values.put(key.name, org.json.JSONObject().put("t", type).put("v", v))
+        }
+        return org.json.JSONObject()
+            .put("format", FORMAT)
+            .put("version", VERSION)
+            .put("values", values)
+            .toString(2)
+    }
+
+    fun decodeInto(json: String, prefs: androidx.datastore.preferences.core.MutablePreferences): Int {
+        require(json.length < 1_000_000) { "File is too large to be a settings backup" }
+        val root = org.json.JSONObject(json)
+        require(root.optString("format") == FORMAT) { "Not an OpenSplit settings backup" }
+        require(root.optInt("version") in 1..VERSION) { "Backup is from a newer OpenSplit version" }
+        val values = root.getJSONObject("values")
+        var count = 0
+        for (name in values.keys()) {
+            if (!portable(name)) continue
+            val entry = values.optJSONObject(name) ?: continue
+            when (entry.optString("t")) {
+                "b" -> prefs[booleanPreferencesKey(name)] = entry.getBoolean("v")
+                "i" -> prefs[intPreferencesKey(name)] = entry.getInt("v")
+                "l" -> prefs[androidx.datastore.preferences.core.longPreferencesKey(name)] = entry.getLong("v")
+                "f" -> prefs[androidx.datastore.preferences.core.floatPreferencesKey(name)] = entry.getDouble("v").toFloat()
+                "d" -> prefs[androidx.datastore.preferences.core.doublePreferencesKey(name)] = entry.getDouble("v")
+                "s" -> prefs[stringPreferencesKey(name)] = entry.getString("v")
+                "ss" -> {
+                    val arr = entry.getJSONArray("v")
+                    prefs[stringSetPreferencesKey(name)] = (0 until arr.length()).map { arr.getString(it) }.toSet()
+                }
+                else -> continue
+            }
+            count++
+        }
+        return count
     }
 }

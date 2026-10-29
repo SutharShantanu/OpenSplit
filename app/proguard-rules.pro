@@ -19,3 +19,16 @@
 # If you keep the line number information, uncomment this to
 # hide the original source file name.
 #-renamesourcefileattribute SourceFile
+
+# Readable crash reports (CrashLog) while still obfuscating.
+-keepattributes SourceFile,LineNumberTable
+-renamesourcefileattribute SourceFile
+
+# Firestore maps documents onto these by reflection (toObject / set): keep the
+# no-arg constructors, getters/setters and field names.
+-keep class com.opensplit.domain.model.** { *; }
+-keepattributes Signature,*Annotation*,InnerClasses,EnclosingMethod
+
+# WorkManager creates its Room database reflectively (WorkDatabase_Impl.<init>); R8 full mode
+# strips the no-arg constructor otherwise and the app crashes at startup.
+-keep class * extends androidx.room.RoomDatabase { <init>(); }

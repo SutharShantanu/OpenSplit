@@ -5,6 +5,7 @@
 
 package com.opensplit.ui.components
 
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import android.content.Intent
 import android.net.Uri
 import androidx.compose.foundation.layout.Arrangement
@@ -14,6 +15,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
@@ -25,7 +27,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.LinearWavyProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Surface
@@ -33,7 +34,6 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.staticCompositionLocalOf
@@ -58,16 +58,23 @@ val LocalAppUpdater = staticCompositionLocalOf<AppUpdater> {
  */
 @Composable
 fun UpdateSheet(updater: AppUpdater) {
-    val state by updater.state.collectAsState()
+    val state by updater.state.collectAsStateWithLifecycle()
     val release = when (val s = state) {
         is AppUpdater.State.Available -> s.release
         is AppUpdater.State.Downloading -> s.release
         is AppUpdater.State.Downloaded -> s.release
+        is AppUpdater.State.Installing -> s.release
         else -> null
     } ?: return
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
-    val downloading = state is AppUpdater.State.Downloading
+    val downloading = state is AppUpdater.State.Downloading || state is AppUpdater.State.Installing
+    // Back from the "install unknown apps" screen: continue the install if it is now allowed.
+    androidx.lifecycle.compose.LifecycleResumeEffect(state) {
+        val s = state
+        if (s is AppUpdater.State.Downloaded && s.needsPermission) updater.install()
+        onPauseOrDispose {}
+    }
 
     ModalBottomSheet(
         onDismissRequest = { if (!downloading) updater.dismiss() },
@@ -135,32 +142,38 @@ fun UpdateSheet(updater: AppUpdater) {
 
             when (val s = state) {
                 is AppUpdater.State.Downloading -> {
-                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        val progress = s.progress
-                        if (progress == null) {
-                            LinearWavyProgressIndicator(modifier = Modifier.fillMaxWidth())
-                        } else {
-                            LinearWavyProgressIndicator(progress = { progress }, modifier = Modifier.fillMaxWidth())
-                        }
+                    val progress = s.progress
+                    UpdateProgressRow(
+                        progress = progress,
+                        label = if (progress == null) "Downloading…" else "Downloading… ${(progress * 100).toInt()}%"
+                    )
+                }
+                is AppUpdater.State.Installing -> UpdateProgressRow(progress = null, label = "Installing…")
+                is AppUpdater.State.Downloaded -> {
+                    if (s.needsPermission) {
                         Text(
-                            if (progress == null) "Downloading…" else "Downloading… ${(progress * 100).toInt()}%",
-                            style = MaterialTheme.typography.labelMedium,
+                            "To install updates, allow OpenSplit to install apps. You'll come straight back here.",
+                            style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
+                        Button(
+                            shapes = com.opensplit.ui.theme.appButtonShapes(),
+                            onClick = { updater.openInstallPermissionSettings() },
+                            modifier = Modifier.fillMaxWidth().height(56.dp)
+                        ) { Text("Allow installs from OpenSplit") }
+                    } else {
+                        Button(
+                            shapes = com.opensplit.ui.theme.appButtonShapes(),
+                            onClick = { updater.install() },
+                            modifier = Modifier.fillMaxWidth().height(56.dp)
+                        ) { Text("Install") }
                     }
-                }
-                is AppUpdater.State.Downloaded -> {
-                    Button(
-                        shapes = ButtonDefaults.shapes(),
-                        onClick = { updater.install(s.apk) },
-                        modifier = Modifier.fillMaxWidth()
-                    ) { Text("Install") }
                 }
                 else -> {
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        TextButton(shapes = ButtonDefaults.shapes(), onClick = { updater.dismiss() }) { Text("Later") }
+                        TextButton(shapes = com.opensplit.ui.theme.appButtonShapes(), onClick = { updater.dismiss() }) { Text("Later") }
                         Button(
-                            shapes = ButtonDefaults.shapes(),
+                            shapes = com.opensplit.ui.theme.appButtonShapes(),
                             onClick = { scope.launch { updater.downloadAndInstall(release) } },
                             modifier = Modifier.weight(1f)
                         ) { Text("Download & install") }
@@ -169,10 +182,92 @@ fun UpdateSheet(updater: AppUpdater) {
             }
 
             TextButton(
-                shapes = ButtonDefaults.shapes(),
+                shapes = com.opensplit.ui.theme.appButtonShapes(),
                 onClick = { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(release.pageUrl))) },
                 modifier = Modifier.align(Alignment.CenterHorizontally)
             ) { Text("View release on GitHub") }
         }
+    }
+}
+
+/** One-time "What's new" sheet after an update, fed by the installed version's release notes. */
+@Composable
+fun WhatsNewSheet(updater: AppUpdater) {
+    val release by updater.whatsNew.collectAsStateWithLifecycle()
+    val notes = release ?: return
+    ModalBottomSheet(
+        onDismissRequest = { updater.dismissWhatsNew() },
+        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+        containerColor = MaterialTheme.colorScheme.surface,
+        shape = RoundedCornerShape(topStart = OpenSplitTokens.ShapeBrandCard, topEnd = OpenSplitTokens.ShapeBrandCard)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .responsiveContentWidth(maxWidth = 560.dp)
+                .padding(horizontal = 24.dp)
+                .padding(bottom = 24.dp)
+                .navigationBarsPadding(),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Surface(
+                    shape = CircleShape,
+                    color = MaterialTheme.colorScheme.tertiaryContainer,
+                    modifier = Modifier.size(48.dp)
+                ) {
+                    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                        SymbolIcon(
+                            symbol = OpenSplitIcons.AutoAwesome,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.onTertiaryContainer,
+                            modifier = Modifier.size(24.dp)
+                        )
+                    }
+                }
+                Spacer(Modifier.width(16.dp))
+                Column {
+                    Text("What's new", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                    Text(
+                        notes.tag,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+            Surface(
+                shape = RoundedCornerShape(OpenSplitTokens.ShapeLarge),
+                color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text(
+                    notes.notes,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier
+                        .heightIn(max = 320.dp)
+                        .verticalScroll(rememberScrollState())
+                        .padding(16.dp)
+                )
+            }
+            Button(
+                shapes = com.opensplit.ui.theme.appButtonShapes(),
+                onClick = { updater.dismissWhatsNew() },
+                modifier = Modifier.fillMaxWidth()
+            ) { Text("Got it") }
+        }
+    }
+}
+
+/** M3 Expressive loading indicator (determinate when [progress] is known) with a status label. */
+@Composable
+private fun UpdateProgressRow(progress: Float?, label: String) {
+    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+        if (progress == null) {
+            androidx.compose.material3.ContainedLoadingIndicator(modifier = Modifier.size(56.dp))
+        } else {
+            androidx.compose.material3.ContainedLoadingIndicator(progress = { progress }, modifier = Modifier.size(56.dp))
+        }
+        Text(label, style = MaterialTheme.typography.titleMedium)
     }
 }

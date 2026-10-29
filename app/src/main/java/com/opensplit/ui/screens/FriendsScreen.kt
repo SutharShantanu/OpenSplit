@@ -2,6 +2,8 @@
 
 package com.opensplit.ui.screens
 
+import com.opensplit.ui.components.FilterChip
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.opensplit.ui.components.SymbolIcon
 import com.opensplit.ui.components.LocalSnackbarController
 
@@ -26,7 +28,9 @@ import androidx.compose.ui.unit.dp
 import com.google.firebase.Timestamp
 import com.opensplit.domain.model.FriendInvite
 import com.opensplit.ui.components.AppSearchBar
-import com.opensplit.ui.components.HandshakeIllustration
+import com.opensplit.ui.components.ExpressiveEmptyState
+import com.opensplit.ui.components.ExpressiveScrollBar
+import androidx.compose.foundation.lazy.rememberLazyListState
 import com.opensplit.ui.components.StateLayout
 import com.opensplit.ui.components.responsiveContentWidth
 import com.opensplit.ui.theme.OpenSplitIcons
@@ -51,12 +55,12 @@ fun FriendsScreen(
     onSettleUp: (groupId: String) -> Unit = {}
 ) {
     val busy = com.opensplit.ui.components.LocalBusy.current
-    val friendsState by viewModel.friendsBalances.collectAsState()
-    val friendInvites by viewModel.friendInvites.collectAsState()
-    val incomingInvites by viewModel.incomingFriendInvites.collectAsState()
+    val friendsState by viewModel.friendsBalances.collectAsStateWithLifecycle()
+    val friendInvites by viewModel.friendInvites.collectAsStateWithLifecycle()
+    val incomingInvites by viewModel.incomingFriendInvites.collectAsStateWithLifecycle()
     var searchQuery by rememberSaveable { mutableStateOf("") }
     var selectedFilter by rememberSaveable { mutableStateOf(FriendFilterOption.ALL) }
-    val myLink by viewModel.friendLink.collectAsState()
+    val myLink by viewModel.friendLink.collectAsStateWithLifecycle()
     androidx.compose.runtime.LaunchedEffect(Unit) { viewModel.ensureFriendLink() }
     val context = LocalContext.current
     val snackbar = LocalSnackbarController.current
@@ -95,10 +99,10 @@ fun FriendsScreen(
                             supportingContent = { Text("wants to split expenses with you", style = MaterialTheme.typography.bodySmall) },
                             trailingContent = {
                                 Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                                    TextButton(shapes = ButtonDefaults.shapes(), onClick = {
+                                    TextButton(shapes = com.opensplit.ui.theme.appButtonShapes(), onClick = {
                                         viewModel.respondToFriendInvite(invite, accept = false) { snackbar.showMessage("Request ignored") }
                                     }) { Text("Ignore") }
-                                    Button(shapes = ButtonDefaults.shapes(), onClick = {
+                                    Button(shapes = com.opensplit.ui.theme.appButtonShapes(), onClick = {
                                         viewModel.respondToFriendInvite(invite, accept = true) { ok ->
                                             snackbar.showMessage(if (ok) "You're now friends with ${invite.inviterName.ifBlank { "them" }}" else "Couldn't accept")
                                         }
@@ -134,7 +138,7 @@ fun FriendsScreen(
                             leadingContent = { SymbolIcon(OpenSplitIcons.QrCode, contentDescription = null, tint = MaterialTheme.colorScheme.primary) },
                             headlineContent = { Text("Your invite link", fontWeight = FontWeight.Medium) },
                             supportingContent = { Text(expiryLabel(link.expiresAt) + " · friends who join appear above", style = MaterialTheme.typography.bodySmall) },
-                            trailingContent = { TextButton(shapes = ButtonDefaults.shapes(), onClick = onAddFriend) { Text("Share") } },
+                            trailingContent = { TextButton(shapes = com.opensplit.ui.theme.appButtonShapes(), onClick = onAddFriend) { Text("Share") } },
                             modifier = Modifier.clickable(onClick = onAddFriend)
                         )
                     }
@@ -153,44 +157,16 @@ fun FriendsScreen(
 
         StateLayout(state = friendsState) { balances ->
             if (balances.isEmpty()) {
-                com.opensplit.ui.components.AppearOnEnter {
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .verticalScroll(rememberScrollState()) // lets pull-to-refresh catch the gesture
-                        .padding(24.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Column(
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.Center
-                    ) {
-                        HandshakeIllustration(size = 140.dp)
-                        Spacer(modifier = Modifier.height(24.dp))
-                        Text(
-                            text = "No friends yet",
-                            style = MaterialTheme.typography.headlineSmall,
-                            fontWeight = FontWeight.Bold
-                        )
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Text(
-                            text = "Add friends to split one-on-one expenses without creating a group.",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            textAlign = TextAlign.Center
-                        )
-                        Spacer(modifier = Modifier.height(24.dp))
-                        Button(shapes = ButtonDefaults.shapes(), 
-                            onClick = onAddFriend,
-                        ) {
-                            SymbolIcon(OpenSplitIcons.PersonAdd, contentDescription = null, modifier = Modifier.size(20.dp))
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text("Add a Friend", fontWeight = FontWeight.Bold)
-                        }
-                    }
-                }
-                }
+                // No entrance animation of its own: the tab slide already brings it in.
+                ExpressiveEmptyState(
+                    title = "No friends yet",
+                    subtitle = "Add friends to split one-on-one expenses without creating a group.",
+                    symbol = OpenSplitIcons.PersonAdd,
+                    actionLabel = "Add a Friend",
+                    onActionClick = onAddFriend
+                )
             } else {
+                val friendsListState = rememberLazyListState()
                 Column(modifier = Modifier.fillMaxSize()) {
                     AppSearchBar(
                         query = searchQuery,
@@ -214,7 +190,7 @@ fun FriendsScreen(
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(bottom = OpenSplitTokens.SpaceMD),
-                        shape = RoundedCornerShape(28.dp),
+                        shape = MaterialTheme.shapes.large,
                         colors = CardDefaults.cardColors(
                             containerColor = MaterialTheme.colorScheme.secondaryContainer
                         )
@@ -285,102 +261,115 @@ fun FriendsScreen(
                         }.sortedByDescending { it.maxMagnitude }
                     }
 
-                    LazyColumn(
-                        verticalArrangement = Arrangement.spacedBy(OpenSplitTokens.SpaceXS),
-                        contentPadding = PaddingValues(bottom = 100.dp),
-                        modifier = Modifier.fillMaxSize()
-                    ) {
-                        items(processedBalances, key = { it.user.uid }) { fb ->
-                            val lines = fb.nonZeroBalances
-                            val hasOwed = lines.any { it.second > 0.01 }
-                            val hasOwe = lines.any { it.second < -0.01 }
-                            val color = when {
-                                hasOwed && !hasOwe -> OpenSplitTokens.OwedPositive
-                                hasOwe && !hasOwed -> OpenSplitTokens.OwedNegative
-                                else -> OpenSplitTokens.OwedNeutral
-                            }
-                            val text = if (lines.isEmpty()) {
-                                "Settled up"
-                            } else {
-                                lines.joinToString("\n") { (currency, bal) ->
-                                    val amt = com.opensplit.util.CurrencyFormatter.format(abs(bal), currency)
-                                    if (bal > 0.01) "Owes you $amt" else "You owe $amt"
+                    Box(modifier = Modifier.fillMaxSize()) {
+                        LazyColumn(
+                            state = friendsListState,
+                            verticalArrangement = Arrangement.spacedBy(OpenSplitTokens.SpaceXS),
+                            contentPadding = PaddingValues(bottom = com.opensplit.ui.components.FloatingNavBarClearance),
+                            modifier = Modifier.fillMaxSize()
+                        ) {
+                            items(processedBalances, key = { it.user.uid }) { fb ->
+                                val lines = fb.nonZeroBalances
+                                val hasOwed = lines.any { it.second > 0.01 }
+                                val hasOwe = lines.any { it.second < -0.01 }
+                                val color = when {
+                                    hasOwed && !hasOwe -> OpenSplitTokens.OwedPositive
+                                    hasOwe && !hasOwed -> OpenSplitTokens.OwedNegative
+                                    else -> OpenSplitTokens.OwedNeutral
                                 }
-                            }
-
-                            val openDirect: (String, (String) -> Unit) -> Unit = { label, go ->
-                                busy.show(label)
-                                viewModel.openDirectGroup(fb.user.uid) { gId ->
-                                    busy.hide()
-                                    if (gId != null) go(gId) else snackbar.showMessage("Couldn't open a direct group with ${fb.user.displayName}")
-                                }
-                            }
-                            com.opensplit.ui.components.SwipeActionRow(
-                                modifier = Modifier.animateItem(),
-                                startAction = com.opensplit.ui.components.SwipeAction(
-                                    icon = OpenSplitIcons.AddExpense, label = "Expense",
-                                    container = MaterialTheme.colorScheme.primaryContainer,
-                                    onContainer = MaterialTheme.colorScheme.onPrimaryContainer
-                                ) { openDirect("Opening…", onAddExpense) },
-                                endAction = com.opensplit.ui.components.SwipeAction(
-                                    icon = OpenSplitIcons.Settle, label = "Settle up",
-                                    container = MaterialTheme.colorScheme.tertiaryContainer,
-                                    onContainer = MaterialTheme.colorScheme.onTertiaryContainer
-                                ) { openDirect("Opening…", onSettleUp) }
-                            ) {
-                            ListItem(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .clickable { onFriendClick(fb.user.uid) },
-                                headlineContent = {
-                                    Text(
-                                        text = fb.user.displayName,
-                                        style = MaterialTheme.typography.titleMedium,
-                                        fontWeight = FontWeight.SemiBold,
-                                        maxLines = 1,
-                                        overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
-                                    )
-                                },
-                                supportingContent = {
-                                    Text(
-                                        text = fb.user.email,
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                        maxLines = 1,
-                                        overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
-                                    )
-                                },
-                                leadingContent = {
-                                    Surface(
-                                        shape = CircleShape,
-                                        color = MaterialTheme.colorScheme.secondaryContainer,
-                                        modifier = Modifier.size(44.dp)
-                                    ) {
-                                        Box(contentAlignment = Alignment.Center) {
-                                            Text(
-                                                text = fb.user.displayName.take(1).uppercase(),
-                                                style = MaterialTheme.typography.titleMedium,
-                                                fontWeight = FontWeight.Bold,
-                                                color = MaterialTheme.colorScheme.onSecondaryContainer
-                                            )
-                                        }
+                                val text = if (lines.isEmpty()) {
+                                    "Settled up"
+                                } else {
+                                    lines.joinToString("\n") { (currency, bal) ->
+                                        val amt = com.opensplit.util.CurrencyFormatter.format(abs(bal), currency)
+                                        if (bal > 0.01) "Owes you $amt" else "You owe $amt"
                                     }
-                                },
-                                trailingContent = {
-                                    Text(
-                                        text = text,
-                                        color = color,
-                                        style = MaterialTheme.typography.titleSmall,
-                                        fontWeight = FontWeight.Bold,
-                                        textAlign = TextAlign.End,
-                                        maxLines = 1,
-                                        overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
-                                    )
                                 }
-                            )
+
+                                val openDirect: (String, (String) -> Unit) -> Unit = { label, go ->
+                                    busy.show(label)
+                                    viewModel.openDirectGroup(fb.user.uid) { gId ->
+                                        busy.hide()
+                                        if (gId != null) go(gId) else snackbar.showMessage("Couldn't open a direct group with ${fb.user.displayName}")
+                                    }
+                                }
+                                com.opensplit.ui.components.SwipeActionRow(
+                                    modifier = Modifier.animateItem(),
+                                    startAction = com.opensplit.ui.components.SwipeAction(
+                                        icon = OpenSplitIcons.AddExpense, label = "Expense",
+                                        container = MaterialTheme.colorScheme.primaryContainer,
+                                        onContainer = MaterialTheme.colorScheme.onPrimaryContainer
+                                    ) { openDirect("Opening…", onAddExpense) },
+                                    endAction = com.opensplit.ui.components.SwipeAction(
+                                        icon = OpenSplitIcons.Settle, label = "Settle up",
+                                        container = MaterialTheme.colorScheme.tertiaryContainer,
+                                        onContainer = MaterialTheme.colorScheme.onTertiaryContainer
+                                    ) { openDirect("Opening…", onSettleUp) }
+                                ) {
+                                ListItem(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clickable { onFriendClick(fb.user.uid) },
+                                    headlineContent = {
+                                        Text(
+                                            text = fb.user.displayName,
+                                            style = MaterialTheme.typography.titleMedium,
+                                            fontWeight = FontWeight.SemiBold,
+                                            maxLines = 1,
+                                            overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
+                                        )
+                                    },
+                                    supportingContent = {
+                                        Text(
+                                            text = fb.user.email,
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                            maxLines = 1,
+                                            overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
+                                        )
+                                    },
+                                    leadingContent = {
+                                        Surface(
+                                            shape = CircleShape,
+                                            color = MaterialTheme.colorScheme.secondaryContainer,
+                                            modifier = Modifier.size(44.dp)
+                                        ) {
+                                            Box(contentAlignment = Alignment.Center) {
+                                                Text(
+                                                    text = fb.user.displayName.take(1).uppercase(),
+                                                    style = MaterialTheme.typography.titleMedium,
+                                                    fontWeight = FontWeight.Bold,
+                                                    color = MaterialTheme.colorScheme.onSecondaryContainer
+                                                )
+                                            }
+                                        }
+                                    },
+                                    trailingContent = {
+                                        Text(
+                                            text = text,
+                                            color = color,
+                                            style = MaterialTheme.typography.titleSmall,
+                                            fontWeight = FontWeight.Bold,
+                                            textAlign = TextAlign.End,
+                                            maxLines = 1,
+                                            overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
+                                        )
+                                    }
+                                )
+                                }
+                                HorizontalDivider(color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
                             }
-                            HorizontalDivider(color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
                         }
+
+                        ExpressiveScrollBar(
+                            listState = friendsListState,
+                            modifier = Modifier
+                                .align(Alignment.CenterEnd)
+                                .fillMaxHeight(),
+                            labelResolver = { index ->
+                                processedBalances.getOrNull(index)?.user?.displayName?.firstOrNull()?.uppercaseChar()?.toString()
+                            }
+                        )
                     }
                 }
             }
@@ -421,7 +410,7 @@ private fun InviteRow(invite: FriendInvite, onRevoke: () -> Unit) {
         },
         trailingContent = {
             val expired = invite.expiresAt.seconds <= System.currentTimeMillis() / 1000
-            TextButton(shapes = ButtonDefaults.shapes(), onClick = onRevoke) {
+            TextButton(shapes = com.opensplit.ui.theme.appButtonShapes(), onClick = onRevoke) {
                 Text(if (expired) "Remove" else "Revoke", color = MaterialTheme.colorScheme.error)
             }
         }

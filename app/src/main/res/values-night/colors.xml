@@ -16,4 +16,6 @@
     <color name="widget_badge_owe_text">#FFB4AB</color>
     <color name="widget_badge_settled_bg">#282A2E</color>
     <color name="widget_badge_settled_text">#C4C7CD</color>
+    <!-- Launch window, matches the Sage surface -->
+    <color name="splash_background">#12140E</color>
 </resources>

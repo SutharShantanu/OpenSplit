@@ -131,7 +131,11 @@ class ActivityViewModel(private val appContainer: AppContainer) : ViewModel() {
 
                     // Resolve every group member's display name so the feed can say *who* did
                     // what — activity from other members is the whole point of a shared feed.
-                    val friendsMap = com.opensplit.data.local.InMemoryDataStore.friends.value.associate { it.uid to it.displayName }
+                    var friendsMap: Map<String, String> = emptyMap()
+                    val memberIds = groups.flatMap { it.memberIds }.distinct()
+                    val namesFlow = kotlinx.coroutines.flow.flow {
+                        emit(memberIds.associateWith { id -> appContainer.userRepository.getUser(id)?.displayName.orEmpty() })
+                    }.onStart { emit(emptyMap()) }
 
                     fun actorName(actorUid: String): String = when {
                         actorUid == uid -> "You"
@@ -150,13 +154,23 @@ class ActivityViewModel(private val appContainer: AppContainer) : ViewModel() {
                     val rawActivitiesFlow = combine(
                         loggedActivitiesFlow,
                         combinedExpensesFlow,
-                        combinedSettlementsFlow
-                    ) { logged, expenses, settlements ->
+                        combinedSettlementsFlow,
+                        namesFlow
+                    ) { logged, expenses, settlements, names ->
+                        friendsMap = names
                         val allActivities = mutableListOf<Activity>()
                         // Repository-logged entries are already written in actor-prefixed style
                         // ("added member 'X'"), so just prepend the resolved name.
+                        // Expenses, settlements and group creation are rebuilt below from the data
+                        // itself; their logged copies would show every event twice.
+                        val expenseIds = expenses.map { it.id }.toSet()
+                        val settlementIds = settlements.map { it.first.id }.toSet()
                         allActivities.addAll(
-                            logged.map { it.copy(message = "${actorName(it.actorUid)} ${it.message}") }
+                            logged.filterNot {
+                                it.type == ActivityType.GROUP_CREATED ||
+                                    (it.type == ActivityType.EXPENSE_ADDED && it.relatedExpenseId in expenseIds && !it.message.startsWith("restored")) ||
+                                    (it.type == ActivityType.SETTLEMENT_ADDED && it.relatedExpenseId in settlementIds)
+                            }.map { it.copy(message = "${actorName(it.actorUid)} ${it.message}") }
                         )
 
                         groups.forEach { group ->
@@ -195,7 +209,7 @@ class ActivityViewModel(private val appContainer: AppContainer) : ViewModel() {
                                     id = "set_${set.id}",
                                     type = ActivityType.SETTLEMENT_ADDED,
                                     actorUid = set.fromUid,
-                                    message = "${actorName(set.fromUid)} logged a settlement of $formattedAmt",
+                                    message = "${actorName(set.fromUid)} paid ${if (set.toUid == uid) "you" else actorName(set.toUid)} $formattedAmt",
                                     timestamp = set.date,
                                     groupId = gId
                                 )
@@ -333,6 +347,10 @@ class ActivityViewModel(private val appContainer: AppContainer) : ViewModel() {
                     }
                 }
                 .catch { e -> emit(ScreenState.Error(e.message ?: "An unexpected error occurred", ::retry)) }
-        }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), ScreenState.Loading)
+        }
+        // Build the feed off the main thread, and keep it warm across tab switches: re-subscribing
+        // on every visit rebuilt it mid tab-transition and the slide animation was skipped.
+        .flowOn(kotlinx.coroutines.Dispatchers.Default)
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5 * 60_000), ScreenState.Loading)
 }
 

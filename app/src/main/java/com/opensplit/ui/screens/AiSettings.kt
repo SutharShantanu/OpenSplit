@@ -107,14 +107,14 @@ fun AiProvidersSubScreen(
             title = { Text("Remove ${p.name} key?") },
             text = { Text("AI features will fall back to your other saved keys. You can add this key again any time.") },
             confirmButton = {
-                TextButton(shapes = ButtonDefaults.shapes(), colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error), onClick = {
+                TextButton(shapes = com.opensplit.ui.theme.appButtonShapes(), colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error), onClick = {
                     pendingRemove = null
                     onSaveProviderKey(p.id, "")
                     // Removing the active key hands over to the next saved one.
                     if (p.id == activeProvider) saved.firstOrNull { it.id != p.id }?.let { onSelectProvider(it.id) }
                 }) { Text("Remove") }
             },
-            dismissButton = { TextButton(shapes = ButtonDefaults.shapes(), onClick = { pendingRemove = null }) { Text("Cancel") } }
+            dismissButton = { TextButton(shapes = com.opensplit.ui.theme.appButtonShapes(), onClick = { pendingRemove = null }) { Text("Cancel") } }
         )
     }
 
@@ -127,9 +127,9 @@ fun AiProvidersSubScreen(
                 .fillMaxSize()
                 .responsiveContentWidth(maxWidth = 760.dp)
         ) {
-            TopAppBar(
+            androidx.compose.material3.LargeTopAppBar(
                 title = { Text("AI", fontWeight = FontWeight.Bold) },
-                navigationIcon = { IconButton(shapes = IconButtonDefaults.shapes(), onClick = onBack) { SymbolIcon(OpenSplitIcons.ArrowBack, contentDescription = "Back") } },
+                navigationIcon = { com.opensplit.ui.components.RoundBackButton(onClick = onBack) },
                 actions = { Switch(checked = aiEnabled, onCheckedChange = onToggleAi, modifier = Modifier.padding(end = 12.dp)) },
                 windowInsets = WindowInsets(0, 0, 0, 0)
             )
@@ -139,7 +139,7 @@ fun AiProvidersSubScreen(
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
             item {
-                Card(shape = RoundedCornerShape(20.dp), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer), modifier = Modifier.fillMaxWidth()) {
+                Card(shape = MaterialTheme.shapes.medium, colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer), modifier = Modifier.fillMaxWidth()) {
                     Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         Text("API keys", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                         Text(
@@ -156,9 +156,9 @@ fun AiProvidersSubScreen(
                                 supportingContent = { Text(if (p.id == activeProvider) "Active · $model" else "Fallback · $model", maxLines = 1) },
                                 trailingContent = {
                                     Row(verticalAlignment = Alignment.CenterVertically) {
-                                        if (p.id != activeProvider) TextButton(shapes = ButtonDefaults.shapes(), onClick = { onSelectProvider(p.id) }) { Text("Use") }
-                                        IconButton(shapes = IconButtonDefaults.shapes(), onClick = { openForm(p) }) { SymbolIcon(OpenSplitIcons.Edit, contentDescription = "Replace ${p.name} key") }
-                                        if (p.id != "custom") IconButton(shapes = IconButtonDefaults.shapes(), onClick = { pendingRemove = p }) {
+                                        if (p.id != activeProvider) TextButton(shapes = com.opensplit.ui.theme.appButtonShapes(), onClick = { onSelectProvider(p.id) }) { Text("Use") }
+                                        IconButton(shapes = com.opensplit.ui.theme.appIconButtonShapes(), onClick = { openForm(p) }) { SymbolIcon(OpenSplitIcons.Edit, contentDescription = "Replace ${p.name} key") }
+                                        if (p.id != "custom") IconButton(shapes = com.opensplit.ui.theme.appIconButtonShapes(), onClick = { pendingRemove = p }) {
                                             SymbolIcon(OpenSplitIcons.Delete, contentDescription = "Remove ${p.name} key", tint = MaterialTheme.colorScheme.error)
                                         }
                                     }
@@ -166,7 +166,7 @@ fun AiProvidersSubScreen(
                             )
                         }
                         if (!formOpen) {
-                            OutlinedButton(shapes = ButtonDefaults.shapes(), onClick = { openForm(AI_PROVIDERS_CATALOG.first { it.id !in saved.map { s -> s.id } && it.id != "custom" } ) }, modifier = Modifier.fillMaxWidth()) {
+                            OutlinedButton(shapes = com.opensplit.ui.theme.appButtonShapes(), onClick = { openForm(AI_PROVIDERS_CATALOG.first { it.id !in saved.map { s -> s.id } && it.id != "custom" } ) }, modifier = Modifier.fillMaxWidth()) {
                                 SymbolIcon(OpenSplitIcons.Add, contentDescription = null)
                                 Spacer(Modifier.width(8.dp))
                                 Text("Add new API key")
@@ -177,11 +177,11 @@ fun AiProvidersSubScreen(
             }
 
             if (formOpen) item {
-                Card(shape = RoundedCornerShape(20.dp), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh), modifier = Modifier.fillMaxWidth()) {
+                Card(shape = MaterialTheme.shapes.medium, colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh), modifier = Modifier.fillMaxWidth()) {
                     Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Text("New API key", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
-                            if (saved.isNotEmpty()) TextButton(shapes = ButtonDefaults.shapes(), onClick = { formOpen = false }) { Text("Cancel") }
+                            if (saved.isNotEmpty()) TextButton(shapes = com.opensplit.ui.theme.appButtonShapes(), onClick = { formOpen = false }) { Text("Cancel") }
                         }
                         ExposedDropdownMenuBox(expanded = providerMenu, onExpandedChange = { providerMenu = it }) {
                             OutlinedTextField(
@@ -209,17 +209,17 @@ fun AiProvidersSubScreen(
                             visualTransformation = if (showKey) VisualTransformation.None else PasswordVisualTransformation(),
                             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
                             trailingIcon = {
-                                IconButton(shapes = IconButtonDefaults.shapes(), onClick = { showKey = !showKey }) {
+                                IconButton(shapes = com.opensplit.ui.theme.appIconButtonShapes(), onClick = { showKey = !showKey }) {
                                     SymbolIcon(if (showKey) OpenSplitIcons.VisibilityOff else OpenSplitIcons.Visibility, contentDescription = if (showKey) "Hide key" else "Show key")
                                 }
                             },
                             modifier = Modifier.fillMaxWidth()
                         )
                         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            TextButton(shapes = ButtonDefaults.shapes(), onClick = { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(formProvider.helpUrl))) }) { Text("Get a key") }
+                            TextButton(shapes = com.opensplit.ui.theme.appButtonShapes(), onClick = { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(formProvider.helpUrl))) }) { Text("Get a key") }
                             Spacer(Modifier.weight(1f))
                             Button(
-                                shapes = ButtonDefaults.shapes(),
+                                shapes = com.opensplit.ui.theme.appButtonShapes(),
                                 enabled = !testing && (keyInput.isNotBlank() || formProvider.id == "custom"),
                                 onClick = {
                                     testing = true; testMessage = null
@@ -251,7 +251,7 @@ fun AiProvidersSubScreen(
             }
 
             item {
-                Card(shape = RoundedCornerShape(20.dp), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer), modifier = Modifier.fillMaxWidth()) {
+                Card(shape = MaterialTheme.shapes.medium, colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer), modifier = Modifier.fillMaxWidth()) {
                     Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {
                         Text("Features", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, modifier = Modifier.padding(vertical = 8.dp))
                         AiFeature.entries.forEach { feature ->

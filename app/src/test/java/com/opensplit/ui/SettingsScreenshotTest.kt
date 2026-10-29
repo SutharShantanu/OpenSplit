@@ -21,7 +21,7 @@ class SettingsScreenshotTest {
 
     private fun content(dark: Boolean) {
         compose.setContent {
-            OpenSplitTheme(darkTheme = dark, amoled = dark, dynamicColor = false) {
+            OpenSplitTheme(darkTheme = dark, amoled = dark) {
                 androidx.compose.material3.Surface(color = androidx.compose.material3.MaterialTheme.colorScheme.background) {
                 AiProvidersSubScreen(
                     activeProvider = "anthropic",

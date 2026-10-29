@@ -74,21 +74,6 @@ class AuthViewModel(
         }
     }
 
-    fun signInAsDemo(displayName: String = "Shantanu", email: String = "shantanusut2000@gmail.com") {
-        _uiState.value = AuthUiState.Loading
-        viewModelScope.launch {
-            val uid = if (email == "shantanusut2000@gmail.com") "user_shantanu" else "user_demo_${email.takeWhile { it != '@' }}"
-            val result = authRepository.signInAsDemo(uid, displayName, email)
-            if (result.isSuccess) {
-                userRepository.createUserIfNotFound(uid, displayName, email, null)
-                com.opensplit.data.local.InMemoryDataStore.seedForUser(uid)
-                _uiState.value = AuthUiState.Success()
-            } else {
-                _uiState.value = AuthUiState.Error("Demo login failed")
-            }
-        }
-    }
-
     fun sendPasswordResetEmail(email: String) {
         _uiState.value = AuthUiState.Loading
         viewModelScope.launch {

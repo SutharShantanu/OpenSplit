@@ -126,12 +126,10 @@ class GroupDetailViewModel(
     val currentUserId: String get() = authRepository?.currentUserId ?: ""
 
     private suspend fun loadMembers(userIds: List<String>): List<User> {
-        val friendsMap = com.opensplit.data.local.InMemoryDataStore.friends.value.associateBy { it.uid }
         val currentUser = authRepository?.currentUser
         val currentUid = authRepository?.currentUserId
         return userIds.map { uid ->
-            friendsMap[uid]
-                ?: (if (currentUid != null && currentUid == uid) User(uid = uid, displayName = currentUser?.displayName ?: "You", email = currentUser?.email ?: "") else null)
+            (if (currentUid != null && currentUid == uid) User(uid = uid, displayName = currentUser?.displayName ?: "You", email = currentUser?.email ?: "") else null)
                 ?: userRepository.getUser(uid)
                 ?: User(uid = uid, displayName = "Member", email = "")
         }

@@ -84,4 +84,9 @@ interface UserPreferencesRepository {
     /** Epoch seconds of the last time the Activity tab was viewed on this device (0 = never). */
     val lastSeenActivityFlow: Flow<Long>
     suspend fun setLastSeenActivity(epochSeconds: Long)
+
+    /** Settings as portable JSON (API keys excluded). */
+    suspend fun exportSettings(): String
+    /** Applies a settings backup; returns how many values were restored. Throws on a bad file. */
+    suspend fun importSettings(json: String): Int
 }

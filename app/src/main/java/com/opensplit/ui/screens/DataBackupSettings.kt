@@ -70,7 +70,9 @@ import dev.chrisbanes.haze.HazeState
 fun DataBackupSubScreen(
     expenseCount: Int,
     onExportClick: () -> Unit,
-    onClearCache: () -> Unit,
+    onClearCache: suspend () -> Long,
+    onBackupSettings: suspend () -> String = { "" },
+    onRestoreSettings: suspend (String) -> Int = { 0 },
     onOpenRecurring: () -> Unit,
     onOpenRecentlyDeleted: () -> Unit,
     onBack: () -> Unit
@@ -84,12 +86,10 @@ fun DataBackupSubScreen(
                 .fillMaxSize()
                 .responsiveContentWidth(maxWidth = 760.dp)
         ) {
-            TopAppBar(
+            androidx.compose.material3.LargeTopAppBar(
                 title = { Text("Data, Export & Backup", fontWeight = FontWeight.Bold) },
                 navigationIcon = {
-                    IconButton(shapes = IconButtonDefaults.shapes(), onClick = onBack) {
-                        SymbolIcon(OpenSplitIcons.ArrowBack, contentDescription = "Back")
-                    }
+                    com.opensplit.ui.components.RoundBackButton(onClick = onBack)
                 },
                 windowInsets = WindowInsets(0, 0, 0, 0)
             )
@@ -103,7 +103,7 @@ fun DataBackupSubScreen(
             item {
                 Card(
                     modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(24.dp),
+                    shape = MaterialTheme.shapes.large,
                     colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh)
                 ) {
                     Column {
@@ -127,13 +127,13 @@ fun DataBackupSubScreen(
             item {
                 Card(
                     modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(24.dp),
+                    shape = MaterialTheme.shapes.large,
                     colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh)
                 ) {
                     Column(modifier = Modifier.padding(20.dp)) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Surface(
-                                shape = RoundedCornerShape(12.dp),
+                                shape = MaterialTheme.shapes.small,
                                 color = MaterialTheme.colorScheme.primaryContainer,
                                 modifier = Modifier.size(40.dp)
                             ) {
@@ -167,7 +167,7 @@ fun DataBackupSubScreen(
 
                         Button(
                             onClick = onExportClick,
-                            shape = RoundedCornerShape(12.dp),
+                            shape = MaterialTheme.shapes.small,
                             modifier = Modifier.fillMaxWidth()
                         ) {
                             SymbolIcon(OpenSplitIcons.FileDownload, contentDescription = null, modifier = Modifier.size(18.dp))
@@ -179,20 +179,23 @@ fun DataBackupSubScreen(
             }
 
             item {
+                SettingsBackupCard(onBackupSettings, onRestoreSettings)
+            }
+
+            item {
                 var isClearing by remember { mutableStateOf(false) }
-                var clearProgress by remember { mutableFloatStateOf(0f) }
                 var clearedResult by remember { mutableStateOf<String?>(null) }
                 val coroutineScope = rememberCoroutineScope()
 
                 Card(
                     modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(24.dp),
+                    shape = MaterialTheme.shapes.large,
                     colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh)
                 ) {
                     Column(modifier = Modifier.padding(20.dp)) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Surface(
-                                shape = RoundedCornerShape(12.dp),
+                                shape = MaterialTheme.shapes.small,
                                 color = MaterialTheme.colorScheme.secondaryContainer,
                                 modifier = Modifier.size(40.dp)
                             ) {
@@ -225,7 +228,6 @@ fun DataBackupSubScreen(
                         androidx.compose.animation.AnimatedVisibility(visible = isClearing) {
                             Column(modifier = Modifier.fillMaxWidth().padding(top = 16.dp)) {
                                 LinearProgressIndicator(
-                                    progress = { clearProgress },
                                     modifier = Modifier
                                         .fillMaxWidth()
                                         .height(6.dp)
@@ -234,7 +236,7 @@ fun DataBackupSubScreen(
                                 )
                                 Spacer(modifier = Modifier.height(4.dp))
                                 Text(
-                                    text = "Clearing cache... ${(clearProgress * 100).toInt()}%",
+                                    text = "Clearing cache...",
                                     style = MaterialTheme.typography.labelSmall,
                                     color = MaterialTheme.colorScheme.primary
                                 )
@@ -244,7 +246,7 @@ fun DataBackupSubScreen(
                         clearedResult?.let { msg ->
                             Spacer(modifier = Modifier.height(8.dp))
                             Surface(
-                                shape = RoundedCornerShape(8.dp),
+                                shape = MaterialTheme.shapes.extraSmall,
                                 color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f),
                                 modifier = Modifier.fillMaxWidth()
                             ) {
@@ -264,23 +266,16 @@ fun DataBackupSubScreen(
                             onClick = {
                                 if (!isClearing) {
                                     isClearing = true
-                                    clearProgress = 0f
                                     clearedResult = null
                                     coroutineScope.launch {
-                                        kotlinx.coroutines.delay(250)
-                                        clearProgress = 0.45f
-                                        kotlinx.coroutines.delay(350)
-                                        clearProgress = 0.85f
-                                        kotlinx.coroutines.delay(250)
-                                        clearProgress = 1f
-                                        clearedResult = "✓ Freed 14.8 MB"
+                                        val freed = onClearCache()
+                                        clearedResult = "✓ Freed ${com.opensplit.util.StorageStats.formatMb(freed)}"
                                         isClearing = false
-                                        onClearCache()
                                     }
                                 }
                             },
                             enabled = !isClearing,
-                            shape = RoundedCornerShape(12.dp),
+                            shape = MaterialTheme.shapes.small,
                             modifier = Modifier.fillMaxWidth()
                         ) {
                             if (isClearing) {
@@ -305,3 +300,78 @@ fun DataBackupSubScreen(
 }
 }
 
+
+/** Save / restore app settings (theme, currency, notifications, budgets, pins...) as a JSON file. */
+@Composable
+private fun SettingsBackupCard(
+    onBackupSettings: suspend () -> String,
+    onRestoreSettings: suspend (String) -> Int
+) {
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    val snackbar = com.opensplit.ui.components.LocalSnackbarController.current
+    val io = kotlinx.coroutines.Dispatchers.IO
+
+    val saveLauncher = androidx.activity.compose.rememberLauncherForActivityResult(
+        androidx.activity.result.contract.ActivityResultContracts.CreateDocument("application/json")
+    ) { uri ->
+        if (uri != null) scope.launch {
+            val ok = runCatching {
+                val json = onBackupSettings()
+                kotlinx.coroutines.withContext(io) {
+                    context.contentResolver.openOutputStream(uri)!!.use { it.write(json.toByteArray()) }
+                }
+            }.isSuccess
+            snackbar.showMessage(if (ok) "Settings backed up" else "Couldn't write the backup file")
+        }
+    }
+    val openLauncher = androidx.activity.compose.rememberLauncherForActivityResult(
+        androidx.activity.result.contract.ActivityResultContracts.OpenDocument()
+    ) { uri ->
+        if (uri != null) scope.launch {
+            runCatching {
+                val json = kotlinx.coroutines.withContext(io) {
+                    context.contentResolver.openInputStream(uri)!!.use { it.readBytes().decodeToString() }
+                }
+                onRestoreSettings(json)
+            }.onSuccess { snackbar.showMessage("Restored $it settings") }
+                .onFailure { snackbar.showMessage(it.message ?: "Not a valid settings backup") }
+        }
+    }
+
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = MaterialTheme.shapes.large,
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh)
+    ) {
+        Column(modifier = Modifier.padding(20.dp)) {
+            Text("Settings backup", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+            Text(
+                "Theme, currency, notifications, budgets and pinned groups. API keys are never included.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Spacer(modifier = Modifier.height(16.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                OutlinedButton(
+                    onClick = { saveLauncher.launch("opensplit-settings.json") },
+                    shape = MaterialTheme.shapes.small,
+                    modifier = Modifier.weight(1f)
+                ) {
+                    SymbolIcon(OpenSplitIcons.Upload, contentDescription = null, modifier = Modifier.size(18.dp))
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("Back up")
+                }
+                OutlinedButton(
+                    onClick = { openLauncher.launch(arrayOf("application/json", "text/plain", "application/octet-stream")) },
+                    shape = MaterialTheme.shapes.small,
+                    modifier = Modifier.weight(1f)
+                ) {
+                    SymbolIcon(OpenSplitIcons.Download, contentDescription = null, modifier = Modifier.size(18.dp))
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("Restore")
+                }
+            }
+        }
+    }
+}

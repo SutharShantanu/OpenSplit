@@ -1,5 +1,6 @@
 package com.opensplit
 
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import android.content.Intent
 import android.os.Bundle
 import androidx.activity.ComponentActivity
@@ -19,7 +20,6 @@ import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.CompositionLocalProvider
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -49,9 +49,9 @@ class MainActivity : ComponentActivity() {
 
 
         setContent {
-            val themeMode by appContainer.userPreferencesRepository.themeFlow.collectAsState(initial = "system")
-            val colorPalette by appContainer.userPreferencesRepository.colorPaletteFlow.collectAsState(initial = "dynamic")
-            val amoledPref by appContainer.userPreferencesRepository.amoledFlow.collectAsState(initial = false)
+            val themeMode by appContainer.userPreferencesRepository.themeFlow.collectAsStateWithLifecycle(initialValue = "system")
+            val colorPalette by appContainer.userPreferencesRepository.colorPaletteFlow.collectAsStateWithLifecycle(initialValue = "material")
+            val amoledPref by appContainer.userPreferencesRepository.amoledFlow.collectAsStateWithLifecycle(initialValue = false)
             val isDark = when (themeMode) {
                 "light" -> false
                 "dark", "amoled" -> true
@@ -70,7 +70,6 @@ class MainActivity : ComponentActivity() {
             OpenSplitTheme(
                 darkTheme = isDark,
                 amoled = (themeMode == "amoled" || amoledPref) && isDark,
-                dynamicColor = colorPalette == "dynamic",
                 palette = colorPalette
             ) {
                 // One snackbar host for the whole app, overlaid above every screen so any
@@ -88,7 +87,10 @@ class MainActivity : ComponentActivity() {
                     com.opensplit.ui.components.LocalBusy provides busy,
                     com.opensplit.ui.components.LocalAppUpdater provides appContainer.appUpdater
                 ) {
-                    LaunchedEffect(Unit) { appContainer.appUpdater.checkOnLaunch() }
+                    LaunchedEffect(Unit) {
+                        appContainer.appUpdater.checkWhatsNew()
+                        appContainer.appUpdater.checkOnLaunch()
+                    }
                     Surface(
                         modifier = Modifier.fillMaxSize(),
                         color = MaterialTheme.colorScheme.background
@@ -111,6 +113,8 @@ class MainActivity : ComponentActivity() {
                                     .imePadding()
                             )
                             com.opensplit.ui.components.UpdateSheet(appContainer.appUpdater)
+                            com.opensplit.ui.components.WhatsNewSheet(appContainer.appUpdater)
+                            com.opensplit.ui.components.CrashReportDialog()
                             com.opensplit.ui.components.BusyPill(
                                 controller = busy,
                                 modifier = Modifier

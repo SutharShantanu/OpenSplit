@@ -73,7 +73,7 @@ fun JoinGroupScreen(
     Scaffold(topBar = {
         TopAppBar(
             title = { Text("Group invite", fontWeight = FontWeight.Bold) },
-            navigationIcon = { IconButton(shapes = IconButtonDefaults.shapes(), onClick = onNavigateBack) { SymbolIcon(OpenSplitIcons.Back, contentDescription = "Back") } }
+            navigationIcon = { com.opensplit.ui.components.RoundBackButton(onClick = onNavigateBack) }
         )
     }) { padding ->
         Box(modifier = Modifier.fillMaxSize().padding(padding).padding(OpenSplitTokens.SpaceXL), contentAlignment = Alignment.Center) {
@@ -86,7 +86,7 @@ fun JoinGroupScreen(
                     Spacer(Modifier.height(OpenSplitTokens.SpaceSM))
                     Text(error!!.message, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = TextAlign.Center)
                     Spacer(Modifier.height(OpenSplitTokens.SpaceXL))
-                    OutlinedButton(shapes = ButtonDefaults.shapes(), onClick = onNavigateBack) { Text("Back to groups") }
+                    OutlinedButton(shapes = com.opensplit.ui.theme.appButtonShapes(), onClick = onNavigateBack) { Text("Back to groups") }
                 }
                 else -> {
                     val l = link!!
@@ -102,9 +102,9 @@ fun JoinGroupScreen(
                             val expiry = l.expiresAt?.let { "Link valid until " + SimpleDateFormat("MMM d, h:mm a", Locale.getDefault()).format(it.toDate()) } ?: "Link does not expire"
                             Text(expiry, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                             if (error == JoinError.ALREADY_MEMBER) {
-                                Button(shapes = ButtonDefaults.shapes(), onClick = { onJoined(l.groupId) }, modifier = Modifier.fillMaxWidth()) { Text("Open group") }
+                                Button(shapes = com.opensplit.ui.theme.appButtonShapes(), onClick = { onJoined(l.groupId) }, modifier = Modifier.fillMaxWidth()) { Text("Open group") }
                             } else {
-                                Button(shapes = ButtonDefaults.shapes(), 
+                                Button(shapes = com.opensplit.ui.theme.appButtonShapes(), 
                                     enabled = !joining,
                                     onClick = { joining = true },
                                     modifier = Modifier.fillMaxWidth()

@@ -55,7 +55,7 @@ fun AcceptFriendScreen(token: String, appContainer: AppContainer, onNavigateBack
             )
     }
     Scaffold(topBar = {
-        TopAppBar(title = { Text("Add friend", fontWeight = FontWeight.Bold) }, navigationIcon = { IconButton(shapes = IconButtonDefaults.shapes(), onClick = onNavigateBack) { SymbolIcon(OpenSplitIcons.Back, contentDescription = "Back") } })
+        TopAppBar(title = { Text("Add friend", fontWeight = FontWeight.Bold) }, navigationIcon = { com.opensplit.ui.components.RoundBackButton(onClick = onNavigateBack) })
     }) { padding ->
         Box(modifier = Modifier.fillMaxSize().padding(padding).padding(OpenSplitTokens.SpaceXL), contentAlignment = Alignment.Center) {
             if (error == null) com.opensplit.ui.components.AppLoadingIndicator() else Column(horizontalAlignment = Alignment.CenterHorizontally) {
@@ -65,7 +65,7 @@ fun AcceptFriendScreen(token: String, appContainer: AppContainer, onNavigateBack
                 Spacer(Modifier.height(OpenSplitTokens.SpaceSM))
                 Text(error!!, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = TextAlign.Center)
                 Spacer(Modifier.height(OpenSplitTokens.SpaceXL))
-                OutlinedButton(shapes = ButtonDefaults.shapes(), onClick = onNavigateBack) { Text("Back") }
+                OutlinedButton(shapes = com.opensplit.ui.theme.appButtonShapes(), onClick = onNavigateBack) { Text("Back") }
             }
         }
     }

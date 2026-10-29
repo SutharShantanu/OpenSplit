@@ -106,9 +106,9 @@ fun CreateGroupDialog(
         ) {
             // Header: close · title · primary action (full-screen dialog pattern)
             Row(verticalAlignment = Alignment.CenterVertically) {
-                IconButton(shapes = IconButtonDefaults.shapes(), onClick = onDismiss) { SymbolIcon(OpenSplitIcons.Close, contentDescription = "Close") }
+                IconButton(shapes = com.opensplit.ui.theme.appIconButtonShapes(), onClick = onDismiss) { SymbolIcon(OpenSplitIcons.Close, contentDescription = "Close") }
                 Text("New group", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
-                Button(enabled = canCreate && !submitting, shapes = androidx.compose.material3.ButtonDefaults.shapes(), onClick = { if (!submitting) { submitting = true; onCreate(name.trim(), currency, avatarKey) } }) {
+                Button(enabled = canCreate && !submitting, shapes = com.opensplit.ui.theme.appButtonShapes(), onClick = { if (!submitting) { submitting = true; onCreate(name.trim(), currency, avatarKey) } }) {
                     if (submitting) InlineBusy("Creating…") else Text("Create")
                 }
             }

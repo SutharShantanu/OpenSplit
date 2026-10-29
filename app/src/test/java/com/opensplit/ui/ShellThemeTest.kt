@@ -25,11 +25,11 @@ class ShellThemeTest {
         var primaryAmoled = Color.Unspecified
         var primaryDark = Color.Unspecified
         compose.setContent {
-            OpenSplitTheme(darkTheme = true, amoled = true, dynamicColor = false) {
+            OpenSplitTheme(darkTheme = true, amoled = true) {
                 surface = MaterialTheme.colorScheme.surface
                 primaryAmoled = MaterialTheme.colorScheme.primary
             }
-            OpenSplitTheme(darkTheme = true, amoled = false, dynamicColor = false) {
+            OpenSplitTheme(darkTheme = true, amoled = false) {
                 primaryDark = MaterialTheme.colorScheme.primary
             }
         }

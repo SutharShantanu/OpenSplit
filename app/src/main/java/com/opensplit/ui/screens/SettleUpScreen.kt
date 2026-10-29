@@ -2,6 +2,8 @@
 
 package com.opensplit.ui.screens
 
+import com.opensplit.ui.components.FilterChip
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.opensplit.ui.components.SymbolIcon
 import android.content.Intent
 import android.net.Uri
@@ -54,10 +56,11 @@ fun SettleUpScreen(
     onNavigateBack: () -> Unit
 ) {
     val context = LocalContext.current
-    val members by viewModel.members.collectAsState()
-    val currentUserId by viewModel.currentUserId.collectAsState()
-    val currency by viewModel.currency.collectAsState()
+    val members by viewModel.members.collectAsStateWithLifecycle()
+    val currentUserId by viewModel.currentUserId.collectAsStateWithLifecycle()
+    val currency by viewModel.currency.collectAsStateWithLifecycle()
     val snackbar = LocalSnackbarController.current
+    val haptics = androidx.compose.ui.platform.LocalHapticFeedback.current
     val busy = com.opensplit.ui.components.LocalBusy.current
 
     var fromUid by rememberSaveable { mutableStateOf(suggestedFromUid ?: currentUserId ?: "") }
@@ -71,13 +74,7 @@ fun SettleUpScreen(
     var recordedSettlementAmount by remember { mutableStateOf(0.0) }
     var memberPickerTarget by remember { mutableStateOf<String?>(null) } // "from" or "to"
 
-    val displayMembers = remember(members, currentUserId) {
-        if (members.isNotEmpty()) members else listOf(
-            User(uid = currentUserId ?: "user1", displayName = "You"),
-            User(uid = "user2", displayName = "Rahul Sharma"),
-            User(uid = "user3", displayName = "Priya Patel")
-        )
-    }
+    val displayMembers = members
 
     LaunchedEffect(members, currentUserId, suggestedFromUid, suggestedToUid, suggestedAmount) {
         if (members.isNotEmpty()) {
@@ -126,17 +123,18 @@ fun SettleUpScreen(
 
     val handleRecordSettlement = {
         if (canSubmit) {
-            // Trigger UPI Payment Intent ONLY when UPI method is chosen
-            if (method == SettlementMethod.UPI) {
-                try {
-                    val recipientVpa = "opensplit@upi"
-                    val uriString = "upi://pay?pa=$recipientVpa&pn=${Uri.encode(toUser?.displayName ?: "Recipient")}&am=$rawAmount&tn=${Uri.encode(note.ifBlank { "OpenSplit Settlement" })}&cu=INR"
-                    val intent = Intent(Intent.ACTION_VIEW, Uri.parse(uriString))
-                    val chooser = Intent.createChooser(intent, "Pay via UPI App")
-                    chooser.flags = Intent.FLAG_ACTIVITY_NEW_TASK
-                    context.startActivity(chooser)
-                } catch (_: Exception) {
-                    // If no UPI app installed or intent fails, fall back gracefully
+            // Open a UPI app only when you are the payer, it's an INR group and the payee has a
+            // valid UPI ID on their profile; otherwise the payment is just recorded.
+            if (method == SettlementMethod.UPI && fromUid == currentUserId) {
+                val vpa = toUser?.upiId?.trim()
+                when {
+                    currency != "INR" -> snackbar.showMessage("UPI only supports INR; recorded without opening a UPI app")
+                    vpa == null || !com.opensplit.util.Upi.isValidVpa(vpa) ->
+                        snackbar.showMessage("${toUser?.displayName ?: "They"} hasn't added a UPI ID yet; payment recorded only")
+                    else -> runCatching {
+                        val uri = com.opensplit.util.Upi.payUri(vpa, toUser.displayName, rawAmount, note.ifBlank { "OpenSplit settlement" })
+                        context.startActivity(Intent.createChooser(Intent(Intent.ACTION_VIEW, uri), "Pay via UPI app"))
+                    }.onFailure { snackbar.showMessage("No UPI app found") }
                 }
             }
 
@@ -149,6 +147,7 @@ fun SettleUpScreen(
                 method = method,
                 note = note.ifBlank { null },
                 onSuccess = {
+                    haptics.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.Confirm)
                     isRecording = false
                     busy.hide()
                     recordedSettlementAmount = rawAmount
@@ -185,7 +184,7 @@ fun SettleUpScreen(
                         }
                     },
                     navigationIcon = {
-                        IconButton(shapes = IconButtonDefaults.shapes(), onClick = onNavigateBack) {
+                        IconButton(shapes = com.opensplit.ui.theme.appIconButtonShapes(), onClick = onNavigateBack) {
                             SymbolIcon(OpenSplitIcons.Close, contentDescription = "Close")
                         }
                     }
@@ -206,7 +205,7 @@ fun SettleUpScreen(
                 // 1. Transaction Direction Card (Tonal Layering Level 1)
                 Card(
                     modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(28.dp),
+                    shape = MaterialTheme.shapes.large,
                     colors = CardDefaults.cardColors(
                         containerColor = MaterialTheme.colorScheme.surfaceContainerLow
                     ),
@@ -448,7 +447,7 @@ fun SettleUpScreen(
 
                 // Info Warning Banner
                 Surface(
-                    shape = RoundedCornerShape(16.dp),
+                    shape = MaterialTheme.shapes.medium,
                     color = MaterialTheme.colorScheme.surfaceContainerLow,
                     border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.surfaceVariant),
                     modifier = Modifier.fillMaxWidth()
@@ -515,7 +514,7 @@ fun SettleUpScreen(
                         displayMembers.forEach { m ->
                             val isSelected = if (isFrom) m.uid == fromUid else m.uid == toUid
                             Surface(
-                                shape = RoundedCornerShape(12.dp),
+                                shape = MaterialTheme.shapes.small,
                                 color = if (isSelected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
                                 modifier = Modifier
                                     .fillMaxWidth()
@@ -643,7 +642,7 @@ private fun SettlementSuccessOverlay(
 
                 // Amount Sent Card
                 Card(
-                    shape = RoundedCornerShape(24.dp),
+                    shape = MaterialTheme.shapes.large,
                     colors = CardDefaults.cardColors(
                         containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
                     ),
@@ -781,7 +780,7 @@ fun SettlementFailedOverlay(
 
             // Summary Card
             Card(
-                shape = RoundedCornerShape(20.dp),
+                shape = MaterialTheme.shapes.medium,
                 colors = CardDefaults.cardColors(
                     containerColor = MaterialTheme.colorScheme.surfaceContainerLow
                 ),

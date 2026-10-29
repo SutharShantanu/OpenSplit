@@ -2,6 +2,7 @@
 
 package com.opensplit.ui.screens
 
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.opensplit.ui.components.SymbolIcon
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
@@ -33,7 +34,7 @@ fun ExpenseDetailScreen(
     onNavigateBack: () -> Unit,
     onNavigateToEdit: () -> Unit = {}
 ) {
-    val state by viewModel.uiState.collectAsState()
+    val state by viewModel.uiState.collectAsStateWithLifecycle()
     var commentText by remember { mutableStateOf("") }
     var showDeleteConfirmDialog by remember { mutableStateOf(false) }
     val snackbar = LocalSnackbarController.current
@@ -51,19 +52,17 @@ fun ExpenseDetailScreen(
                     )
                 },
                 navigationIcon = {
-                    IconButton(shapes = IconButtonDefaults.shapes(), onClick = onNavigateBack) {
-                        SymbolIcon(OpenSplitIcons.Back, contentDescription = "Back")
-                    }
+                    com.opensplit.ui.components.RoundBackButton(onClick = onNavigateBack)
                 },
                 actions = {
-                    IconButton(shapes = IconButtonDefaults.shapes(), onClick = onNavigateToEdit) {
+                    IconButton(shapes = com.opensplit.ui.theme.appIconButtonShapes(), onClick = onNavigateToEdit) {
                         SymbolIcon(
                             symbol = OpenSplitIcons.Edit,
                             contentDescription = "Edit Expense",
                             tint = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
-                    IconButton(shapes = IconButtonDefaults.shapes(), onClick = { showDeleteConfirmDialog = true }) {
+                    IconButton(shapes = com.opensplit.ui.theme.appIconButtonShapes(), onClick = { showDeleteConfirmDialog = true }) {
                         SymbolIcon(
                             symbol = OpenSplitIcons.Delete,
                             contentDescription = "Delete Expense",
@@ -104,7 +103,7 @@ fun ExpenseDetailScreen(
                         // SCREEN 13 Hero Card (28dp corners in surface-container)
                         Surface(
                             modifier = Modifier.fillMaxWidth(),
-                            shape = RoundedCornerShape(28.dp),
+                            shape = MaterialTheme.shapes.large,
                             color = MaterialTheme.colorScheme.surfaceContainer,
                             tonalElevation = 2.dp
                         ) {
@@ -181,7 +180,7 @@ fun ExpenseDetailScreen(
                         // Paid by & Split Among Section (28dp surface-container-low card)
                         Surface(
                             modifier = Modifier.fillMaxWidth(),
-                            shape = RoundedCornerShape(28.dp),
+                            shape = MaterialTheme.shapes.large,
                             color = MaterialTheme.colorScheme.surfaceContainerLow
                         ) {
                             Column(modifier = Modifier.padding(20.dp)) {
@@ -263,7 +262,7 @@ fun ExpenseDetailScreen(
                             Text(text = "History", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                             Card(
                                 modifier = Modifier.fillMaxWidth(),
-                                shape = RoundedCornerShape(16.dp),
+                                shape = MaterialTheme.shapes.medium,
                                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer)
                             ) {
                                 Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -294,7 +293,7 @@ fun ExpenseDetailScreen(
                             items(detailState.comments, key = { it.id }) { comment ->
                                 Surface(
                                     modifier = Modifier.fillMaxWidth(),
-                                    shape = RoundedCornerShape(16.dp),
+                                    shape = MaterialTheme.shapes.medium,
                                     color = MaterialTheme.colorScheme.surfaceContainerLow
                                 ) {
                                     Column(modifier = Modifier.padding(14.dp)) {
@@ -326,11 +325,11 @@ fun ExpenseDetailScreen(
                                 modifier = Modifier.weight(1f),
                                 placeholder = { Text("Add a comment or note...") },
                                 keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences),
-                                shape = RoundedCornerShape(12.dp),
+                                shape = MaterialTheme.shapes.small,
                                 singleLine = true
                             )
                             Spacer(modifier = Modifier.width(8.dp))
-                            IconButton(shapes = IconButtonDefaults.shapes(), 
+                            IconButton(shapes = com.opensplit.ui.theme.appIconButtonShapes(), 
                                 onClick = {
                                     if (commentText.isNotBlank()) {
                                         viewModel.addComment(commentText)
@@ -379,7 +378,7 @@ fun ExpenseDetailScreen(
                     textAlign = androidx.compose.ui.text.style.TextAlign.Center
                 )
             },
-            shape = RoundedCornerShape(28.dp),
+            shape = MaterialTheme.shapes.large,
             containerColor = MaterialTheme.colorScheme.surfaceContainerHighest,
             confirmButton = {
                 Button(
@@ -408,7 +407,7 @@ fun ExpenseDetailScreen(
                 }
             },
             dismissButton = {
-                TextButton(shapes = ButtonDefaults.shapes(), onClick = { showDeleteConfirmDialog = false }) {
+                TextButton(shapes = com.opensplit.ui.theme.appButtonShapes(), onClick = { showDeleteConfirmDialog = false }) {
                     Text("Cancel", color = MaterialTheme.colorScheme.primary)
                 }
             }

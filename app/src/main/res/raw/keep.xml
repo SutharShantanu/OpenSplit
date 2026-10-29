@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Resources looked up by name (getIdentifier) that the resource shrinker can't see.
+     default_web_client_id: Google sign-in (GoogleSignInButton). -->
+<resources xmlns:tools="http://schemas.android.com/tools"
+    tools:keep="@string/default_web_client_id" />

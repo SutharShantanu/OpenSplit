@@ -220,6 +220,13 @@ class AccountViewModel(
         }
     }
     
+    fun updateUpiId(upiId: String?) {
+        viewModelScope.launch {
+            userRepository.updateUpiId(upiId)
+            retryTrigger.value++
+        }
+    }
+
     fun updateDefaultCurrency(newCurrency: String) {
         viewModelScope.launch {
             userRepository.updateCurrency(newCurrency)
@@ -257,18 +264,6 @@ class AccountViewModel(
     fun sendPasswordResetEmail(email: String, onResult: (Result<Unit>) -> Unit) {
         viewModelScope.launch {
             onResult(authRepository.sendPasswordResetEmail(email))
-        }
-    }
-
-    fun seedMockData(firestore: com.google.firebase.firestore.FirebaseFirestore, onResult: (Boolean) -> Unit) {
-        viewModelScope.launch {
-            val uid = authRepository.getCurrentUserId() ?: run {
-                onResult(false)
-                return@launch
-            }
-            val res = com.opensplit.util.MockDataSeeder.seedMockData(firestore, uid)
-            retryTrigger.value++
-            onResult(res.isSuccess)
         }
     }
 }

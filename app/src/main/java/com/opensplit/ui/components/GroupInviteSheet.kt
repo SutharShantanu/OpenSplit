@@ -114,41 +114,32 @@ fun GroupInviteSheet(
             )
             Spacer(Modifier.height(OpenSplitTokens.SpaceSM))
 
-            PrimaryTabRow(
-                selectedTabIndex = tab,
-                containerColor = Color.Transparent
-            ) {
-                Tab(
-                    selected = tab == 0,
-                    onClick = { tab = 0 },
-                    text = { Text("Group QR & Link") },
-                    icon = { SymbolIcon(OpenSplitIcons.QrCode, contentDescription = null, modifier = Modifier.size(20.dp)) }
-                )
-                Tab(
-                    selected = tab == 1,
-                    onClick = { tab = 1 },
-                    text = { Text("Scan code") },
-                    icon = { SymbolIcon(OpenSplitIcons.CameraAlt, contentDescription = null, modifier = Modifier.size(20.dp)) }
-                )
-            }
+            PillTabs(
+                selected = tab,
+                labels = listOf("QR & Link", "Scan code"),
+                icons = listOf(OpenSplitIcons.QrCode, OpenSplitIcons.CameraAlt),
+                onSelect = { tab = it }
+            )
 
             Spacer(Modifier.height(OpenSplitTokens.SpaceLG))
 
-            if (tab == 0) {
-                GroupQrTab(
-                    groupName = groupName,
-                    inviteLink = inviteLink,
-                    onGenerateLink = onGenerateLink,
-                    onSubmitEmail = onSubmitEmail,
-                    onDismiss = onDismiss
-                )
-            } else {
-                GroupScanTab(
-                    onScanned = { handleScanned(it) },
-                    pasted = pasted,
-                    onPasted = { pasted = it },
-                    onContinue = { handleScanned(pasted) }
-                )
+            PillTabContent(tab) { t ->
+                if (t == 0) {
+                    GroupQrTab(
+                        groupName = groupName,
+                        inviteLink = inviteLink,
+                        onGenerateLink = onGenerateLink,
+                        onSubmitEmail = onSubmitEmail,
+                        onDismiss = onDismiss
+                    )
+                } else {
+                    GroupScanTab(
+                        onScanned = { handleScanned(it) },
+                        pasted = pasted,
+                        onPasted = { pasted = it },
+                        onContinue = { handleScanned(pasted) }
+                    )
+                }
             }
         }
     }
@@ -207,7 +198,7 @@ private fun GroupQrTab(
         } else {
             val qr = remember(inviteLink.url) { qrBitmap(inviteLink.url, 640) }
             Surface(
-                shape = RoundedCornerShape(24.dp),
+                shape = MaterialTheme.shapes.large,
                 color = Color.White,
                 modifier = Modifier.size(232.dp)
             ) {
@@ -260,7 +251,7 @@ private fun GroupQrTab(
                         modifier = Modifier.weight(1f)
                     )
                     IconButton(
-                        shapes = IconButtonDefaults.shapes(),
+                        shapes = com.opensplit.ui.theme.appIconButtonShapes(),
                         onClick = {
                             runCatching {
                                 val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
@@ -380,11 +371,11 @@ private fun GroupQrTab(
                             }
                         }
                     ),
-                    shape = RoundedCornerShape(12.dp)
+                    shape = MaterialTheme.shapes.small
                 )
 
                 IconButton(
-                    shapes = IconButtonDefaults.shapes(),
+                    shapes = com.opensplit.ui.theme.appIconButtonShapes(),
                     onClick = { contactsPermissionLauncher.launch(android.Manifest.permission.READ_CONTACTS) }
                 ) {
                     SymbolIcon(
@@ -395,7 +386,7 @@ private fun GroupQrTab(
                 }
 
                 IconButton(
-                    shapes = IconButtonDefaults.shapes(),
+                    shapes = com.opensplit.ui.theme.appIconButtonShapes(),
                     onClick = {
                         val trimmed = emailInput.trim()
                         if (trimmed.isNotBlank() && trimmed.contains("@")) {
@@ -421,7 +412,7 @@ private fun GroupQrTab(
         if (onGenerateLink != null) {
             Spacer(Modifier.height(OpenSplitTokens.SpaceSM))
             TextButton(
-                shapes = ButtonDefaults.shapes(),
+                shapes = com.opensplit.ui.theme.appButtonShapes(),
                 onClick = { showAdvancedOptions = !showAdvancedOptions }
             ) {
                 SymbolIcon(
@@ -464,7 +455,7 @@ private fun GroupQrTab(
                         Switch(checked = singleUse, onCheckedChange = { singleUse = it })
                     }
                     Button(
-                        shapes = ButtonDefaults.shapes(),
+                        shapes = com.opensplit.ui.theme.appButtonShapes(),
                         onClick = {
                             onGenerateLink(expiryOptions[expiryChoice].second, if (singleUse) 1 else 0)
                             showAdvancedOptions = false
@@ -509,11 +500,11 @@ private fun GroupScanTab(
         singleLine = true,
         placeholder = { Text("Paste invite link here") },
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(12.dp)
+        shape = MaterialTheme.shapes.small
     )
     Spacer(Modifier.height(OpenSplitTokens.SpaceSM))
     OutlinedButton(
-        shapes = ButtonDefaults.shapes(),
+        shapes = com.opensplit.ui.theme.appButtonShapes(),
         enabled = InviteLink.tokenFrom(pasted) != null,
         onClick = onContinue,
         modifier = Modifier.fillMaxWidth()

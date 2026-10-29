@@ -42,10 +42,7 @@ class ExpenseRepositoryImpl(
             awaitClose { listener.remove() }
         }.onStart { emit(emptyList<Expense>()) }
 
-        return combine(firestoreFlow, com.opensplit.data.local.InMemoryDataStore.expenses) { remote, local ->
-            val groupLocal = local.filter { it.groupId == groupId && !it.isDeleted }
-            (remote + groupLocal).distinctBy { it.id }.sortedByDescending { it.date }
-        }
+        return firestoreFlow.map { it.sortedByDescending { e -> e.date } }
     }
 
     override fun getExpensesForUser(userId: String): Flow<List<Expense>> {
@@ -65,10 +62,7 @@ class ExpenseRepositoryImpl(
             awaitClose { listener.remove() }
         }.onStart { emit(emptyList<Expense>()) }
 
-        return kotlinx.coroutines.flow.combine(firestoreFlow, com.opensplit.data.local.InMemoryDataStore.expenses) { remote, local ->
-            val userLocal = local.filter { (it.paidBy == userId || it.splits.any { s -> s.uid == userId }) && !it.isDeleted }
-            (remote + userLocal).distinctBy { it.id }.sortedByDescending { it.date }
-        }
+        return firestoreFlow.map { it.sortedByDescending { e -> e.date } }
     }
 
     override fun getCommentsForExpense(groupId: String, expenseId: String): Flow<List<com.opensplit.domain.model.Comment>> = callbackFlow {

@@ -2,6 +2,7 @@
 
 package com.opensplit.ui.screens
 
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -30,7 +31,6 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -107,7 +107,7 @@ fun RecurringExpensesScreen(
     onOpenExpense: (groupId: String, expenseId: String) -> Unit
 ) {
     val viewModel: RecurringExpensesViewModel = viewModel(factory = RecurringExpensesViewModel.Factory(appContainer))
-    val items by viewModel.items.collectAsState()
+    val items by viewModel.items.collectAsStateWithLifecycle()
     val snackbar = LocalSnackbarController.current
     val dateFmt = SimpleDateFormat("MMM d, yyyy", Locale.getDefault())
 
@@ -116,7 +116,7 @@ fun RecurringExpensesScreen(
             TopAppBar(
                 title = { Text("Recurring bills", fontWeight = FontWeight.Bold) },
                 navigationIcon = {
-                    IconButton(shapes = IconButtonDefaults.shapes(), onClick = onNavigateBack) { SymbolIcon(OpenSplitIcons.Back, contentDescription = "Back") }
+                    com.opensplit.ui.components.RoundBackButton(onClick = onNavigateBack)
                 },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.surface)
             )

@@ -77,7 +77,7 @@ fun ProfileSetupScreen(
                         )
                     },
                     navigationIcon = {
-                        IconButton(shapes = IconButtonDefaults.shapes(), onClick = onDismiss) {
+                        IconButton(shapes = com.opensplit.ui.theme.appIconButtonShapes(), onClick = onDismiss) {
                             SymbolIcon(OpenSplitIcons.Close, contentDescription = "Close")
                         }
                     },
@@ -211,7 +211,7 @@ fun ProfileSetupScreen(
                         },
                         singleLine = true,
                         keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Words),
-                        shape = RoundedCornerShape(16.dp),
+                        shape = MaterialTheme.shapes.medium,
                         modifier = Modifier.fillMaxWidth(),
                         colors = OutlinedTextFieldDefaults.colors(
                             focusedBorderColor = MaterialTheme.colorScheme.primary,
@@ -233,7 +233,7 @@ fun ProfileSetupScreen(
                         },
                         singleLine = true,
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
-                        shape = RoundedCornerShape(16.dp),
+                        shape = MaterialTheme.shapes.medium,
                         modifier = Modifier.fillMaxWidth(),
                         colors = OutlinedTextFieldDefaults.colors(
                             focusedBorderColor = MaterialTheme.colorScheme.primary,

@@ -18,6 +18,7 @@ class OpenSplitApp : Application() {
 
     override fun onCreate() {
         super.onCreate()
+        com.opensplit.util.CrashLog.install(this)
         ensureFirebaseInitialized()
         container = AppContainer(this)
         com.opensplit.service.NotificationHelper.createNotificationChannels(this)

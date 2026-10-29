@@ -1,10 +1,8 @@
 package com.opensplit.data.update
 
-import android.app.DownloadManager
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
-import android.os.Environment
 import android.util.Log
 import com.opensplit.BuildConfig
 import kotlinx.coroutines.Dispatchers
@@ -21,7 +19,7 @@ import org.json.JSONObject
  * In-app updates straight from GitHub Releases.
  *
  * Checks `releases/latest`, compares its tag with [BuildConfig.VERSION_NAME], downloads the APK
- * with [DownloadManager] and hands it to the system package installer. No Play Services needed.
+ * into the app cache, verifies its SHA-256 and installs it through PackageInstaller. No Play Services needed.
  */
 class AppUpdater(
     private val context: Context,
@@ -34,7 +32,10 @@ class AppUpdater(
         data class Available(val release: Release) : State
         /** [progress] is 0..1, or null while the total size is still unknown. */
         data class Downloading(val release: Release, val progress: Float?) : State
-        data class Downloaded(val release: Release, val apk: Uri) : State
+        /** APK downloaded and verified; [needsPermission] until "install unknown apps" is allowed. */
+        data class Downloaded(val release: Release, val apk: java.io.File, val needsPermission: Boolean = false) : State
+        /** Handed to PackageInstaller; Android may show its confirm dialog. */
+        data class Installing(val release: Release) : State
         data class Failed(val message: String) : State
     }
 
@@ -44,7 +45,9 @@ class AppUpdater(
         val notes: String,
         val pageUrl: String,
         val apkUrl: String?,
-        val apkBytes: Long
+        val apkBytes: Long,
+        /** `checksums.txt` asset (sha256sum format) published by release.yml; null on old releases. */
+        val checksumsUrl: String? = null
     )
 
     private val _state = MutableStateFlow<State>(State.Idle)
@@ -52,19 +55,45 @@ class AppUpdater(
 
     private var autoChecked = false
 
+    private val prefs by lazy { context.getSharedPreferences("app_updater", Context.MODE_PRIVATE) }
+
+    private val _whatsNew = MutableStateFlow<Release?>(null)
+    /** Notes of the version just installed, shown once after an update. */
+    val whatsNew: StateFlow<Release?> = _whatsNew.asStateFlow()
+
+    /**
+     * First launch after an update: fetch this version's release notes once. A fresh install only
+     * records the version, so new users aren't greeted with a changelog.
+     */
+    suspend fun checkWhatsNew() = withContext(Dispatchers.IO) {
+        if (BuildConfig.VERSION_CODE <= 1) return@withContext
+        val lastSeen = prefs.getString(KEY_LAST_SEEN, null)
+        if (lastSeen == BuildConfig.VERSION_NAME) return@withContext
+        prefs.edit().putString(KEY_LAST_SEEN, BuildConfig.VERSION_NAME).apply()
+        if (lastSeen == null) return@withContext
+        runCatching { fetchRelease("$RELEASES_URL/tags/v${BuildConfig.VERSION_NAME}").withCommitNotes("v$lastSeen") }
+            .onSuccess { if (it.notes.isNotBlank()) _whatsNew.value = it }
+            .onFailure { Log.w(TAG, "what's new fetch failed", it) }
+    }
+
+    fun dismissWhatsNew() {
+        _whatsNew.value = null
+    }
+
     /** Once per process, and never for local builds (versionCode 1 has no release to compare). */
     suspend fun checkOnLaunch() {
-        if (autoChecked || BuildConfig.VERSION_CODE <= 1) return
+        // Just updated and showing "What's new": don't stack an update sheet on top.
+        if (autoChecked || BuildConfig.VERSION_CODE <= 1 || _whatsNew.value != null) return
         autoChecked = true
         check()
     }
 
     suspend fun check(): State = withContext(Dispatchers.IO) {
         _state.value = State.Checking
-        val next = runCatching { fetchLatest() }.fold(
+        val next = runCatching { fetchRelease("$RELEASES_URL/latest") }.fold(
             onSuccess = { release ->
                 if (compareVersions(release.version, parseVersion(BuildConfig.VERSION_NAME)) > 0) {
-                    State.Available(release)
+                    State.Available(release.withCommitNotes("v${BuildConfig.VERSION_NAME}"))
                 } else {
                     State.UpToDate
                 }
@@ -82,67 +111,114 @@ class AppUpdater(
         _state.value = State.Idle
     }
 
-    /** Downloads the APK, tracking progress in [state], then opens the installer. */
+    /** Downloads the APK into the app cache with progress, verifies it, then installs in-app. */
     suspend fun downloadAndInstall(release: Release) {
         val url = release.apkUrl ?: run {
             // No APK asset on the release: fall back to the release page in the browser.
             open(Intent(Intent.ACTION_VIEW, Uri.parse(release.pageUrl)))
             return
         }
-        val dm = context.getSystemService(DownloadManager::class.java)
-        val request = DownloadManager.Request(Uri.parse(url))
-            .setTitle("OpenSplit ${release.tag}")
-            .setMimeType(APK_MIME)
-            .setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED)
-            .setDestinationInExternalPublicDir(Environment.DIRECTORY_DOWNLOADS, "OpenSplit-${release.tag}.apk")
-        val id = dm.enqueue(request)
         _state.value = State.Downloading(release, null)
+        val apk = runCatching { download(url, release) }.getOrElse {
+            Log.w(TAG, "download failed", it)
+            _state.value = State.Failed("Download failed: check your connection")
+            return
+        }
+        if (!verifyChecksum(release, Uri.fromFile(apk))) {
+            apk.delete()
+            _state.value = State.Failed("Downloaded file failed its integrity check")
+            return
+        }
+        _state.value = State.Downloaded(release, apk)
+        install()
+    }
 
-        // ponytail: 400 ms polling instead of a BroadcastReceiver; gives progress for free.
-        while (true) {
-            delay(400)
-            val cursor = dm.query(DownloadManager.Query().setFilterById(id)) ?: break
-            val done = cursor.use { c ->
-                if (!c.moveToFirst()) return@use true
-                val status = c.getInt(c.getColumnIndexOrThrow(DownloadManager.COLUMN_STATUS))
-                val soFar = c.getLong(c.getColumnIndexOrThrow(DownloadManager.COLUMN_BYTES_DOWNLOADED_SO_FAR))
-                val total = c.getLong(c.getColumnIndexOrThrow(DownloadManager.COLUMN_TOTAL_SIZE_BYTES))
-                when (status) {
-                    DownloadManager.STATUS_SUCCESSFUL -> {
-                        val apk = dm.getUriForDownloadedFile(id)
-                        if (apk == null) {
-                            _state.value = State.Failed("Download finished but the file is missing")
-                        } else {
-                            _state.value = State.Downloaded(release, apk)
-                            install(apk)
+    private suspend fun download(url: String, release: Release): java.io.File = withContext(Dispatchers.IO) {
+        val dir = java.io.File(context.cacheDir, "updates").apply { mkdirs() }
+        dir.listFiles()?.forEach { it.delete() } // keep only the newest download
+        val file = java.io.File(dir, "OpenSplit-${release.tag}.apk")
+        client.newCall(Request.Builder().url(url).build()).execute().use { response ->
+            if (!response.isSuccessful) error("HTTP ${response.code}")
+            val body = response.body ?: error("empty body")
+            val total = body.contentLength().takeIf { it > 0 } ?: release.apkBytes
+            body.byteStream().use { input ->
+                file.outputStream().use { out ->
+                    val buf = ByteArray(64 * 1024)
+                    var read = 0L
+                    var lastEmit = 0L
+                    while (true) {
+                        val n = input.read(buf)
+                        if (n < 0) break
+                        out.write(buf, 0, n)
+                        read += n
+                        if (read - lastEmit > 256 * 1024 || read == total) {
+                            lastEmit = read
+                            _state.value = State.Downloading(
+                                release,
+                                if (total > 0) (read.toFloat() / total).coerceIn(0f, 1f) else null
+                            )
                         }
-                        true
-                    }
-                    DownloadManager.STATUS_FAILED -> {
-                        val reason = c.getInt(c.getColumnIndexOrThrow(DownloadManager.COLUMN_REASON))
-                        _state.value = State.Failed("Download failed (code $reason)")
-                        true
-                    }
-                    else -> {
-                        _state.value = State.Downloading(
-                            release,
-                            if (total > 0) (soFar.toFloat() / total).coerceIn(0f, 1f) else null
-                        )
-                        false
                     }
                 }
             }
-            if (done) break
+        }
+        file
+    }
+
+    /**
+     * Installs the downloaded APK through a PackageInstaller session (in-app: Android shows only its
+     * own confirmation, and on 12+ updates of an app we installed can skip it). Call again after the
+     * user allows "install unknown apps" for OpenSplit.
+     */
+    fun install() {
+        val ready = _state.value as? State.Downloaded ?: return
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O &&
+            !context.packageManager.canRequestPackageInstalls()
+        ) {
+            _state.value = ready.copy(needsPermission = true)
+            return
+        }
+        _state.value = State.Installing(ready.release)
+        runCatching {
+            val installer = context.packageManager.packageInstaller
+            val params = android.content.pm.PackageInstaller.SessionParams(
+                android.content.pm.PackageInstaller.SessionParams.MODE_FULL_INSTALL
+            ).apply {
+                setAppPackageName(context.packageName)
+                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
+                    setRequireUserAction(android.content.pm.PackageInstaller.SessionParams.USER_ACTION_NOT_REQUIRED)
+                }
+            }
+            val sessionId = installer.createSession(params)
+            installer.openSession(sessionId).use { session ->
+                session.openWrite("base.apk", 0, ready.apk.length()).use { out ->
+                    ready.apk.inputStream().use { it.copyTo(out) }
+                    session.fsync(out)
+                }
+                val callback = android.app.PendingIntent.getBroadcast(
+                    context, sessionId,
+                    Intent(context, UpdateInstallReceiver::class.java),
+                    android.app.PendingIntent.FLAG_UPDATE_CURRENT or android.app.PendingIntent.FLAG_MUTABLE
+                )
+                session.commit(callback.intentSender)
+            }
+        }.onFailure {
+            Log.w(TAG, "install failed", it)
+            _state.value = State.Failed("Couldn't start the installer")
         }
     }
 
-    /** Opens the system installer for an already downloaded APK (e.g. "Install" tapped again). */
-    fun install(apk: Uri) {
+    /** Opens the "install unknown apps" switch for OpenSplit. */
+    fun openInstallPermissionSettings() {
         open(
-            Intent(Intent.ACTION_VIEW)
-                .setDataAndType(apk, APK_MIME)
-                .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            Intent(android.provider.Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES)
+                .setData(Uri.parse("package:${context.packageName}"))
         )
+    }
+
+    /** Called by [UpdateInstallReceiver] when the session ends without installing. */
+    internal fun onInstallFailed(message: String) {
+        _state.value = State.Failed(message)
     }
 
     private fun open(intent: Intent) {
@@ -150,9 +226,49 @@ class AppUpdater(
             .onFailure { Log.w(TAG, "no activity for $intent", it) }
     }
 
-    private fun fetchLatest(): Release {
+    /**
+     * Releases built from direct pushes have no "What's Changed" list (GitHub only adds it for
+     * merged PRs), so fall back to the commit subjects between [fromTag] and this release.
+     */
+    private fun Release.withCommitNotes(fromTag: String): Release {
+        if (notes.isNotBlank()) return this
+        val commits = runCatching {
+            val request = Request.Builder()
+                .url("$REPO_API_URL/compare/$fromTag...$tag")
+                .header("Accept", "application/vnd.github+json")
+                .build()
+            client.newCall(request).execute().use { r ->
+                if (!r.isSuccessful) error("compare HTTP ${r.code}")
+                JSONObject(r.body?.string().orEmpty()).getJSONArray("commits")
+            }
+        }.onFailure { Log.w(TAG, "commit notes unavailable", it) }.getOrNull() ?: return this
+        val subjects = (0 until commits.length()).map {
+            commits.getJSONObject(it).getJSONObject("commit").getString("message")
+        }
+        return copy(notes = commitNotes(subjects))
+    }
+
+    /**
+     * Compares the APK's SHA-256 with the release's checksums.txt. Releases without that asset
+     * predate it and are accepted; a checksum we can't fetch or that differs is a failure.
+     */
+    private suspend fun verifyChecksum(release: Release, apk: Uri): Boolean = withContext(Dispatchers.IO) {
+        val url = release.checksumsUrl ?: return@withContext true
+        runCatching {
+            val listing = client.newCall(Request.Builder().url(url).build()).execute().use { r ->
+                if (!r.isSuccessful) error("checksums HTTP ${r.code}")
+                r.body?.string().orEmpty()
+            }
+            val apkName = release.apkUrl?.substringAfterLast('/') ?: return@runCatching false
+            val expected = expectedSha256(listing, apkName) ?: return@runCatching false
+            val actual = context.contentResolver.openInputStream(apk)!!.use(::sha256Hex)
+            expected.equals(actual, ignoreCase = true)
+        }.onFailure { Log.w(TAG, "checksum verify failed", it) }.getOrDefault(false)
+    }
+
+    private fun fetchRelease(apiUrl: String): Release {
         val request = Request.Builder()
-            .url(LATEST_RELEASE_URL)
+            .url(apiUrl)
             .header("Accept", "application/vnd.github+json")
             .build()
         val json = client.newCall(request).execute().use { response ->
@@ -162,13 +278,16 @@ class AppUpdater(
         val tag = json.getString("tag_name")
         var apkUrl: String? = null
         var apkBytes = 0L
+        var checksumsUrl: String? = null
         val assets = json.optJSONArray("assets")
         for (i in 0 until (assets?.length() ?: 0)) {
             val asset = assets!!.getJSONObject(i)
-            if (asset.getString("name").endsWith(".apk")) {
+            val name = asset.getString("name")
+            if (apkUrl == null && name.endsWith(".apk")) {
                 apkUrl = asset.getString("browser_download_url")
                 apkBytes = asset.optLong("size")
-                break
+            } else if (name == "checksums.txt") {
+                checksumsUrl = asset.getString("browser_download_url")
             }
         }
         return Release(
@@ -177,14 +296,44 @@ class AppUpdater(
             notes = plainNotes(json.optString("body")),
             pageUrl = json.optString("html_url"),
             apkUrl = apkUrl,
-            apkBytes = apkBytes
+            apkBytes = apkBytes,
+            checksumsUrl = checksumsUrl
         )
     }
 
     companion object {
         private const val TAG = "AppUpdater"
         private const val APK_MIME = "application/vnd.android.package-archive"
-        const val LATEST_RELEASE_URL = "https://api.github.com/repos/SutharShantanu/OpenSplit/releases/latest"
+        private const val KEY_LAST_SEEN = "last_seen_version"
+        const val REPO_API_URL = "https://api.github.com/repos/SutharShantanu/OpenSplit"
+        const val RELEASES_URL = "$REPO_API_URL/releases"
+
+        /** Commit messages (oldest first, as GitHub returns them) to newest-first bullets. */
+        fun commitNotes(messages: List<String>): String =
+            messages.asReversed()
+                .map { it.lineSequence().first().trim() }
+                .filter { it.isNotBlank() && !it.startsWith("Merge ") }
+                .distinct()
+                .take(12)
+                .joinToString("\n") { "• $it" }
+
+        /** Finds `<hex>  <file>` for [fileName] in sha256sum output. */
+        fun expectedSha256(listing: String, fileName: String): String? =
+            listing.lineSequence()
+                .map { it.trim().split(Regex("\\s+"), limit = 2) }
+                .firstOrNull { it.size == 2 && it[1].trimStart('*') == fileName }
+                ?.get(0)
+
+        fun sha256Hex(input: java.io.InputStream): String {
+            val digest = java.security.MessageDigest.getInstance("SHA-256")
+            val buf = ByteArray(64 * 1024)
+            while (true) {
+                val n = input.read(buf)
+                if (n < 0) break
+                digest.update(buf, 0, n)
+            }
+            return digest.digest().joinToString("") { "%02x".format(it) }
+        }
 
         /** "v1.0.31" -> [1, 0, 31]; "1.0" -> [1, 0]. */
         fun parseVersion(text: String): List<Int> =
@@ -204,7 +353,9 @@ class AppUpdater(
          * "What's Changed" list below. Keep only that list, minus markdown noise.
          */
         fun plainNotes(body: String): String {
-            val changes = body.substringAfter("## What's Changed", body)
+            // Without a change list the body is only our asset table and install commands.
+            if ("## What's Changed" !in body) return ""
+            val changes = body.substringAfter("## What's Changed")
             return changes.lineSequence()
                 .map { it.trim() }
                 .filter { it.isNotBlank() && !it.startsWith("|") && !it.startsWith("```") && !it.startsWith("#") }

@@ -23,19 +23,14 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.opensplit.ui.theme.OpenSplitIcons
-import com.opensplit.ui.theme.PrimaryContainerLight
-import com.opensplit.ui.theme.PrimaryFixedLight
-import com.opensplit.ui.theme.OnPrimaryContainerLight
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 /**
  * SCREEN 01 — Splash Screen
  * Full-screen launch splash for openSplit.
- * Background: solid primary-container (#6750a4) with soft radial glow using primary-fixed at 30% opacity.
- * Centered: 96dp circle in surface/20% containing filled pie_chart icon in on-primary-container (#e0d2ff) at 48dp.
- * Wordmark "openSplit" in 28sp bold on-primary (#ffffff).
- * Tagline "Split smarter. Settle faster. Forever free." in font-body-md (#ffffff at 70% opacity).
+ * Colours come from the active theme (palette + light/dark): primary-container background with a
+ * soft primary glow, the logo in a primary circle, wordmark and tagline in on-primary-container.
  * Spring scale animation from 0.8 to 1.0. Auto advances after 1.5s.
  */
 @Composable
@@ -63,7 +58,7 @@ fun SplashScreen(onTimeout: () -> Unit) {
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(PrimaryContainerLight),
+            .background(MaterialTheme.colorScheme.primaryContainer),
         contentAlignment = Alignment.Center
     ) {
         // Soft radial glow in center
@@ -73,7 +68,7 @@ fun SplashScreen(onTimeout: () -> Unit) {
                 .background(
                     brush = Brush.radialGradient(
                         colors = listOf(
-                            PrimaryFixedLight.copy(alpha = 0.30f),
+                            MaterialTheme.colorScheme.primary.copy(alpha = 0.18f),
                             Color.Transparent
                         )
                     ),
@@ -92,13 +87,13 @@ fun SplashScreen(onTimeout: () -> Unit) {
             Box(
                 modifier = Modifier
                     .size(96.dp)
-                    .background(Color.White.copy(alpha = 0.20f), shape = CircleShape),
+                    .background(MaterialTheme.colorScheme.primary, shape = CircleShape),
                 contentAlignment = Alignment.Center
             ) {
                 SymbolIcon(
                     symbol = OpenSplitIcons.PieChart,
                     contentDescription = "openSplit Logo",
-                    tint = OnPrimaryContainerLight,
+                    tint = MaterialTheme.colorScheme.onPrimary,
                     modifier = Modifier.size(48.dp)
                 )
             }
@@ -108,10 +103,8 @@ fun SplashScreen(onTimeout: () -> Unit) {
             // Wordmark
             Text(
                 text = "openSplit",
-                fontSize = 28.sp,
-                lineHeight = 36.sp,
-                fontWeight = FontWeight.Bold,
-                color = Color.White
+                style = MaterialTheme.typography.headlineLarge,
+                color = MaterialTheme.colorScheme.onPrimaryContainer
             )
 
             Spacer(modifier = Modifier.height(8.dp))
@@ -120,7 +113,7 @@ fun SplashScreen(onTimeout: () -> Unit) {
             Text(
                 text = "Split smarter. Stay free.",
                 style = MaterialTheme.typography.bodyLarge,
-                color = Color.White.copy(alpha = 0.70f)
+                color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.75f)
             )
         }
     }

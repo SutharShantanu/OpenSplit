@@ -69,11 +69,14 @@ import dev.chrisbanes.haze.HazeState
 fun AccountSecuritySubScreen(
     data: AccountUiState,
     onUpdateDisplayName: (String) -> Unit,
+    onUpdateUpiId: (String?) -> Unit = {},
     onSendPasswordReset: (String) -> Unit,
     onDeleteAccountClick: () -> Unit,
     onBack: () -> Unit
 ) {
     var showNameDialog by remember { mutableStateOf(false) }
+    var showUpiDialog by remember { mutableStateOf(false) }
+    var editUpi by remember(data.user.upiId) { mutableStateOf(data.user.upiId.orEmpty()) }
     var showPasswordResetDialog by remember { mutableStateOf(false) }
     var editName by remember { mutableStateOf(data.user.displayName ?: "") }
 
@@ -86,12 +89,10 @@ fun AccountSecuritySubScreen(
                 .fillMaxSize()
                 .responsiveContentWidth(maxWidth = 760.dp)
         ) {
-            TopAppBar(
+            androidx.compose.material3.LargeTopAppBar(
                 title = { Text("Account & Security", fontWeight = FontWeight.Bold) },
                 navigationIcon = {
-                    IconButton(shapes = IconButtonDefaults.shapes(), onClick = onBack) {
-                        SymbolIcon(OpenSplitIcons.ArrowBack, contentDescription = "Back")
-                    }
+                    com.opensplit.ui.components.RoundBackButton(onClick = onBack)
                 },
                 windowInsets = WindowInsets(0, 0, 0, 0)
             )
@@ -105,7 +106,7 @@ fun AccountSecuritySubScreen(
             item {
                 Card(
                     modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(24.dp),
+                    shape = MaterialTheme.shapes.large,
                     colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh)
                 ) {
                     Column(modifier = Modifier.padding(20.dp)) {
@@ -119,7 +120,7 @@ fun AccountSecuritySubScreen(
 
                         Surface(
                             onClick = { showNameDialog = true },
-                            shape = RoundedCornerShape(14.dp),
+                            shape = MaterialTheme.shapes.small,
                             color = MaterialTheme.colorScheme.surfaceContainerHighest,
                             modifier = Modifier.fillMaxWidth()
                         ) {
@@ -138,7 +139,31 @@ fun AccountSecuritySubScreen(
                         Spacer(modifier = Modifier.height(10.dp))
 
                         Surface(
-                            shape = RoundedCornerShape(14.dp),
+                            onClick = { showUpiDialog = true },
+                            shape = MaterialTheme.shapes.small,
+                            color = MaterialTheme.colorScheme.surfaceContainerHighest,
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(14.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text("UPI ID", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                    Text(
+                                        data.user.upiId ?: "Add so friends can pay you via UPI",
+                                        style = if (data.user.upiId != null) MaterialTheme.typography.bodyLarge else MaterialTheme.typography.bodyMedium,
+                                        fontWeight = if (data.user.upiId != null) FontWeight.Bold else FontWeight.Normal
+                                    )
+                                }
+                                SymbolIcon(OpenSplitIcons.Edit, contentDescription = "Edit UPI ID", tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(18.dp))
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(10.dp))
+
+                        Surface(
+                            shape = MaterialTheme.shapes.small,
                             color = MaterialTheme.colorScheme.surfaceContainerHighest,
                             modifier = Modifier.fillMaxWidth()
                         ) {
@@ -157,10 +182,11 @@ fun AccountSecuritySubScreen(
                 }
             }
 
-            item {
+            // Password reset only means something for email/password accounts, not Google sign-in.
+            if (data.authProvider == "Email") item {
                 Card(
                     modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(24.dp),
+                    shape = MaterialTheme.shapes.large,
                     colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh)
                 ) {
                     Column(modifier = Modifier.padding(20.dp)) {
@@ -174,7 +200,7 @@ fun AccountSecuritySubScreen(
 
                         Surface(
                             onClick = { showPasswordResetDialog = true },
-                            shape = RoundedCornerShape(14.dp),
+                            shape = MaterialTheme.shapes.small,
                             color = MaterialTheme.colorScheme.surfaceContainerHighest,
                             modifier = Modifier.fillMaxWidth()
                         ) {
@@ -197,7 +223,7 @@ fun AccountSecuritySubScreen(
                 Spacer(modifier = Modifier.height(8.dp))
                 Button(
                     onClick = onDeleteAccountClick,
-                    shape = RoundedCornerShape(14.dp),
+                    shape = MaterialTheme.shapes.small,
                     colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.errorContainer, contentColor = MaterialTheme.colorScheme.error),
                     modifier = Modifier.fillMaxWidth()
                 ) {
@@ -210,6 +236,34 @@ fun AccountSecuritySubScreen(
     }
 }
 
+    if (showUpiDialog) {
+        val valid = editUpi.isBlank() || com.opensplit.util.Upi.isValidVpa(editUpi.trim())
+        AlertDialog(
+            onDismissRequest = { showUpiDialog = false },
+            title = { Text("UPI ID", fontWeight = FontWeight.Bold) },
+            text = {
+                OutlinedTextField(
+                    value = editUpi,
+                    onValueChange = { editUpi = it },
+                    label = { Text("name@bank") },
+                    singleLine = true,
+                    isError = !valid,
+                    supportingText = { Text(if (valid) "Leave empty to remove" else "Looks like name@bank") },
+                    modifier = Modifier.fillMaxWidth()
+                )
+            },
+            confirmButton = {
+                TextButton(shapes = com.opensplit.ui.theme.appButtonShapes(), enabled = valid, onClick = {
+                    onUpdateUpiId(editUpi.trim().ifBlank { null })
+                    showUpiDialog = false
+                }) { Text("Save") }
+            },
+            dismissButton = {
+                TextButton(shapes = com.opensplit.ui.theme.appButtonShapes(), onClick = { showUpiDialog = false }) { Text("Cancel") }
+            }
+        )
+    }
+
     if (showNameDialog) {
         AlertDialog(
             onDismissRequest = { showNameDialog = false },
@@ -220,12 +274,12 @@ fun AccountSecuritySubScreen(
                     onValueChange = { editName = it },
                     label = { Text("Display Name") },
                     singleLine = true,
-                    shape = RoundedCornerShape(12.dp),
+                    shape = MaterialTheme.shapes.small,
                     modifier = Modifier.fillMaxWidth()
                 )
             },
             confirmButton = {
-                Button(shapes = ButtonDefaults.shapes(), 
+                Button(shapes = com.opensplit.ui.theme.appButtonShapes(), 
                     onClick = {
                         if (editName.isNotBlank()) {
                             onUpdateDisplayName(editName.trim())
@@ -237,7 +291,7 @@ fun AccountSecuritySubScreen(
                 }
             },
             dismissButton = {
-                TextButton(shapes = ButtonDefaults.shapes(), onClick = { showNameDialog = false }) {
+                TextButton(shapes = com.opensplit.ui.theme.appButtonShapes(), onClick = { showNameDialog = false }) {
                     Text("Cancel")
                 }
             }
@@ -250,7 +304,7 @@ fun AccountSecuritySubScreen(
             title = { Text("Send Password Reset?", fontWeight = FontWeight.Bold) },
             text = { Text("A secure password reset link will be sent to ${data.user.email}") },
             confirmButton = {
-                Button(shapes = ButtonDefaults.shapes(), 
+                Button(shapes = com.opensplit.ui.theme.appButtonShapes(), 
                     onClick = {
                         onSendPasswordReset(data.user.email ?: "")
                         showPasswordResetDialog = false
@@ -260,7 +314,7 @@ fun AccountSecuritySubScreen(
                 }
             },
             dismissButton = {
-                TextButton(shapes = ButtonDefaults.shapes(), onClick = { showPasswordResetDialog = false }) {
+                TextButton(shapes = com.opensplit.ui.theme.appButtonShapes(), onClick = { showPasswordResetDialog = false }) {
                     Text("Cancel")
                 }
             }

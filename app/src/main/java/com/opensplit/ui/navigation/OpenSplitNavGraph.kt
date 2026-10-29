@@ -1,5 +1,7 @@
 package com.opensplit.ui.navigation
 
+import kotlinx.coroutines.flow.flatMapLatest
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.opensplit.ui.components.AppLoadingIndicator
 
 import androidx.compose.foundation.layout.Column
@@ -13,7 +15,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -52,7 +53,10 @@ fun OpenSplitNavGraph(
         factory = ViewModelFactory(appContainer)
     )
 
-    val authState by appContainer.authRepository.getAuthState().collectAsState(initial = AuthState.Loading)
+    // Create the flow once: a new flow per recomposition restarted collection at Loading, which
+    // tore down and rebuilt the whole signed-in UI (and skipped the dashboard's tab animation).
+    val authStateFlow = remember(appContainer) { appContainer.authRepository.getAuthState() }
+    val authState by authStateFlow.collectAsStateWithLifecycle(initialValue = AuthState.Loading)
     var splashFinished by remember { mutableStateOf(false) }
 
     if (pendingResetOobCode != null) {
@@ -114,7 +118,7 @@ fun MainNavHost(
     pendingWidgetAction: String? = null,
     onWidgetActionConsumed: () -> Unit = {}
 ) {
-    val hasCompletedPrimer by appContainer.userPreferencesRepository.hasCompletedPermissionPrimer.collectAsState(initial = true)
+    val hasCompletedPrimer by appContainer.userPreferencesRepository.hasCompletedPermissionPrimer.collectAsStateWithLifecycle(initialValue = true)
     val startDest = if (!hasCompletedPrimer) "permission_primer" else "home"
 
     // M3 shared-axis (X): pushing a destination slides content forward, popping mirrors it,
@@ -210,7 +214,7 @@ fun MainNavHost(
             val groupDetailViewModel: com.opensplit.ui.viewmodel.GroupDetailViewModel = androidx.lifecycle.viewmodel.compose.viewModel(
                 factory = com.opensplit.ui.viewmodel.GroupDetailViewModelFactory(groupId, appContainer)
             )
-            val state by groupDetailViewModel.uiState.collectAsState()
+            val state by groupDetailViewModel.uiState.collectAsStateWithLifecycle()
             val expense = (state as? com.opensplit.ui.viewmodel.ScreenState.Success)?.data?.expenses?.find { it.id == expenseId }
             if (expense != null) {
                 com.opensplit.ui.screens.AddExpenseScreen(
@@ -342,12 +346,30 @@ fun MainNavHost(
         }
 
         composable("settlement_history") {
-            val mainViewModel: com.opensplit.ui.viewmodel.MainViewModel = androidx.lifecycle.viewmodel.compose.viewModel(
-                factory = ViewModelFactory(appContainer)
-            )
             val currentUid = appContainer.authRepository.currentUserId ?: ""
+            // Every settlement across the user's groups, newest first.
+            @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
+            val settlements by remember(currentUid) {
+                appContainer.groupRepository.getGroupsForUser(currentUid).flatMapLatest { groups ->
+                    if (groups.isEmpty()) kotlinx.coroutines.flow.flowOf(emptyList())
+                    else kotlinx.coroutines.flow.combine(
+                        groups.map { appContainer.settlementRepository.getSettlementsForGroup(it.id) }
+                    ) { lists -> lists.flatMap { it }.sortedByDescending { it.date } }
+                }
+            }.collectAsStateWithLifecycle(initialValue = emptyList())
+            val userMap by androidx.compose.runtime.produceState(emptyMap<String, com.opensplit.domain.model.User>(), settlements) {
+                value = settlements.flatMap { listOf(it.fromUid, it.toUid) }.distinct()
+                    .mapNotNull { uid -> appContainer.userRepository.getUser(uid)?.let { uid to it } }
+                    .toMap()
+            }
+            val defaultCurrency by androidx.compose.runtime.produceState("INR", currentUid) {
+                value = appContainer.userRepository.getUser(currentUid)?.defaultCurrency ?: "INR"
+            }
             com.opensplit.ui.screens.SettlementHistoryScreen(
+                settlements = settlements,
+                userMap = userMap,
                 currentUid = currentUid,
+                defaultCurrency = userMap[currentUid]?.defaultCurrency ?: defaultCurrency,
                 onNavigateBack = { navController.popBackStack() }
             )
         }

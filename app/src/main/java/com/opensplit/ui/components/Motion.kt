@@ -23,22 +23,6 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.style.TextAlign
 
 /**
- * Fades and scales content in the first time it appears (empty states, illustrations), per the
- * Compose animation guide: AnimatedVisibility with an initial `false` state.
- */
-@Composable
-fun AppearOnEnter(modifier: Modifier = Modifier, content: @Composable () -> Unit) {
-    var shown by remember { mutableStateOf(false) }
-    LaunchedEffect(Unit) { shown = true }
-    AnimatedVisibility(
-        visible = shown,
-        modifier = modifier,
-        enter = fadeIn(spring(stiffness = 300f)) + scaleIn(initialScale = 0.92f, animationSpec = spring(dampingRatio = 0.7f, stiffness = 300f)),
-        exit = fadeOut()
-    ) { content() }
-}
-
-/**
  * Money or any headline number that changes: the old value slides up and fades while the new one
  * slides in from below (AnimatedContent with a vertical slide), so totals never just "jump".
  */

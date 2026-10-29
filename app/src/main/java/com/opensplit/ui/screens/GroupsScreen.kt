@@ -5,6 +5,8 @@
 
 package com.opensplit.ui.screens
 
+import com.opensplit.ui.components.FilterChip
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.opensplit.ui.components.SymbolIcon
 import com.opensplit.ui.components.LocalSnackbarController
 import java.text.SimpleDateFormat
@@ -78,16 +80,16 @@ fun GroupsScreen(
     onSettleUp: (String) -> Unit,
     onPersonClick: (String) -> Unit
 ) {
-    val groupsState by viewModel.userGroups.collectAsState()
-    val homeState by homeViewModel.uiState.collectAsState()
+    val groupsState by viewModel.userGroups.collectAsStateWithLifecycle()
+    val homeState by homeViewModel.uiState.collectAsStateWithLifecycle()
     val groupInfoById = remember(homeState) {
         (homeState as? ScreenState.Success)?.data?.recentGroups?.associateBy { it.group.id } ?: emptyMap()
     }
     var breakdownType by remember { mutableStateOf<String?>(null) }
-    val pinnedGroupIds by viewModel.pinnedGroupIds.collectAsState()
-    val archivedGroupIds by viewModel.archivedGroupIds.collectAsState()
+    val pinnedGroupIds by viewModel.pinnedGroupIds.collectAsStateWithLifecycle()
+    val archivedGroupIds by viewModel.archivedGroupIds.collectAsStateWithLifecycle()
     var showArchived by rememberSaveable { mutableStateOf(false) }
-    val groupLastActivity by viewModel.groupLastActivity.collectAsState()
+    val groupLastActivity by viewModel.groupLastActivity.collectAsStateWithLifecycle()
     var showCreateGroupDialog by remember { mutableStateOf(false) }
     var showSortSheet by remember { mutableStateOf(false) }
     var showFilterSheet by remember { mutableStateOf(false) }
@@ -98,7 +100,7 @@ fun GroupsScreen(
     val listState = rememberLazyListState()
     val snackbar = LocalSnackbarController.current
     val busy = com.opensplit.ui.components.LocalBusy.current
-    val currentUid by viewModel.currentUid.collectAsState()
+    val currentUid by viewModel.currentUid.collectAsStateWithLifecycle()
     var groupPendingDelete by remember { mutableStateOf<Group?>(null) }
     var optionsGroupId by remember { mutableStateOf<String?>(null) }
 
@@ -138,7 +140,7 @@ fun GroupsScreen(
                                 textAlign = androidx.compose.ui.text.style.TextAlign.Center
                             )
                             Spacer(modifier = Modifier.height(OpenSplitTokens.SpaceXL))
-                            Button(shapes = ButtonDefaults.shapes(), onClick = { showCreateGroupDialog = true }) {
+                            Button(shapes = com.opensplit.ui.theme.appButtonShapes(), onClick = { showCreateGroupDialog = true }) {
                                 SymbolIcon(OpenSplitIcons.AddExpense, contentDescription = null)
                                 Spacer(modifier = Modifier.width(OpenSplitTokens.SpaceSM))
                                 Text("New Group")
@@ -261,17 +263,17 @@ fun GroupsScreen(
                             onToggleArchive = toggleArchive
                         )
                         }
-                        HorizontalDivider(color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
                     }
 
-                    LazyColumn(
-                        state = listState,
-                        verticalArrangement = Arrangement.spacedBy(OpenSplitTokens.SpaceXS),
-                        contentPadding = PaddingValues(
-                            start = OpenSplitTokens.SpaceLG, end = OpenSplitTokens.SpaceLG,
-                            top = OpenSplitTokens.SpaceMD, bottom = 96.dp
-                        ),
-                        modifier = Modifier.fillMaxSize()
+                    Box(modifier = Modifier.fillMaxSize()) {
+                        LazyColumn(
+                            state = listState,
+                            verticalArrangement = Arrangement.spacedBy(OpenSplitTokens.SpaceSM),
+                            contentPadding = PaddingValues(
+                                start = OpenSplitTokens.SpaceLG, end = OpenSplitTokens.SpaceLG,
+                                top = OpenSplitTokens.SpaceMD, bottom = com.opensplit.ui.components.FloatingNavBarClearance
+                            ),
+                            modifier = Modifier.fillMaxSize()
                     ) {
                         // Net balance hero. Per-currency; the largest outstanding currency leads.
                         item(key = "hero") {
@@ -580,7 +582,7 @@ fun GroupsScreen(
                                             )
                                             Spacer(modifier = Modifier.height(OpenSplitTokens.SpaceLG))
                                             FilledTonalButton(
-                                                shapes = ButtonDefaults.shapes(),
+                                                shapes = com.opensplit.ui.theme.appButtonShapes(),
                                                 onClick = {
                                                     searchQuery = ""
                                                     selectedSort = GroupSortOption.RECENT
@@ -603,10 +605,15 @@ fun GroupsScreen(
                             }
                         }
                     }
+                    com.opensplit.ui.components.ExpressiveScrollBar(
+                        listState = listState,
+                        modifier = Modifier.align(Alignment.CenterEnd)
+                    )
                 }
             }
         }
     }
+}
 
     breakdownType?.let { type ->
         val home = (homeState as? ScreenState.Success)?.data
@@ -634,7 +641,7 @@ fun GroupsScreen(
                 Text("This removes the group and its expenses for everyone in it. You'll have a short window to undo.")
             },
             confirmButton = {
-                Button(shapes = ButtonDefaults.shapes(), 
+                Button(shapes = com.opensplit.ui.theme.appButtonShapes(), 
                     onClick = {
                         groupPendingDelete = null
                         busy.show("Deleting group…")
@@ -649,7 +656,7 @@ fun GroupsScreen(
                 ) { Text("Delete") }
             },
             dismissButton = {
-                TextButton(shapes = ButtonDefaults.shapes(), onClick = { groupPendingDelete = null }) { Text("Cancel") }
+                TextButton(shapes = com.opensplit.ui.theme.appButtonShapes(), onClick = { groupPendingDelete = null }) { Text("Cancel") }
             }
         )
     }
@@ -688,7 +695,7 @@ fun GroupsScreen(
                     )
                     if (selectedSort != GroupSortOption.RECENT) {
                         TextButton(
-                            shapes = ButtonDefaults.shapes(),
+                            shapes = com.opensplit.ui.theme.appButtonShapes(),
                             onClick = {
                                 selectedSort = GroupSortOption.RECENT
                                 showSortSheet = false
@@ -811,7 +818,7 @@ fun GroupsScreen(
                     )
                     if (selectedCurrencyFilter != null) {
                         TextButton(
-                            shapes = ButtonDefaults.shapes(),
+                            shapes = com.opensplit.ui.theme.appButtonShapes(),
                             onClick = {
                                 selectedCurrencyFilter = null
                                 showFilterSheet = false
@@ -975,6 +982,8 @@ private fun GroupRow(
 
     Box {
         ListItem(
+            // Each group is its own rounded tile, not a divided list row.
+            colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
             modifier = Modifier
                 .fillMaxWidth()
                 .clip(MaterialTheme.shapes.medium)
@@ -1030,7 +1039,7 @@ private fun GroupRow(
             },
             trailingContent = if (isPinned) {
                 {
-                    IconButton(shapes = IconButtonDefaults.shapes(), onClick = onTogglePin) {
+                    IconButton(shapes = com.opensplit.ui.theme.appIconButtonShapes(), onClick = onTogglePin) {
                         SymbolIcon(
                             symbol = OpenSplitIcons.PinFilled,
                             contentDescription = "Unpin group",
@@ -1042,81 +1051,31 @@ private fun GroupRow(
             } else null
         )
 
-        DropdownMenu(
-            expanded = menuExpanded,
-            onDismissRequest = dismissMenu,
-            shape = MaterialTheme.shapes.large
-        ) {
-            DropdownMenuItem(
-                text = { Text("Add Expense") },
-                leadingIcon = { SymbolIcon(OpenSplitIcons.AddExpense, contentDescription = null) },
-                onClick = {
-                    dismissMenu()
-                    onAddExpense()
+        if (menuExpanded) {
+            val pinned = if (isPinned) "Unpin" else "Pin"
+            val archived = if (isArchived) "Unarchive" else "Archive"
+            com.opensplit.ui.components.ActionSheet(
+                title = group.name,
+                subtitle = "${group.memberIds.size} member${if (group.memberIds.size == 1) "" else "s"} · ${group.currency.ifEmpty { "INR" }}",
+                leading = { com.opensplit.ui.components.GroupAvatar(name = group.name, avatarKey = group.avatarKey, size = 64.dp) },
+                onDismiss = dismissMenu,
+                rows = buildList {
+                    add(listOf(com.opensplit.ui.components.SheetAction("Add expense", OpenSplitIcons.AddExpense, com.opensplit.ui.components.ActionTone.Primary, onClick = onAddExpense)))
+                    add(listOf(
+                        com.opensplit.ui.components.SheetAction("Settle up", OpenSplitIcons.Settle, com.opensplit.ui.components.ActionTone.Strong, 1.2f, onSettleUp),
+                        com.opensplit.ui.components.SheetAction("Open", OpenSplitIcons.Groups, com.opensplit.ui.components.ActionTone.Tertiary, onClick = onClick)
+                    ))
+                    add(listOf(
+                        com.opensplit.ui.components.SheetAction(pinned, if (isPinned) OpenSplitIcons.PinOutline else OpenSplitIcons.PinFilled, com.opensplit.ui.components.ActionTone.Secondary, onClick = onTogglePin),
+                        com.opensplit.ui.components.SheetAction(archived, if (isArchived) OpenSplitIcons.Unarchive else OpenSplitIcons.Archive, com.opensplit.ui.components.ActionTone.Neutral, onClick = onToggleArchive)
+                    ))
+                    // Deleting removes the group for everyone, so it's owner-only.
+                    add(listOfNotNull(
+                        com.opensplit.ui.components.SheetAction("Leave", OpenSplitIcons.Leave, com.opensplit.ui.components.ActionTone.Neutral, onClick = onLeave),
+                        if (isOwner) com.opensplit.ui.components.SheetAction("Delete", OpenSplitIcons.DeleteExpense, com.opensplit.ui.components.ActionTone.Danger, onClick = onDelete) else null
+                    ))
                 }
             )
-            DropdownMenuItem(
-                text = { Text("Settle Up") },
-                leadingIcon = { SymbolIcon(OpenSplitIcons.Settle, contentDescription = null) },
-                onClick = {
-                    dismissMenu()
-                    onSettleUp()
-                }
-            )
-            DropdownMenuItem(
-                text = { Text("View Group") },
-                leadingIcon = { SymbolIcon(OpenSplitIcons.Groups, contentDescription = null) },
-                onClick = {
-                    dismissMenu()
-                    onClick()
-                }
-            )
-
-            HorizontalDivider()
-
-            DropdownMenuItem(
-                text = { Text(if (isPinned) "Unpin" else "Pin") },
-                leadingIcon = { SymbolIcon(if (isPinned) OpenSplitIcons.PinOutline else OpenSplitIcons.PinFilled, contentDescription = null) },
-                onClick = {
-                    dismissMenu()
-                    onTogglePin()
-                }
-            )
-            DropdownMenuItem(
-                text = { Text(if (isArchived) "Unarchive" else "Archive") },
-                leadingIcon = { SymbolIcon(if (isArchived) OpenSplitIcons.Unarchive else OpenSplitIcons.Archive, contentDescription = null) },
-                onClick = {
-                    dismissMenu()
-                    onToggleArchive()
-                }
-            )
-            DropdownMenuItem(
-                text = { Text("Leave group") },
-                leadingIcon = { SymbolIcon(OpenSplitIcons.Leave, contentDescription = null) },
-                onClick = {
-                    dismissMenu()
-                    onLeave()
-                }
-            )
-            // Deleting removes the group for everyone, so it's owner-only.
-            if (isOwner) {
-                DropdownMenuItem(
-                    text = {
-                        Text("Delete group", color = MaterialTheme.colorScheme.error)
-                    },
-                    leadingIcon = {
-                        SymbolIcon(
-                            OpenSplitIcons.DeleteExpense,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.error
-                        )
-                    },
-                    onClick = {
-                        dismissMenu()
-                        onDelete()
-                    }
-                )
-            }
         }
     }
 }

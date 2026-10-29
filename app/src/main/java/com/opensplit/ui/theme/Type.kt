@@ -2,109 +2,135 @@ package com.opensplit.ui.theme
 
 import androidx.compose.material3.Typography
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.FontVariation
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
+import com.opensplit.R
 
-// Roboto Flex primary font & Roboto Mono for ALL numeric/financial values
-val MoneyFontFamily = FontFamily.Monospace
+/**
+ * Google Sans Flex (OFL, third_party/google-sans-flex), bundled as one variable font subset to
+ * Latin + currency symbols. Each weight is an instance of the same file; API 24-25 can't apply
+ * variations and falls back to the regular instance.
+ */
+private const val RoundedSansFlexRond = 100f
 
-val TextStyle.mono: TextStyle
-    get() = this.copy(fontFamily = MoneyFontFamily)
-
-val Typography = Typography(
-    displayLarge = TextStyle(
-        fontFamily = FontFamily.Default,
-        fontWeight = FontWeight.Normal,
-        fontSize = 57.sp,
-        lineHeight = 64.sp,
-        letterSpacing = (-0.25).sp
-    ),
-    displayMedium = TextStyle(
-        fontFamily = FontFamily.Default,
-        fontWeight = FontWeight.Normal,
-        fontSize = 45.sp,
-        lineHeight = 52.sp
-    ),
-    headlineLarge = TextStyle(
-        fontFamily = FontFamily.Default,
-        fontWeight = FontWeight.Bold,
-        fontSize = 32.sp,
-        lineHeight = 40.sp
-    ),
-    headlineMedium = TextStyle(
-        fontFamily = FontFamily.Default,
-        fontWeight = FontWeight.Normal,
-        fontSize = 28.sp,
-        lineHeight = 36.sp
-    ),
-    headlineSmall = TextStyle(
-        fontFamily = FontFamily.Default,
-        fontWeight = FontWeight.Bold,
-        fontSize = 24.sp,
-        lineHeight = 32.sp
-    ),
-    titleLarge = TextStyle(
-        fontFamily = FontFamily.Default,
-        fontWeight = FontWeight.Medium,
-        fontSize = 22.sp,
-        lineHeight = 28.sp
-    ),
-    titleMedium = TextStyle(
-        fontFamily = FontFamily.Default,
-        fontWeight = FontWeight.Medium,
-        fontSize = 16.sp,
-        lineHeight = 24.sp,
-        letterSpacing = 0.15.sp
-    ),
-    titleSmall = TextStyle(
-        fontFamily = FontFamily.Default,
-        fontWeight = FontWeight.Medium,
-        fontSize = 14.sp,
-        lineHeight = 20.sp,
-        letterSpacing = 0.1.sp
-    ),
-    bodyLarge = TextStyle(
-        fontFamily = FontFamily.Default,
-        fontWeight = FontWeight.Normal,
-        fontSize = 16.sp,
-        lineHeight = 24.sp,
-        letterSpacing = 0.5.sp
-    ),
-    bodyMedium = TextStyle(
-        fontFamily = FontFamily.Default,
-        fontWeight = FontWeight.Normal,
-        fontSize = 14.sp,
-        lineHeight = 20.sp,
-        letterSpacing = 0.25.sp
-    ),
-    bodySmall = TextStyle(
-        fontFamily = FontFamily.Default,
-        fontWeight = FontWeight.Normal,
-        fontSize = 12.sp,
-        lineHeight = 16.sp,
-        letterSpacing = 0.4.sp
-    ),
-    labelLarge = TextStyle(
-        fontFamily = FontFamily.Default,
-        fontWeight = FontWeight.Medium,
-        fontSize = 14.sp,
-        lineHeight = 20.sp,
-        letterSpacing = 0.1.sp
-    ),
-    labelMedium = TextStyle(
-        fontFamily = FontFamily.Default,
-        fontWeight = FontWeight.Medium,
-        fontSize = 12.sp,
-        lineHeight = 16.sp,
-        letterSpacing = 0.5.sp
-    ),
-    labelSmall = TextStyle(
-        fontFamily = FontFamily.Default,
-        fontWeight = FontWeight.Medium,
-        fontSize = 11.sp,
-        lineHeight = 16.sp,
-        letterSpacing = 0.5.sp
+@OptIn(androidx.compose.ui.text.ExperimentalTextApi::class)
+private fun flex(weight: FontWeight, width: Float = 100f, round: Float = RoundedSansFlexRond) = Font(
+    R.font.google_sans_flex,
+    weight = weight,
+    variationSettings = FontVariation.Settings(
+        FontVariation.weight(weight.weight),
+        FontVariation.width(width),
+        FontVariation.Setting("ROND", round)
     )
 )
 
+private val weights = listOf(
+    FontWeight.Normal, FontWeight.Medium, FontWeight.SemiBold, FontWeight.Bold, FontWeight.ExtraBold
+)
+
+val AppFontFamily = FontFamily(weights.map { flex(it) })
+
+/** Slightly wider cut for big screen titles and hero numbers with Pixel roundness. */
+val DisplayFontFamily = FontFamily(weights.map { flex(it, width = 112f) })
+
+/** Amounts: the display family of the active theme (Inter in Monochrome). */
+val MoneyFontFamily: FontFamily
+    @androidx.compose.runtime.Composable
+    get() = if (LocalAppStyle.current.monochrome) InterFamily else DisplayFontFamily
+
+/**
+ * Pixel-style expanded display typography for hero numbers, balance headers, and dashboard titles.
+ * Uses horizontal geometric scaling (scaleX = 1.25f - 1.35f) and negative letter spacing.
+ */
+val ExpTitleTypography = Typography(
+    displayLarge = TextStyle(
+        fontFamily = DisplayFontFamily,
+        fontWeight = FontWeight.Bold,
+        fontSize = 54.sp,
+        textGeometricTransform = androidx.compose.ui.text.style.TextGeometricTransform(scaleX = 1.3f),
+        letterSpacing = (-0.02).em,
+        lineHeight = 58.sp,
+        platformStyle = androidx.compose.ui.text.PlatformTextStyle(includeFontPadding = false)
+    ),
+    displayMedium = TextStyle(
+        fontFamily = DisplayFontFamily,
+        fontWeight = FontWeight.Bold,
+        fontSize = 42.sp,
+        textGeometricTransform = androidx.compose.ui.text.style.TextGeometricTransform(scaleX = 1.25f),
+        letterSpacing = (-0.02).em,
+        lineHeight = 46.sp,
+        platformStyle = androidx.compose.ui.text.PlatformTextStyle(includeFontPadding = false)
+    ),
+    titleLarge = TextStyle(
+        fontFamily = DisplayFontFamily,
+        fontWeight = FontWeight.SemiBold,
+        fontSize = 24.sp,
+        textGeometricTransform = androidx.compose.ui.text.style.TextGeometricTransform(scaleX = 1.15f),
+        letterSpacing = (-0.01).em,
+        lineHeight = 30.sp,
+        platformStyle = androidx.compose.ui.text.PlatformTextStyle(includeFontPadding = false)
+    )
+)
+
+private fun style(
+    family: FontFamily,
+    weight: FontWeight,
+    size: Int,
+    line: Int,
+    tracking: Double = 0.0
+) = TextStyle(
+    fontFamily = family,
+    fontWeight = weight,
+    fontSize = size.sp,
+    lineHeight = line.sp,
+    letterSpacing = tracking.sp
+)
+
+val Typography = Typography(
+    displayLarge = style(DisplayFontFamily, FontWeight.ExtraBold, 57, 64, -0.5),
+    displayMedium = style(DisplayFontFamily, FontWeight.ExtraBold, 45, 52, -0.25),
+    displaySmall = style(DisplayFontFamily, FontWeight.Bold, 36, 44),
+    headlineLarge = style(DisplayFontFamily, FontWeight.Bold, 34, 42),
+    headlineMedium = style(DisplayFontFamily, FontWeight.Bold, 28, 36),
+    headlineSmall = style(AppFontFamily, FontWeight.Bold, 24, 32),
+    titleLarge = style(AppFontFamily, FontWeight.SemiBold, 22, 28),
+    titleMedium = style(AppFontFamily, FontWeight.SemiBold, 16, 24, 0.1),
+    titleSmall = style(AppFontFamily, FontWeight.SemiBold, 14, 20, 0.1),
+    bodyLarge = style(AppFontFamily, FontWeight.Normal, 16, 24, 0.15),
+    bodyMedium = style(AppFontFamily, FontWeight.Normal, 14, 20, 0.2),
+    bodySmall = style(AppFontFamily, FontWeight.Normal, 12, 16, 0.3),
+    labelLarge = style(AppFontFamily, FontWeight.SemiBold, 14, 20, 0.1),
+    labelMedium = style(AppFontFamily, FontWeight.SemiBold, 12, 16, 0.4),
+    labelSmall = style(AppFontFamily, FontWeight.SemiBold, 11, 16, 0.4)
+)
+
+/** Inter (OFL, third_party/inter), used by the Monochrome theme for a neutral, Nothing-style look. */
+@OptIn(androidx.compose.ui.text.ExperimentalTextApi::class)
+private val InterFamily = FontFamily(
+    weights.map { w ->
+        Font(R.font.inter, weight = w, variationSettings = FontVariation.Settings(FontVariation.weight(w.weight)))
+    }
+)
+
+/** Monochrome typography: Inter throughout, lighter display weights and tighter tracking. */
+val MonoTypography = Typography(
+    displayLarge = style(InterFamily, FontWeight.SemiBold, 57, 64, -1.5),
+    displayMedium = style(InterFamily, FontWeight.SemiBold, 45, 52, -1.0),
+    displaySmall = style(InterFamily, FontWeight.SemiBold, 36, 44, -0.8),
+    headlineLarge = style(InterFamily, FontWeight.SemiBold, 32, 40, -0.6),
+    headlineMedium = style(InterFamily, FontWeight.SemiBold, 28, 36, -0.4),
+    headlineSmall = style(InterFamily, FontWeight.SemiBold, 24, 32, -0.3),
+    titleLarge = style(InterFamily, FontWeight.Medium, 22, 28, -0.2),
+    titleMedium = style(InterFamily, FontWeight.Medium, 16, 24),
+    titleSmall = style(InterFamily, FontWeight.Medium, 14, 20),
+    bodyLarge = style(InterFamily, FontWeight.Normal, 16, 24),
+    bodyMedium = style(InterFamily, FontWeight.Normal, 14, 20),
+    bodySmall = style(InterFamily, FontWeight.Normal, 12, 16, 0.1),
+    labelLarge = style(InterFamily, FontWeight.Medium, 14, 20, 0.1),
+    labelMedium = style(InterFamily, FontWeight.Medium, 12, 16, 0.5),
+    labelSmall = style(InterFamily, FontWeight.Medium, 11, 16, 0.6)
+)

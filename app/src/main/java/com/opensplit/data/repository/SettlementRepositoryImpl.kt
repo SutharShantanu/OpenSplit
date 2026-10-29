@@ -34,10 +34,7 @@ class SettlementRepositoryImpl(
             awaitClose { listener.remove() }
         }.onStart { emit(emptyList<Settlement>()) }
 
-        return combine(firestoreFlow, com.opensplit.data.local.InMemoryDataStore.settlements) { remote, local ->
-            val groupLocal = local.filter { (it.groupId.isEmpty() || it.groupId == groupId) && it.fromUid.isNotBlank() }
-            (remote + groupLocal).distinctBy { it.id }.sortedByDescending { it.date }
-        }
+        return firestoreFlow.map { it.sortedByDescending { s -> s.date } }
     }
 
     override suspend fun addSettlement(groupId: String, settlement: Settlement): Result<String> {
@@ -46,17 +43,8 @@ class SettlementRepositoryImpl(
             val settlementWithId = settlement.copy(id = docId, groupId = groupId)
             val docRef = firestore.collection("groups").document(groupId)
                 .collection("settlements").document(docId)
+            // The caller logs the activity with payer/payee names; logging here duplicated it.
             docRef.set(settlementWithId).awaitWrite()
-
-            activityRepository.logActivity(
-                groupId,
-                com.opensplit.domain.model.Activity(
-                    type = com.opensplit.domain.model.ActivityType.SETTLEMENT_ADDED,
-                    actorUid = settlement.fromUid,
-                    message = "logged a settlement",
-                    timestamp = settlement.date
-                )
-            )
 
             Result.success(docRef.id)
         } catch (e: Exception) {

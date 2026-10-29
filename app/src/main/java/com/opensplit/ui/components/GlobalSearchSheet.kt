@@ -168,7 +168,7 @@ fun GlobalSearchSheet(
                 leadingIcon = { SymbolIcon(OpenSplitIcons.Search, contentDescription = "Search") },
                 trailingIcon = {
                     if (query.isNotEmpty()) {
-                        IconButton(shapes = IconButtonDefaults.shapes(), onClick = { query = "" }) {
+                        IconButton(shapes = com.opensplit.ui.theme.appIconButtonShapes(), onClick = { query = "" }) {
                             SymbolIcon(OpenSplitIcons.Close, contentDescription = "Clear")
                         }
                     }

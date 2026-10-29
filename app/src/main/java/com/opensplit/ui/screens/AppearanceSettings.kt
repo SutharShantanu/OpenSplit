@@ -47,7 +47,6 @@ fun AppearanceSettingsSubScreen(
     onBack: () -> Unit
 ) {
     val configuration = LocalConfiguration.current
-    val isTabletOrWide = configuration.screenWidthDp >= 720
 
     Box(
         modifier = Modifier.fillMaxSize(),
@@ -58,267 +57,46 @@ fun AppearanceSettingsSubScreen(
                 .fillMaxSize()
                 .responsiveContentWidth(maxWidth = 1040.dp)
         ) {
-            TopAppBar(
+            androidx.compose.material3.LargeTopAppBar(
                 title = {
                     Text(
                         text = "Appearance & Theme",
-                        fontWeight = FontWeight.Bold,
-                        style = MaterialTheme.typography.titleLarge
+                        fontWeight = FontWeight.Bold
                     )
                 },
                 navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        SymbolIcon(OpenSplitIcons.ArrowBack, contentDescription = "Back")
-                    }
+                    com.opensplit.ui.components.RoundBackButton(onClick = onBack)
                 },
                 windowInsets = WindowInsets(0, 0, 0, 0)
             )
 
-            if (isTabletOrWide) {
-                // Tablet / Expanded screen layout: 2-column side-by-side
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .weight(1f)
-                        .padding(horizontal = 24.dp)
-                        .padding(top = 8.dp, bottom = 32.dp),
-                    horizontalArrangement = Arrangement.spacedBy(24.dp)
-                ) {
-                    // Left Column: Live Preview & Tokens Inspector
-                    Column(
-                        modifier = Modifier
-                            .weight(0.46f)
-                            .verticalScroll(rememberScrollState()),
-                        verticalArrangement = Arrangement.spacedBy(18.dp)
-                    ) {
-                        ThemeLivePreviewCard(theme = theme, palette = palette)
-                        ThemeActiveTokensCard()
-                    }
-
-                    // Right Column: Theme Mode & Palette Selection
-                    Column(
-                        modifier = Modifier
-                            .weight(0.54f)
-                            .verticalScroll(rememberScrollState()),
-                        verticalArrangement = Arrangement.spacedBy(18.dp)
-                    ) {
-                        ThemeModeSelectionCard(
-                            theme = theme,
-                            onThemeChange = onThemeChange,
-                            amoled = amoled,
-                            onAmoledChange = onAmoledChange
-                        )
-                        ColorPalettesSelectionCard(
-                            palette = palette,
-                            onPaletteChange = onPaletteChange
-                        )
-                    }
+            LazyColumn(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(1f)
+                    .responsiveContentWidth(maxWidth = 640.dp),
+                contentPadding = PaddingValues(start = 20.dp, end = 20.dp, top = 8.dp, bottom = 120.dp),
+                verticalArrangement = Arrangement.spacedBy(18.dp)
+            ) {
+                item {
+                    ThemeModeSelectionCard(
+                        theme = theme,
+                        onThemeChange = onThemeChange,
+                        amoled = amoled,
+                        onAmoledChange = onAmoledChange
+                    )
                 }
-            } else {
-                // Phone / Compact screen layout: single scrollable column with safe bottom padding
-                LazyColumn(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .weight(1f),
-                    contentPadding = PaddingValues(start = 20.dp, end = 20.dp, top = 8.dp, bottom = 100.dp),
-                    verticalArrangement = Arrangement.spacedBy(18.dp)
-                ) {
-                    item {
-                        ThemeLivePreviewCard(theme = theme, palette = palette)
-                    }
-                    item {
-                        ThemeModeSelectionCard(
-                            theme = theme,
-                            onThemeChange = onThemeChange,
-                            amoled = amoled,
-                            onAmoledChange = onAmoledChange
-                        )
-                    }
-                    item {
-                        ColorPalettesSelectionCard(
-                            palette = palette,
-                            onPaletteChange = onPaletteChange
-                        )
-                    }
-                    item {
-                        ThemeActiveTokensCard()
-                    }
+                item {
+                    ColorPalettesSelectionCard(
+                        palette = palette,
+                        onPaletteChange = onPaletteChange
+                    )
                 }
             }
         }
     }
 }
 
-/* =========================================================================================
- * 1. LIVE THEME PREVIEW CARD
- * ========================================================================================= */
-@Composable
-private fun ThemeLivePreviewCard(theme: String, palette: String) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(24.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh)
-    ) {
-        Column(modifier = Modifier.padding(20.dp)) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Surface(
-                    shape = RoundedCornerShape(100.dp),
-                    color = MaterialTheme.colorScheme.primaryContainer
-                ) {
-                    Row(
-                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        SymbolIcon(
-                            symbol = OpenSplitIcons.AutoAwesome,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.onPrimaryContainer,
-                            modifier = Modifier.size(14.dp)
-                        )
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text(
-                            text = "LIVE PREVIEW",
-                            style = MaterialTheme.typography.labelSmall,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.onPrimaryContainer,
-                            letterSpacing = 1.sp,
-                            maxLines = 1,
-                            softWrap = false
-                        )
-                    }
-                }
-
-                val modeName = when (theme) {
-                    "light" -> "Light"
-                    "dark" -> "Dark"
-                    "amoled" -> "AMOLED"
-                    else -> "System"
-                }
-                val palName = when (palette) {
-                    "monochrome" -> "Monochrome"
-                    "emerald" -> "Emerald"
-                    "ocean" -> "Ocean"
-                    "sunset" -> "Sunset"
-                    "lavender" -> "Lavender"
-                    else -> "Dynamic"
-                }
-                Text(
-                    text = "$modeName · $palName",
-                    style = MaterialTheme.typography.labelMedium,
-                    fontWeight = FontWeight.SemiBold,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    maxLines = 1
-                )
-            }
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            // Mini screen preview mockup
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(18.dp),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLowest),
-                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
-            ) {
-                Column(modifier = Modifier.padding(16.dp)) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Surface(
-                            shape = CircleShape,
-                            color = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.size(40.dp)
-                        ) {
-                            Box(contentAlignment = Alignment.Center) {
-                                SymbolIcon(
-                                    symbol = OpenSplitIcons.Groups,
-                                    contentDescription = null,
-                                    tint = MaterialTheme.colorScheme.onPrimary,
-                                    modifier = Modifier.size(20.dp)
-                                )
-                            }
-                        }
-
-                        Spacer(modifier = Modifier.width(12.dp))
-
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(
-                                text = "Goa Vacation Trip",
-                                style = MaterialTheme.typography.titleMedium,
-                                fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.onSurface,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
-                            )
-                            Text(
-                                text = "4 members · All settled up",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                maxLines = 1
-                            )
-                        }
-
-                        Surface(
-                            shape = RoundedCornerShape(100.dp),
-                            color = MaterialTheme.colorScheme.secondaryContainer
-                        ) {
-                            Text(
-                                text = "+₹2,450",
-                                style = MaterialTheme.typography.labelMedium,
-                                fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.onSecondaryContainer,
-                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
-                                maxLines = 1
-                            )
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.height(14.dp))
-
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        Button(
-                            onClick = {},
-                            modifier = Modifier.weight(1f),
-                            shape = RoundedCornerShape(12.dp),
-                            contentPadding = PaddingValues(vertical = 10.dp)
-                        ) {
-                            SymbolIcon(
-                                symbol = OpenSplitIcons.Settle,
-                                contentDescription = null,
-                                modifier = Modifier.size(16.dp)
-                            )
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Text("Settle", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.SemiBold)
-                        }
-
-                        OutlinedButton(
-                            onClick = {},
-                            modifier = Modifier.weight(1f),
-                            shape = RoundedCornerShape(12.dp),
-                            contentPadding = PaddingValues(vertical = 10.dp)
-                        ) {
-                            SymbolIcon(
-                                symbol = OpenSplitIcons.AddExpense,
-                                contentDescription = null,
-                                modifier = Modifier.size(16.dp)
-                            )
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Text("Expense", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.SemiBold)
-                        }
-                    }
-                }
-            }
-        }
-    }
-}
 
 /* =========================================================================================
  * 2. THEME MODE SELECTOR (SYSTEM, LIGHT, DARK, AMOLED)
@@ -332,7 +110,7 @@ private fun ThemeModeSelectionCard(
 ) {
     Card(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(24.dp),
+        shape = MaterialTheme.shapes.large,
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh)
     ) {
         Column(modifier = Modifier.padding(20.dp)) {
@@ -373,7 +151,7 @@ private fun ThemeModeSelectionCard(
                             .weight(1f)
                             .clip(RoundedCornerShape(16.dp))
                             .clickable { onThemeChange(mode) },
-                        shape = RoundedCornerShape(16.dp),
+                        shape = MaterialTheme.shapes.medium,
                         color = if (isSelected) {
                             MaterialTheme.colorScheme.primaryContainer
                         } else {
@@ -436,7 +214,7 @@ private fun ThemeModeSelectionCard(
             // AMOLED Pure Black Toggle
             val isAmoledActive = amoled || theme == "amoled"
             Surface(
-                shape = RoundedCornerShape(16.dp),
+                shape = MaterialTheme.shapes.medium,
                 color = MaterialTheme.colorScheme.surfaceContainerLowest,
                 border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f)),
                 modifier = Modifier.fillMaxWidth()
@@ -520,7 +298,7 @@ private fun ColorPalettesSelectionCard(
 ) {
     Card(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(24.dp),
+        shape = MaterialTheme.shapes.large,
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh)
     ) {
         Column(modifier = Modifier.padding(20.dp)) {
@@ -541,50 +319,18 @@ private fun ColorPalettesSelectionCard(
 
             val palettes = listOf(
                 PaletteInfo(
+                    id = "material",
+                    title = "Material",
+                    subtitle = "Colours from your wallpaper (Material You); soft green when the wallpaper has none",
+                    icon = OpenSplitIcons.Palette,
+                    swatches = listOf(Color(0xFF4C662B), Color(0xFF386663), Color(0xFFCDEDA3))
+                ),
+                PaletteInfo(
                     id = "monochrome",
                     title = "Monochrome",
-                    subtitle = "Pure minimalist black, white, and slate grayscale",
+                    subtitle = "Black, white and greys, Inter type and squarer corners",
                     icon = OpenSplitIcons.Contrast,
                     swatches = listOf(Color(0xFF18181B), Color(0xFF71717A), Color(0xFFE4E4E7))
-                ),
-                PaletteInfo(
-                    id = "dynamic",
-                    title = "Dynamic (Material You)",
-                    subtitle = "Harmonizes with device wallpaper on Android 12+",
-                    icon = OpenSplitIcons.AutoAwesome,
-                    swatches = listOf(
-                        MaterialTheme.colorScheme.primary,
-                        MaterialTheme.colorScheme.secondary,
-                        MaterialTheme.colorScheme.primaryContainer
-                    )
-                ),
-                PaletteInfo(
-                    id = "emerald",
-                    title = "Emerald Mint",
-                    subtitle = "Fresh mint and emerald green finance accents",
-                    icon = OpenSplitIcons.Eco,
-                    swatches = listOf(Color(0xFF059669), Color(0xFF0D9488), Color(0xFFD1FAE5))
-                ),
-                PaletteInfo(
-                    id = "ocean",
-                    title = "Ocean Sapphire",
-                    subtitle = "Vibrant sapphire, sky blue, and deep azure",
-                    icon = OpenSplitIcons.WaterDrop,
-                    swatches = listOf(Color(0xFF0284C7), Color(0xFF2563EB), Color(0xFFE0F2FE))
-                ),
-                PaletteInfo(
-                    id = "sunset",
-                    title = "Sunset Amber",
-                    subtitle = "Warm terracotta, amber glow, and golden peach",
-                    icon = OpenSplitIcons.WbSunny,
-                    swatches = listOf(Color(0xFFD97706), Color(0xFFEA580C), Color(0xFFFEF3C7))
-                ),
-                PaletteInfo(
-                    id = "lavender",
-                    title = "OpenSplit Violet",
-                    subtitle = "Classic royal purple and soft lilac identity",
-                    icon = OpenSplitIcons.Palette,
-                    swatches = listOf(Color(0xFF381E72), Color(0xFF63597C), Color(0xFFE1D4FD))
                 )
             )
 
@@ -593,7 +339,7 @@ private fun ColorPalettesSelectionCard(
                     val isSelected = palette == p.id
                     Card(
                         onClick = { onPaletteChange(p.id) },
-                        shape = RoundedCornerShape(16.dp),
+                        shape = MaterialTheme.shapes.medium,
                         colors = CardDefaults.cardColors(
                             containerColor = if (isSelected) {
                                 MaterialTheme.colorScheme.primaryContainer
@@ -706,63 +452,3 @@ private fun ColorPalettesSelectionCard(
     }
 }
 
-/* =========================================================================================
- * 4. ACTIVE SYSTEM COLOR TOKENS
- * ========================================================================================= */
-@Composable
-private fun ThemeActiveTokensCard() {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(24.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh)
-    ) {
-        Column(modifier = Modifier.padding(20.dp)) {
-            Text(
-                text = "Active Color Tokens",
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.onSurface
-            )
-            Spacer(modifier = Modifier.height(4.dp))
-            Text(
-                text = "Live Material 3 tokens dynamically computed for your active combination.",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-
-            Spacer(modifier = Modifier.height(14.dp))
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                listOf(
-                    "Primary" to MaterialTheme.colorScheme.primary,
-                    "Secondary" to MaterialTheme.colorScheme.secondary,
-                    "Tertiary" to MaterialTheme.colorScheme.tertiary,
-                    "Container" to MaterialTheme.colorScheme.primaryContainer
-                ).forEach { (name, color) ->
-                    Column(
-                        modifier = Modifier.weight(1f),
-                        horizontalAlignment = Alignment.CenterHorizontally
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(36.dp)
-                                .clip(RoundedCornerShape(10.dp))
-                                .background(color)
-                        )
-                        Spacer(modifier = Modifier.height(4.dp))
-                        Text(
-                            text = name,
-                            style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            maxLines = 1
-                        )
-                    }
-                }
-            }
-        }
-    }
-}

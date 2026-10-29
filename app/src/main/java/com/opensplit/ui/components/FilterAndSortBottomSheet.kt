@@ -64,7 +64,7 @@ fun FilterAndSortBottomSheet(
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.onSurface
                 )
-                TextButton(shapes = ButtonDefaults.shapes(), 
+                TextButton(shapes = com.opensplit.ui.theme.appButtonShapes(), 
                     onClick = {
                         selectedSort = ExpenseSortOrder.DATE_NEWEST
                         paidByYouState = false
@@ -183,7 +183,7 @@ fun FilterAndSortBottomSheet(
             Spacer(modifier = Modifier.height(OpenSplitTokens.SpaceXS))
             OutlinedCard(
                 modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(12.dp),
+                shape = MaterialTheme.shapes.small,
                 colors = CardDefaults.outlinedCardColors(containerColor = MaterialTheme.colorScheme.surface)
             ) {
                 Row(

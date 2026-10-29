@@ -2,6 +2,7 @@
 
 package com.opensplit.ui.screens
 
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.opensplit.ui.components.SymbolIcon
 import com.opensplit.ui.components.LocalSnackbarController
 
@@ -99,7 +100,7 @@ fun GroupSelectionDialog(
         },
         confirmButton = {},
         dismissButton = {
-            TextButton(shapes = ButtonDefaults.shapes(), onClick = onDismiss) {
+            TextButton(shapes = com.opensplit.ui.theme.appButtonShapes(), onClick = onDismiss) {
                 Text("Cancel")
             }
         }
@@ -121,7 +122,7 @@ fun BalanceBreakdownSheet(
     val primaryCurrency = homeState.nudgeCurrency
     var selectedTab by remember { mutableIntStateOf(0) } // 0 = By Group, 1 = By Friend
 
-    val friendsBalancesState by (mainViewModel?.friendsBalances?.collectAsState() ?: remember { mutableStateOf(com.opensplit.ui.viewmodel.ScreenState.Success(emptyList())) })
+    val friendsBalancesState by (mainViewModel?.friendsBalances?.collectAsStateWithLifecycle() ?: remember { mutableStateOf(com.opensplit.ui.viewmodel.ScreenState.Success(emptyList())) })
     val allFriendsBalances = (friendsBalancesState as? com.opensplit.ui.viewmodel.ScreenState.Success)?.data ?: emptyList()
 
     val relevantGroups = remember(homeState.recentGroups, homeState.allGroups, isOwedToYou) {
@@ -202,7 +203,7 @@ fun BalanceBreakdownSheet(
                     }
                 }
 
-                IconButton(shapes = IconButtonDefaults.shapes(), onClick = onDismiss) {
+                IconButton(shapes = com.opensplit.ui.theme.appIconButtonShapes(), onClick = onDismiss) {
                     SymbolIcon(OpenSplitIcons.Close, contentDescription = "Close")
                 }
             }
@@ -343,7 +344,7 @@ fun BalanceBreakdownSheet(
                                         )
                                         if (!isOwedToYou) {
                                             Spacer(modifier = Modifier.height(4.dp))
-                                            FilledTonalButton(shapes = ButtonDefaults.shapes(), 
+                                            FilledTonalButton(shapes = com.opensplit.ui.theme.appButtonShapes(), 
                                                 onClick = {
                                                     onDismiss()
                                                     onNavigateToSettleUp(group.id)
@@ -446,7 +447,7 @@ fun BalanceBreakdownSheet(
                                             color = if (isOwedToYou) OpenSplitTokens.OwedPositive else OpenSplitTokens.OwedNegative
                                         )
                                         Spacer(modifier = Modifier.height(4.dp))
-                                        FilledTonalButton(shapes = ButtonDefaults.shapes(), 
+                                        FilledTonalButton(shapes = com.opensplit.ui.theme.appButtonShapes(), 
                                             onClick = {
                                                 onDismiss()
                                                 onNavigateToPersonBalance?.invoke(user.uid)
