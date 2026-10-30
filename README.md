@@ -25,6 +25,24 @@ fewest payments, and bring your own AI key for receipt scanning and natural-lang
 ## Screenshots
 
 <p align="center">
+  <img src="docs/screenshots/onboarding_1.png" width="24%" alt="Onboarding: track expenses together" />
+  <img src="docs/screenshots/onboarding_2.png" width="24%" alt="Onboarding: AI receipt parsing" />
+  <img src="docs/screenshots/onboarding_3.png" width="24%" alt="Onboarding: always free" />
+  <img src="docs/screenshots/signin.png" width="24%" alt="Sign in with Google" />
+</p>
+<p align="center">
+  <img src="docs/screenshots/groups.png" width="24%" alt="Groups tab with net balance" />
+  <img src="docs/screenshots/new_group.png" width="24%" alt="Create group sheet with avatar and currency" />
+  <img src="docs/screenshots/group_detail.png" width="24%" alt="Group detail with spending summary" />
+  <img src="docs/screenshots/add_expense.png" width="24%" alt="Add expense with categories and split modes" />
+</p>
+<p align="center">
+  <img src="docs/screenshots/activity.png" width="24%" alt="Activity feed" />
+  <img src="docs/screenshots/insights.png" width="24%" alt="Insights: spend, cash flow, budgets" />
+  <img src="docs/screenshots/people.png" width="24%" alt="People tab with invite link" />
+  <img src="docs/screenshots/invite_qr.png" width="24%" alt="Invite QR code and share action bar" />
+</p>
+<p align="center">
   <img src="docs/screenshots/settings.png" width="24%" alt="Settings overview" />
   <img src="docs/screenshots/ai_settings.png" width="24%" alt="AI provider configuration" />
   <img src="docs/screenshots/appearance.png" width="24%" alt="Appearance and theme selection" />
