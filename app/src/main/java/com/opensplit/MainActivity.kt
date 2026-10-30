@@ -82,6 +82,10 @@ class MainActivity : ComponentActivity() {
                     com.opensplit.ui.components.LocalAppUpdater provides appContainer.appUpdater
                 ) {
                     LaunchedEffect(Unit) {
+                        // Backfill the Google photo/name on the user's profile for existing accounts.
+                        appContainer.firebaseAuth.currentUser?.let { u ->
+                            appContainer.userRepository.createUserIfNotFound(u.uid, u.displayName, u.email, u.photoUrl?.toString())
+                        }
                         appContainer.appUpdater.checkWhatsNew()
                         appContainer.appUpdater.checkOnLaunch()
                     }

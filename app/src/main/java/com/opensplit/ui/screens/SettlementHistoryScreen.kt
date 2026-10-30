@@ -573,20 +573,11 @@ fun SettlementHistoryScreen(
                                 ) {
                                     // Avatar with Direction Badge
                                     Box(contentAlignment = Alignment.BottomEnd) {
-                                        Surface(
-                                            shape = CircleShape,
-                                            color = if (isPaidByMe) MaterialTheme.colorScheme.surfaceContainerHighest else MaterialTheme.colorScheme.primaryContainer,
-                                            modifier = Modifier.size(46.dp)
-                                        ) {
-                                            Box(contentAlignment = Alignment.Center) {
-                                                Text(
-                                                    text = otherUserName.take(1).uppercase(),
-                                                    style = MaterialTheme.typography.titleMedium,
-                                                    fontWeight = FontWeight.Bold,
-                                                    color = if (isPaidByMe) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onPrimaryContainer
-                                                )
-                                            }
-                                        }
+                                        com.opensplit.ui.components.UserAvatar(
+                                            photoUrl = resolvedUserMap[if (isPaidByMe) settlement.toUid else settlement.fromUid]?.photoUrl,
+                                            displayName = otherUserName,
+                                            size = 46.dp
+                                        )
 
                                         // Direction Pill Overlay
                                         Surface(

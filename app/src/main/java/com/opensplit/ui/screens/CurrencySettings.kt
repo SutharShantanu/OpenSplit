@@ -13,6 +13,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.opensplit.ui.components.SettingsGroupCard
 import com.opensplit.ui.components.SymbolIcon
 import com.opensplit.ui.components.responsiveContentWidth
 import com.opensplit.ui.theme.OpenSplitIcons
@@ -56,30 +57,38 @@ fun CurrencySettingsSubScreen(
                 contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 4.dp, bottom = 120.dp),
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                item { SelectedCurrencyCard(current) }
-
                 item {
-                    SectionLabel("Choose currency")
-                    CurrencySearchDropdown(selected = current, onSelect = onCurrencySelected)
+                    SettingsGroupCard(title = "Current Currency", icon = OpenSplitIcons.Payments) {
+                        SelectedCurrencyRow(current)
+                    }
                 }
 
                 item {
-                    SectionLabel("Popular")
-                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        popular.chunked(4).forEach { row ->
-                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                row.forEach { code ->
-                                    val data = CurrencyFormatter.getCurrencyData(code)
-                                    val selected = code.equals(defaultCurrency, ignoreCase = true)
-                                    Surface(
-                                        onClick = { onCurrencySelected(code) },
-                                        shape = androidx.compose.foundation.shape.CircleShape,
-                                        color = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceContainerHigh,
-                                        contentColor = if (selected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface,
-                                        modifier = Modifier.weight(1f).height(48.dp)
-                                    ) {
-                                        Box(contentAlignment = Alignment.Center) {
-                                            Text("${data.flag} ${data.code}", style = MaterialTheme.typography.labelLarge)
+                    SettingsGroupCard(title = "Choose Currency", icon = OpenSplitIcons.Search) {
+                        Box(modifier = Modifier.padding(16.dp)) {
+                            CurrencySearchDropdown(selected = current, onSelect = onCurrencySelected)
+                        }
+                    }
+                }
+
+                item {
+                    SettingsGroupCard(title = "Popular", icon = OpenSplitIcons.Star) {
+                        Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            popular.chunked(4).forEach { row ->
+                                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                    row.forEach { code ->
+                                        val data = CurrencyFormatter.getCurrencyData(code)
+                                        val selected = code.equals(defaultCurrency, ignoreCase = true)
+                                        Surface(
+                                            onClick = { onCurrencySelected(code) },
+                                            shape = androidx.compose.foundation.shape.CircleShape,
+                                            color = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceContainerHigh,
+                                            contentColor = if (selected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface,
+                                            modifier = Modifier.weight(1f).height(48.dp)
+                                        ) {
+                                            Box(contentAlignment = Alignment.Center) {
+                                                Text("${data.flag} ${data.code}", style = MaterialTheme.typography.labelLarge)
+                                            }
                                         }
                                     }
                                 }
@@ -92,48 +101,31 @@ fun CurrencySettingsSubScreen(
     }
 }
 
-@Composable
-private fun SectionLabel(text: String) {
-    Text(
-        text,
-        style = MaterialTheme.typography.titleSmall,
-        color = MaterialTheme.colorScheme.primary,
-        modifier = Modifier.padding(start = 8.dp, bottom = 8.dp)
-    )
-}
-
 /** The current choice: big flag, code + name, country, symbol and a formatting example. */
 @Composable
-private fun SelectedCurrencyCard(current: CurrencyData) {
-    Surface(
-        shape = MaterialTheme.shapes.extraLarge,
-        color = MaterialTheme.colorScheme.primaryContainer,
-        contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
-        modifier = Modifier.fillMaxWidth()
-    ) {
-        Column(modifier = Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Surface(shape = CircleShape, color = MaterialTheme.colorScheme.surface.copy(alpha = 0.6f), modifier = Modifier.size(64.dp)) {
-                    Box(contentAlignment = Alignment.Center) { Text(current.flag, fontSize = 34.sp) }
-                }
-                Spacer(Modifier.width(16.dp))
-                Column(modifier = Modifier.weight(1f)) {
-                    Text("${current.code} · ${current.name}", style = MaterialTheme.typography.titleLarge)
-                    Text(
-                        countryOf(current),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.75f)
-                    )
-                }
-                Text(current.symbol, style = MaterialTheme.typography.headlineMedium, color = MaterialTheme.colorScheme.primary)
+private fun SelectedCurrencyRow(current: CurrencyData) {
+    Column(modifier = Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Surface(shape = CircleShape, color = MaterialTheme.colorScheme.surfaceContainerHigh, modifier = Modifier.size(64.dp)) {
+                Box(contentAlignment = Alignment.Center) { Text(current.flag, fontSize = 34.sp) }
             }
-            Surface(shape = CircleShape, color = MaterialTheme.colorScheme.surface.copy(alpha = 0.6f)) {
+            Spacer(Modifier.width(16.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Text("${current.code} · ${current.name}", style = MaterialTheme.typography.titleLarge)
                 Text(
-                    "Looks like ${CurrencyFormatter.format(1250.0, current.code)}",
-                    style = MaterialTheme.typography.labelLarge,
-                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp)
+                    countryOf(current),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
+            Text(current.symbol, style = MaterialTheme.typography.headlineMedium, color = MaterialTheme.colorScheme.primary)
+        }
+        Surface(shape = CircleShape, color = MaterialTheme.colorScheme.surfaceContainerHigh) {
+            Text(
+                "Looks like ${CurrencyFormatter.format(1250.0, current.code)}",
+                style = MaterialTheme.typography.labelLarge,
+                modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp)
+            )
         }
     }
 }
@@ -169,7 +161,7 @@ private fun CurrencySearchDropdown(selected: CurrencyData, onSelect: (String) ->
             value = query,
             onValueChange = { query = it; expanded = true },
             singleLine = true,
-            placeholder = { Text("Search country, name or code", maxLines = 1) },
+            placeholder = { Text("Search currency or country", maxLines = 1) },
             leadingIcon = { SymbolIcon(OpenSplitIcons.Search, contentDescription = null) },
             trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
             shape = androidx.compose.foundation.shape.CircleShape,

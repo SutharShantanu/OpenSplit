@@ -38,6 +38,8 @@ data class AnalyticsUiState(
     val currency: String = "₹",
     val categoryBreakdown: List<CategorySpend> = emptyList(),
     val monthlyBuckets: List<MonthlyBucket> = emptyList(),
+    /** Your share per week of the selected month (days 1–7, 8–14, …); empty outside Month view. */
+    val weeklyBuckets: List<MonthlyBucket> = emptyList(),
     val topExpenses: List<Expense> = emptyList(),
     val totalExpenseCount: Int = 0,
     /** Number of groups in the current scope. */
@@ -169,21 +171,28 @@ class AnalyticsViewModel(private val appContainer: AppContainer) : ViewModel() {
             return@flow
         }
 
-        val user = kotlinx.coroutines.withTimeoutOrNull(3000) {
-            appContainer.userRepository.getUser(uid)
-        }
-        val defaultCurrency = user?.defaultCurrency?.ifEmpty { "INR" } ?: "INR"
-        val currencySymbol = if (defaultCurrency == "INR") "₹" else if (defaultCurrency == "EUR") "€" else "$"
-
+        // Live: changing the default currency in Settings re-renders the charts.
+        val currencyFlow = appContainer.userRepository.getUserFlow(uid)
+            .map { it?.defaultCurrency?.ifEmpty { "INR" } ?: "INR" }
+            .distinctUntilChanged()
         val groupsFlow = appContainer.groupRepository.getGroupsForUser(uid)
 
         combine(
-            groupsFlow,
+            combine(groupsFlow, currencyFlow, ::Pair),
             _selectedGroupId,
             _selectedPeriodType,
             _selectedYear,
             _selectedMonth
-        ) { groups, selectedGroup, periodType, selYear, selMonth ->
+        ) { (groups, currencyCode), selectedGroup, periodType, selYear, selMonth ->
+            val currencySymbol = com.opensplit.util.CurrencyFormatter.getCurrencySymbol(currencyCode)
+            // Your share of an expense in the default currency. No splits means a personal expense;
+            // splits without you means you aren't part of it.
+            fun share(exp: Expense): Double {
+                val raw = if (exp.splits.isEmpty()) exp.amount else exp.splits.find { it.uid == uid }?.amount ?: 0.0
+                return com.opensplit.util.CurrencyFormatter.convert(raw, exp.currency.ifEmpty { currencyCode }, currencyCode)
+            }
+            fun inDefault(exp: Expense) = com.opensplit.util.CurrencyFormatter.convert(exp.amount, exp.currency.ifEmpty { currencyCode }, currencyCode)
+
             val expensesFlow: Flow<List<Expense>> = if (selectedGroup != null) {
                 appContainer.expenseRepository.getExpensesForGroup(selectedGroup)
             } else {
@@ -252,18 +261,14 @@ class AnalyticsViewModel(private val appContainer: AppContainer) : ViewModel() {
                 }
 
                 // Calculate user share total for the selected period
-                val periodUserTotal = periodExpenses.sumOf { exp ->
-                    exp.splits.find { it.uid == uid }?.amount ?: (exp.amount / maxOf(1, exp.splits.size))
-                }
-                val prevUserTotal = prevPeriodExpenses.sumOf { exp ->
-                    exp.splits.find { it.uid == uid }?.amount ?: (exp.amount / maxOf(1, exp.splits.size))
-                }
+                val periodUserTotal = periodExpenses.sumOf(::share)
+                val prevUserTotal = prevPeriodExpenses.sumOf(::share)
                 val changePct = if (prevUserTotal > 0.009) (periodUserTotal - prevUserTotal) / prevUserTotal else null
 
                 // Category breakdown across selected period
                 val categoryMap = mutableMapOf<String, Double>()
                 for (exp in periodExpenses) {
-                    val userShare = exp.splits.find { it.uid == uid }?.amount ?: (exp.amount / maxOf(1, exp.splits.size))
+                    val userShare = share(exp)
                     val cat = exp.category.ifEmpty { "General" }
                     categoryMap[cat] = (categoryMap[cat] ?: 0.0) + userShare
                 }
@@ -292,9 +297,7 @@ class AnalyticsViewModel(private val appContainer: AppContainer) : ViewModel() {
                             val total = expenses.filter { exp ->
                                 cal.time = exp.date.toDate()
                                 cal.get(Calendar.MONTH) == m && cal.get(Calendar.YEAR) == y
-                            }.sumOf { exp ->
-                                exp.splits.find { it.uid == uid }?.amount ?: (exp.amount / maxOf(1, exp.splits.size))
-                            }
+                            }.sumOf(::share)
                             buckets.add(MonthlyBucket(label, total))
                         }
                     }
@@ -309,9 +312,7 @@ class AnalyticsViewModel(private val appContainer: AppContainer) : ViewModel() {
                             val total = expenses.filter { exp ->
                                 cal.time = exp.date.toDate()
                                 cal.get(Calendar.MONTH) == m && cal.get(Calendar.YEAR) == selYear
-                            }.sumOf { exp ->
-                                exp.splits.find { it.uid == uid }?.amount ?: (exp.amount / maxOf(1, exp.splits.size))
-                            }
+                            }.sumOf(::share)
                             buckets.add(MonthlyBucket(label, total))
                         }
                     }
@@ -321,12 +322,21 @@ class AnalyticsViewModel(private val appContainer: AppContainer) : ViewModel() {
                             val total = expenses.filter { exp ->
                                 cal.time = exp.date.toDate()
                                 cal.get(Calendar.YEAR) == y
-                            }.sumOf { exp ->
-                                exp.splits.find { it.uid == uid }?.amount ?: (exp.amount / maxOf(1, exp.splits.size))
-                            }
+                            }.sumOf(::share)
                             buckets.add(MonthlyBucket(y.toString(), total))
                         }
                     }
+                }
+
+                // Real weekly split of the selected month: days 1–7, 8–14, 15–21, 22–28, 29–end.
+                val weeklyBuckets = if (periodType != AnalyticsPeriodType.MONTH) emptyList() else {
+                    val daysInMonth = Calendar.getInstance().apply {
+                        set(Calendar.YEAR, selYear); set(Calendar.MONTH, selMonth); set(Calendar.DAY_OF_MONTH, 1)
+                    }.getActualMaximum(Calendar.DAY_OF_MONTH)
+                    weeklyBuckets(daysInMonth, periodExpenses.map { exp ->
+                        cal.time = exp.date.toDate()
+                        cal.get(Calendar.DAY_OF_MONTH) to share(exp)
+                    })
                 }
 
                 // Top expenses for the selected period
@@ -347,11 +357,12 @@ class AnalyticsViewModel(private val appContainer: AppContainer) : ViewModel() {
                         currency = currencySymbol,
                         categoryBreakdown = categoryList,
                         monthlyBuckets = buckets,
+                        weeklyBuckets = weeklyBuckets,
                         topExpenses = topExps,
                         totalExpenseCount = periodExpenses.size,
                         groupCount = scopedGroups.size,
                         peopleCount = peopleCount,
-                        totalMoneyTracked = periodExpenses.sumOf { it.amount },
+                        totalMoneyTracked = periodExpenses.sumOf(::inDefault),
                         yourShareTotal = periodUserTotal,
                         monthOverMonth = changePct,
                         previousPeriodTotal = prevUserTotal,
@@ -359,7 +370,7 @@ class AnalyticsViewModel(private val appContainer: AppContainer) : ViewModel() {
                             currencySymbol,
                             buckets.map { it.amount },
                             categoryList.map { it.category to it.amount },
-                            periodExpenses.sumOf { it.amount },
+                            periodExpenses.sumOf(::inDefault),
                             periodUserTotal
                         ),
                         periodType = periodType,
@@ -432,6 +443,13 @@ class AnalyticsViewModel(private val appContainer: AppContainer) : ViewModel() {
             appendLine("- ${it.monthLabel}: $cur${"%.2f".format(it.amount)}")
         }
     }
+}
+
+/** Sums (dayOfMonth, amount) pairs into 7-day buckets labelled by day range ("1–7" … "29–31"). */
+internal fun weeklyBuckets(daysInMonth: Int, dayAmounts: List<Pair<Int, Double>>): List<MonthlyBucket> {
+    val totals = DoubleArray((daysInMonth + 6) / 7)
+    dayAmounts.forEach { (day, amount) -> totals[(day - 1).coerceIn(0, daysInMonth - 1) / 7] += amount }
+    return totals.mapIndexed { i, t -> MonthlyBucket("${i * 7 + 1}–${minOf((i + 1) * 7, daysInMonth)}", t) }
 }
 
 private data class Quadruple<A, B, C, D>(val first: A, val second: B, val third: C, val fourth: D)

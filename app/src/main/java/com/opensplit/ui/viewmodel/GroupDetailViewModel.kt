@@ -129,7 +129,7 @@ class GroupDetailViewModel(
         val currentUser = authRepository?.currentUser
         val currentUid = authRepository?.currentUserId
         return userIds.map { uid ->
-            (if (currentUid != null && currentUid == uid) User(uid = uid, displayName = currentUser?.displayName ?: "You", email = currentUser?.email ?: "") else null)
+            (if (currentUid != null && currentUid == uid) User(uid = uid, displayName = currentUser?.displayName ?: "You", email = currentUser?.email ?: "", photoUrl = currentUser?.photoUrl?.toString()) else null)
                 ?: userRepository.getUser(uid)
                 ?: User(uid = uid, displayName = "Member", email = "")
         }

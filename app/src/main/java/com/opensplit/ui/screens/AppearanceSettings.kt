@@ -26,6 +26,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.opensplit.ui.components.SettingsGroupCard
 import com.opensplit.ui.components.SymbolIcon
 import com.opensplit.ui.components.responsiveContentWidth
 import com.opensplit.ui.theme.OpenSplitIcons
@@ -94,19 +95,8 @@ private fun ThemeModeSelectionCard(
     theme: String,
     onThemeChange: (String) -> Unit
 ) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        shape = MaterialTheme.shapes.large,
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh)
-    ) {
-        Column(modifier = Modifier.padding(20.dp)) {
-            Text(
-                text = "Theme Mode",
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.onSurface
-            )
-            Spacer(modifier = Modifier.height(4.dp))
+    SettingsGroupCard(title = "Theme Mode", icon = OpenSplitIcons.Palette) {
+        Column(modifier = Modifier.padding(16.dp)) {
             Text(
                 text = "Choose how OpenSplit responds to light and dark environments.",
                 style = MaterialTheme.typography.bodySmall,

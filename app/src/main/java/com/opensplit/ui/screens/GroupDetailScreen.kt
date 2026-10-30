@@ -393,6 +393,7 @@ fun GroupDetailScreen(
                             Column(
                                 modifier = Modifier
                                     .fillMaxSize()
+                                    .verticalScroll(androidx.compose.foundation.rememberScrollState())
                                     .padding(OpenSplitTokens.SpaceLG)
                             ) {
                                 val nameOf: (String) -> String = { uid ->
@@ -478,38 +479,19 @@ fun GroupDetailScreen(
                                         )
                                         Spacer(modifier = Modifier.height(OpenSplitTokens.SpaceMD))
 
-                                        data.members.forEach { user ->
-                                            val bal = data.balances[user.uid] ?: 0.0
-                                            val color = if (bal > 0.01) OpenSplitTokens.OwedPositive else if (bal < -0.01) OpenSplitTokens.OwedNegative else OpenSplitTokens.OwedNeutral
-                                            val currency = data.group.currency
-                                            val text = if (bal > 0.01) {
-                                                "Gets back ${com.opensplit.util.CurrencyFormatter.format(bal, currency)}"
-                                            } else if (bal < -0.01) {
-                                                "Owes ${com.opensplit.util.CurrencyFormatter.format(-bal, currency)}"
-                                            } else {
-                                                "Settled up"
+                                        // Bars scale to the largest balance so members compare at a glance.
+                                        val maxAbs = data.members.maxOfOrNull { kotlin.math.abs(data.balances[it.uid] ?: 0.0) }
+                                            ?.takeIf { it > 0.01 } ?: 1.0
+                                        data.members
+                                            .sortedByDescending { data.balances[it.uid] ?: 0.0 }
+                                            .forEach { user ->
+                                                MemberBalanceBar(
+                                                    user = user,
+                                                    balance = data.balances[user.uid] ?: 0.0,
+                                                    maxAbs = maxAbs,
+                                                    currency = data.group.currency
+                                                )
                                             }
-
-                                            ListItem(
-                                                headlineContent = { Text(user.displayName, fontWeight = FontWeight.Medium) },
-                                                supportingContent = { Text(text, color = color, fontWeight = FontWeight.SemiBold) },
-                                                leadingContent = {
-                                                    Surface(
-                                                        shape = CircleShape,
-                                                        color = MaterialTheme.colorScheme.primaryContainer,
-                                                        modifier = Modifier.size(36.dp)
-                                                    ) {
-                                                        Box(contentAlignment = Alignment.Center) {
-                                                            Text(
-                                                                text = user.displayName.take(1).uppercase(),
-                                                                fontWeight = FontWeight.Bold,
-                                                                color = MaterialTheme.colorScheme.onPrimaryContainer
-                                                            )
-                                                        }
-                                                    }
-                                                }
-                                            )
-                                        }
                                     }
                                 }
                                 }
@@ -612,19 +594,7 @@ fun GroupDetailScreen(
                                                 headlineContent = { Text(user.displayName, fontWeight = FontWeight.SemiBold) },
                                                 supportingContent = { Text(user.email, style = MaterialTheme.typography.bodySmall) },
                                                 leadingContent = {
-                                                    Surface(
-                                                        shape = CircleShape,
-                                                        color = MaterialTheme.colorScheme.primaryContainer,
-                                                        modifier = Modifier.size(44.dp)
-                                                    ) {
-                                                        Box(contentAlignment = Alignment.Center) {
-                                                            Text(
-                                                                text = user.displayName.take(1).uppercase(),
-                                                                fontWeight = FontWeight.Bold,
-                                                                color = MaterialTheme.colorScheme.onPrimaryContainer
-                                                            )
-                                                        }
-                                                    }
+                                                    com.opensplit.ui.components.UserAvatar(user.photoUrl, user.displayName, size = 44.dp)
                                                 },
                                                 trailingContent = {
                                                     if (user.uid == data.group.createdBy) {
@@ -1020,5 +990,58 @@ fun GroupDetailScreen(
                 snackbar.showMessage("Avatar updated")
             }
         )
+    }
+}
+
+/**
+ * One member in the group balance summary: photo, name, signed amount, and a diverging bar —
+ * left (red) for what they owe, right (green) for what they get back — scaled to [maxAbs].
+ */
+@Composable
+private fun MemberBalanceBar(user: com.opensplit.domain.model.User, balance: Double, maxAbs: Double, currency: String) {
+    val owes = balance < -0.01
+    val getsBack = balance > 0.01
+    val color = if (getsBack) OpenSplitTokens.OwedPositive else if (owes) OpenSplitTokens.OwedNegative else OpenSplitTokens.OwedNeutral
+    val fraction by androidx.compose.animation.core.animateFloatAsState(
+        (kotlin.math.abs(balance) / maxAbs).toFloat().coerceIn(0f, 1f), label = "balanceBar"
+    )
+    Column(modifier = Modifier.fillMaxWidth().padding(vertical = 10.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            com.opensplit.ui.components.UserAvatar(user.photoUrl, user.displayName, size = 40.dp)
+            Spacer(modifier = Modifier.width(12.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Text(user.displayName, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold, maxLines = 1)
+                Text(
+                    when { getsBack -> "Gets back"; owes -> "Owes"; else -> "Settled up" },
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+            if (owes || getsBack) {
+                Text(
+                    (if (getsBack) "+" else "−") + com.opensplit.util.CurrencyFormatter.format(kotlin.math.abs(balance), currency),
+                    style = MaterialTheme.typography.titleMedium.copy(fontFamily = com.opensplit.ui.theme.MoneyFontFamily),
+                    fontWeight = FontWeight.Bold,
+                    color = color
+                )
+            }
+        }
+        Spacer(modifier = Modifier.height(8.dp))
+        val track = MaterialTheme.colorScheme.surfaceContainerHighest
+        Row(modifier = Modifier.fillMaxWidth().height(8.dp), verticalAlignment = Alignment.CenterVertically) {
+            Box(
+                modifier = Modifier.weight(1f).fillMaxHeight().clip(RoundedCornerShape(topStart = 4.dp, bottomStart = 4.dp)).background(track),
+                contentAlignment = Alignment.CenterEnd
+            ) {
+                if (owes) Box(Modifier.fillMaxWidth(fraction).fillMaxHeight().background(color))
+            }
+            Box(Modifier.width(2.dp).height(14.dp).background(MaterialTheme.colorScheme.outline))
+            Box(
+                modifier = Modifier.weight(1f).fillMaxHeight().clip(RoundedCornerShape(topEnd = 4.dp, bottomEnd = 4.dp)).background(track),
+                contentAlignment = Alignment.CenterStart
+            ) {
+                if (getsBack) Box(Modifier.fillMaxWidth(fraction).fillMaxHeight().background(color))
+            }
+        }
     }
 }

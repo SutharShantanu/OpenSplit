@@ -7,6 +7,8 @@ import com.opensplit.ui.theme.Symbol
 import com.opensplit.data.ai.AI_PROVIDERS_CATALOG
 import com.opensplit.data.ai.AiProviderInfo
 import com.opensplit.data.ai.AiFeature
+import com.opensplit.ui.components.SettingsGroupCard
+import com.opensplit.ui.components.SettingsGroupDivider
 import com.opensplit.ui.components.SymbolIcon
 import com.opensplit.ui.components.responsiveContentWidth
 import android.content.Intent
@@ -111,39 +113,8 @@ fun AboutSupportSubScreen(
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
             item {
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = MaterialTheme.shapes.large,
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh)
-                ) {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(24.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally
-                    ) {
-                        Surface(
-                            shape = CircleShape,
-                            color = MaterialTheme.colorScheme.primaryContainer,
-                            modifier = Modifier.size(64.dp)
-                        ) {
-                            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                                SymbolIcon(
-                                    symbol = OpenSplitIcons.PieChart,
-                                    contentDescription = null,
-                                    tint = MaterialTheme.colorScheme.onPrimaryContainer,
-                                    modifier = Modifier.size(32.dp)
-                                )
-                            }
-                        }
-
-                        Spacer(modifier = Modifier.height(14.dp))
-
-                        Text(
-                            text = "OpenSplit",
-                            style = MaterialTheme.typography.titleLarge,
-                            fontWeight = FontWeight.Bold
-                        )
+                SettingsGroupCard(title = "OpenSplit", icon = OpenSplitIcons.PieChart) {
+                    Column(modifier = Modifier.padding(16.dp)) {
                         Text(
                             text = "Version ${com.opensplit.BuildConfig.VERSION_NAME} (Build ${com.opensplit.BuildConfig.VERSION_CODE})",
                             style = MaterialTheme.typography.labelMedium.copy(fontFamily = FontFamily.Monospace),
@@ -153,96 +124,75 @@ fun AboutSupportSubScreen(
                         Text(
                             text = "Free, open-source group expense sharing & debt optimization.",
                             style = MaterialTheme.typography.bodySmall,
-                            textAlign = TextAlign.Center,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
-                }
-            }
 
-            item {
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = MaterialTheme.shapes.large,
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh)
-                ) {
+                    SettingsGroupDivider()
+
                     val checking = updateState is com.opensplit.data.update.AppUpdater.State.Checking
-                    Surface(
-                        onClick = {
-                            scope.launch {
-                                when (val result = updater.check()) {
-                                    is com.opensplit.data.update.AppUpdater.State.UpToDate ->
-                                        snackbar.showMessage("You're on the latest version")
-                                    is com.opensplit.data.update.AppUpdater.State.Failed ->
-                                        snackbar.showMessage(result.message)
-                                    else -> Unit // Available: UpdateSheet opens from MainActivity
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable(enabled = !checking) {
+                                scope.launch {
+                                    when (val result = updater.check()) {
+                                        is com.opensplit.data.update.AppUpdater.State.UpToDate ->
+                                            snackbar.showMessage("You're on the latest version")
+                                        is com.opensplit.data.update.AppUpdater.State.Failed ->
+                                            snackbar.showMessage(result.message)
+                                        else -> Unit // Available: UpdateSheet opens from MainActivity
+                                    }
                                 }
                             }
-                        },
-                        enabled = !checking,
-                        shape = MaterialTheme.shapes.large,
-                        color = Color.Transparent,
-                        modifier = Modifier.fillMaxWidth()
+                            .padding(16.dp),
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Row(
-                            modifier = Modifier.padding(horizontal = 28.dp, vertical = 20.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            if (checking) {
-                                com.opensplit.ui.components.AppLoadingIndicator(size = 24.dp)
-                            } else {
-                                SymbolIcon(OpenSplitIcons.Refresh, contentDescription = null, modifier = Modifier.size(24.dp))
-                            }
-                            Spacer(modifier = Modifier.width(16.dp))
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text("Check for updates", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold)
-                                Text(
-                                    if (checking) "Contacting GitHub…" else "Installs the latest GitHub release",
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            }
-                            SymbolIcon(OpenSplitIcons.ArrowForward, contentDescription = null, modifier = Modifier.size(16.dp))
+                        if (checking) {
+                            com.opensplit.ui.components.AppLoadingIndicator(size = 24.dp)
+                        } else {
+                            SymbolIcon(OpenSplitIcons.Refresh, contentDescription = null, modifier = Modifier.size(24.dp))
                         }
+                        Spacer(modifier = Modifier.width(16.dp))
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text("Check for updates", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold)
+                            Text(
+                                if (checking) "Contacting GitHub…" else "Installs the latest GitHub release",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                        SymbolIcon(OpenSplitIcons.ArrowForward, contentDescription = null, modifier = Modifier.size(16.dp))
                     }
                 }
             }
 
             item {
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = MaterialTheme.shapes.large,
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh)
-                ) {
-                    Column(modifier = Modifier.padding(16.dp)) {
-                        listOf(
-                            Triple("What's new in OpenSplit", "Recent updates and release notes", CHANGELOG),
-                            Triple("GitHub Repository", "View open-source project code", "https://github.com/SutharShantanu/OpenSplit"),
-                            Triple("Open-source licenses", "Libraries OpenSplit is built with", LICENSES),
-                            Triple("Privacy Policy", "Learn how your data is handled", "https://opensplit.app/privacy"),
-                            Triple("Terms of Service", "Read service terms & conditions", "https://opensplit.app/terms")
-                        ).forEach { (title, subtitle, url) ->
-                            Surface(
-                                onClick = {
+                SettingsGroupCard(title = "Links", icon = OpenSplitIcons.Link) {
+                    listOf(
+                        Triple("What's new in OpenSplit", "Recent updates and release notes", CHANGELOG),
+                        Triple("GitHub Repository", "View open-source project code", "https://github.com/SutharShantanu/OpenSplit"),
+                        Triple("Open-source licenses", "Libraries OpenSplit is built with", LICENSES),
+                        Triple("Privacy Policy", "Learn how your data is handled", "https://opensplit.app/privacy"),
+                        Triple("Terms of Service", "Read service terms & conditions", "https://opensplit.app/terms")
+                    ).forEachIndexed { index, (title, subtitle, url) ->
+                        if (index > 0) SettingsGroupDivider()
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable {
                                     if (url == CHANGELOG) showChangelog = true
                                     else if (url == LICENSES) showLicenses = true
                                     else context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
-                                },
-                                shape = MaterialTheme.shapes.small,
-                                color = Color.Transparent,
-                                modifier = Modifier.fillMaxWidth()
-                            ) {
-                                Row(
-                                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 12.dp),
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Column(modifier = Modifier.weight(1f)) {
-                                        Text(title, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold)
-                                        Text(subtitle, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                                    }
-                                    SymbolIcon(OpenSplitIcons.ArrowForward, contentDescription = null, modifier = Modifier.size(16.dp))
                                 }
+                                .padding(16.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(title, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold)
+                                Text(subtitle, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                             }
+                            SymbolIcon(OpenSplitIcons.ArrowForward, contentDescription = null, modifier = Modifier.size(16.dp))
                         }
                     }
                 }

@@ -145,10 +145,15 @@ fun UpdateSheet(updater: AppUpdater) {
                     val progress = s.progress
                     UpdateProgressRow(
                         progress = progress,
-                        label = if (progress == null) "Downloading…" else "Downloading… ${(progress * 100).toInt()}%"
+                        label = if (progress == null) "Downloading…" else "Downloading… ${(progress * 100).toInt()}%",
+                        detail = if (s.totalBytes > 0) "%.1f of %.1f MB".format(s.bytes / 1_048_576f, s.totalBytes / 1_048_576f) else null
                     )
                 }
-                is AppUpdater.State.Installing -> UpdateProgressRow(progress = null, label = "Installing…")
+                is AppUpdater.State.Installing -> UpdateProgressRow(
+                    progress = s.progress,
+                    label = "Installing… ${(s.progress * 100).toInt()}%",
+                    detail = "Android may ask you to confirm"
+                )
                 is AppUpdater.State.Downloaded -> {
                     if (s.needsPermission) {
                         Text(
@@ -261,13 +266,27 @@ fun WhatsNewSheet(updater: AppUpdater) {
 
 /** M3 Expressive loading indicator (determinate when [progress] is known) with a status label. */
 @Composable
-private fun UpdateProgressRow(progress: Float?, label: String) {
-    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-        if (progress == null) {
-            androidx.compose.material3.ContainedLoadingIndicator(modifier = Modifier.size(56.dp))
-        } else {
-            androidx.compose.material3.ContainedLoadingIndicator(progress = { progress }, modifier = Modifier.size(56.dp))
+private fun UpdateProgressRow(progress: Float?, label: String, detail: String? = null) {
+    // Smooth the jumps between progress reports.
+    val shown by androidx.compose.animation.core.animateFloatAsState(progress ?: 0f, label = "updateProgress")
+    androidx.compose.foundation.layout.Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+            if (progress == null) {
+                androidx.compose.material3.ContainedLoadingIndicator(modifier = Modifier.size(56.dp))
+            } else {
+                androidx.compose.material3.ContainedLoadingIndicator(progress = { shown }, modifier = Modifier.size(56.dp))
+            }
+            androidx.compose.foundation.layout.Column {
+                Text(label, style = MaterialTheme.typography.titleMedium)
+                if (detail != null) {
+                    Text(detail, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+            }
         }
-        Text(label, style = MaterialTheme.typography.titleMedium)
+        if (progress == null) {
+            androidx.compose.material3.LinearWavyProgressIndicator(modifier = Modifier.fillMaxWidth())
+        } else {
+            androidx.compose.material3.LinearWavyProgressIndicator(progress = { shown }, modifier = Modifier.fillMaxWidth())
+        }
     }
 }

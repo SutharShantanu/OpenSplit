@@ -329,20 +329,7 @@ fun FriendsScreen(
                                         )
                                     },
                                     leadingContent = {
-                                        Surface(
-                                            shape = CircleShape,
-                                            color = MaterialTheme.colorScheme.secondaryContainer,
-                                            modifier = Modifier.size(44.dp)
-                                        ) {
-                                            Box(contentAlignment = Alignment.Center) {
-                                                Text(
-                                                    text = fb.user.displayName.take(1).uppercase(),
-                                                    style = MaterialTheme.typography.titleMedium,
-                                                    fontWeight = FontWeight.Bold,
-                                                    color = MaterialTheme.colorScheme.onSecondaryContainer
-                                                )
-                                            }
-                                        }
+                                        com.opensplit.ui.components.UserAvatar(fb.user.photoUrl, fb.user.displayName, size = 44.dp)
                                     },
                                     trailingContent = {
                                         Text(

@@ -6,6 +6,8 @@ import com.opensplit.ui.theme.Symbol
 import com.opensplit.data.ai.AI_PROVIDERS_CATALOG
 import com.opensplit.data.ai.AiProviderInfo
 import com.opensplit.data.ai.AiFeature
+import com.opensplit.ui.components.SettingsGroupCard
+import com.opensplit.ui.components.SettingsGroupDivider
 import com.opensplit.ui.components.SymbolIcon
 import com.opensplit.ui.components.responsiveContentWidth
 import android.content.Intent
@@ -104,117 +106,73 @@ fun AccountSecuritySubScreen(
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
             item {
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = MaterialTheme.shapes.large,
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh)
-                ) {
-                    Column(modifier = Modifier.padding(20.dp)) {
-                        Text(
-                            text = "Profile Information",
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Bold
-                        )
-
-                        Spacer(modifier = Modifier.height(14.dp))
-
-                        Surface(
-                            onClick = { showNameDialog = true },
-                            shape = MaterialTheme.shapes.small,
-                            color = MaterialTheme.colorScheme.surfaceContainerHighest,
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Row(
-                                modifier = Modifier.padding(14.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Column(modifier = Modifier.weight(1f)) {
-                                    Text("Display Name", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                                    Text(data.user.displayName ?: "Not set", style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Bold)
-                                }
-                                SymbolIcon(OpenSplitIcons.Edit, contentDescription = "Edit", tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(18.dp))
-                            }
+                SettingsGroupCard(title = "Profile Information", icon = OpenSplitIcons.Person) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { showNameDialog = true }
+                            .padding(16.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text("Display Name", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Text(data.user.displayName ?: "Not set", style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Bold)
                         }
+                        SymbolIcon(OpenSplitIcons.Edit, contentDescription = "Edit", tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(18.dp))
+                    }
 
-                        Spacer(modifier = Modifier.height(10.dp))
+                    SettingsGroupDivider()
 
-                        Surface(
-                            onClick = { showUpiDialog = true },
-                            shape = MaterialTheme.shapes.small,
-                            color = MaterialTheme.colorScheme.surfaceContainerHighest,
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Row(
-                                modifier = Modifier.padding(14.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Column(modifier = Modifier.weight(1f)) {
-                                    Text("UPI ID", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                                    Text(
-                                        data.user.upiId ?: "Add so friends can pay you via UPI",
-                                        style = if (data.user.upiId != null) MaterialTheme.typography.bodyLarge else MaterialTheme.typography.bodyMedium,
-                                        fontWeight = if (data.user.upiId != null) FontWeight.Bold else FontWeight.Normal
-                                    )
-                                }
-                                SymbolIcon(OpenSplitIcons.Edit, contentDescription = "Edit UPI ID", tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(18.dp))
-                            }
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { showUpiDialog = true }
+                            .padding(16.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text("UPI ID", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Text(
+                                data.user.upiId ?: "Add so friends can pay you via UPI",
+                                style = if (data.user.upiId != null) MaterialTheme.typography.bodyLarge else MaterialTheme.typography.bodyMedium,
+                                fontWeight = if (data.user.upiId != null) FontWeight.Bold else FontWeight.Normal
+                            )
                         }
+                        SymbolIcon(OpenSplitIcons.Edit, contentDescription = "Edit UPI ID", tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(18.dp))
+                    }
 
-                        Spacer(modifier = Modifier.height(10.dp))
+                    SettingsGroupDivider()
 
-                        Surface(
-                            shape = MaterialTheme.shapes.small,
-                            color = MaterialTheme.colorScheme.surfaceContainerHighest,
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Row(
-                                modifier = Modifier.padding(14.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Column(modifier = Modifier.weight(1f)) {
-                                    Text("Linked Email", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                                    Text(data.user.email ?: "", style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Bold)
-                                }
-                                SymbolIcon(OpenSplitIcons.Lock, contentDescription = "Locked", tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(18.dp))
-                            }
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(16.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text("Linked Email", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Text(data.user.email ?: "", style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Bold)
                         }
+                        SymbolIcon(OpenSplitIcons.Lock, contentDescription = "Locked", tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(18.dp))
                     }
                 }
             }
 
             // Password reset only means something for email/password accounts, not Google sign-in.
             if (data.authProvider == "Email") item {
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = MaterialTheme.shapes.large,
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh)
-                ) {
-                    Column(modifier = Modifier.padding(20.dp)) {
-                        Text(
-                            text = "Password & Access",
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Bold
-                        )
-
-                        Spacer(modifier = Modifier.height(14.dp))
-
-                        Surface(
-                            onClick = { showPasswordResetDialog = true },
-                            shape = MaterialTheme.shapes.small,
-                            color = MaterialTheme.colorScheme.surfaceContainerHighest,
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Row(
-                                modifier = Modifier.padding(14.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Column(modifier = Modifier.weight(1f)) {
-                                    Text("Reset Password", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold)
-                                    Text("Send a secure password reset link to your email", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                                }
-                                SymbolIcon(OpenSplitIcons.ArrowForward, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(18.dp))
-                            }
+                SettingsGroupCard(title = "Password & Access", icon = OpenSplitIcons.Key) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { showPasswordResetDialog = true }
+                            .padding(16.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text("Reset Password", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold)
+                            Text("Send a secure password reset link to your email", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
+                        SymbolIcon(OpenSplitIcons.ArrowForward, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(18.dp))
                     }
                 }
             }

@@ -718,9 +718,9 @@ fun AccountOverviewScreen(
                                         if (!hasKey) "Off" else aiProvider.replaceFirstChar { it.uppercase() }
                                     }
                                     AccountCategory.NOTIFICATIONS -> "On"
-                                    AccountCategory.DATA_BACKUP -> "${data.allExpenses.size} items"
+                                    AccountCategory.DATA_BACKUP -> data.allExpenses.size.let { "$it ${if (it == 1) "item" else "items"}" }
                                     AccountCategory.SECURITY -> "Protected"
-                                    AccountCategory.BUG_REPORT -> "GitHub"
+                                    AccountCategory.BUG_REPORT -> "Email"
                                     AccountCategory.ABOUT -> "v${com.opensplit.BuildConfig.VERSION_NAME}"
                                 }
 

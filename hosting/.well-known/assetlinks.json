@@ -1,0 +1,12 @@
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "open.split_07",
+      "sha256_cert_fingerprints": [
+        "0C:6A:53:D0:75:83:C0:A5:02:EE:B0:85:A8:AD:03:74:3E:31:5B:50:26:4A:3B:90:33:4B:2D:E1:93:13:A2:A0"
+      ]
+    }
+  }
+]

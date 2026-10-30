@@ -13,7 +13,6 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
@@ -21,8 +20,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.ExposedDropdownMenuDefaults
@@ -56,6 +53,8 @@ import com.opensplit.data.ai.AiFeature
 import com.opensplit.data.ai.AiProviderInfo
 import com.opensplit.ui.components.responsiveContentWidth
 import com.opensplit.data.ai.AiService
+import com.opensplit.ui.components.SettingsGroupCard
+import com.opensplit.ui.components.SettingsGroupDivider
 import com.opensplit.ui.components.SymbolIcon
 import com.opensplit.ui.theme.OpenSplitIcons
 
@@ -139,50 +138,46 @@ fun AiProvidersSubScreen(
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
             item {
-                Card(shape = MaterialTheme.shapes.medium, colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer), modifier = Modifier.fillMaxWidth()) {
-                    Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Text("API keys", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-                        Text(
-                            if (saved.isEmpty()) "Pick a service, paste its API key and run the test. Keys stay on this device, encrypted."
-                            else "The active key answers first. If it fails (quota, outage, retired model) the next one is tried automatically.",
-                            style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                        saved.forEachIndexed { index, p ->
-                            val model = if (p.id == "custom") customModel else (providerModels[p.id] ?: p.defaultModel)
-                            ListItem(
-                                colors = ListItemDefaults.colors(containerColor = Color.Transparent),
-                                leadingContent = { Text("${index + 1}", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary) },
-                                headlineContent = { Text(p.name) },
-                                supportingContent = { Text(if (p.id == activeProvider) "Active · $model" else "Fallback · $model", maxLines = 1) },
-                                trailingContent = {
-                                    Row(verticalAlignment = Alignment.CenterVertically) {
-                                        if (p.id != activeProvider) TextButton(shapes = com.opensplit.ui.theme.appButtonShapes(), onClick = { onSelectProvider(p.id) }) { Text("Use") }
-                                        IconButton(shapes = com.opensplit.ui.theme.appIconButtonShapes(), onClick = { openForm(p) }) { SymbolIcon(OpenSplitIcons.Edit, contentDescription = "Replace ${p.name} key") }
-                                        if (p.id != "custom") IconButton(shapes = com.opensplit.ui.theme.appIconButtonShapes(), onClick = { pendingRemove = p }) {
-                                            SymbolIcon(OpenSplitIcons.Delete, contentDescription = "Remove ${p.name} key", tint = MaterialTheme.colorScheme.error)
-                                        }
+                SettingsGroupCard(title = "API Keys", icon = OpenSplitIcons.Key) {
+                    Text(
+                        if (saved.isEmpty()) "Pick a service, paste its API key and run the test. Keys stay on this device, encrypted."
+                        else "The active key answers first. If it fails (quota, outage, retired model) the next one is tried automatically.",
+                        style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(16.dp)
+                    )
+                    saved.forEachIndexed { index, p ->
+                        val model = if (p.id == "custom") customModel else (providerModels[p.id] ?: p.defaultModel)
+                        SettingsGroupDivider()
+                        ListItem(
+                            colors = ListItemDefaults.colors(containerColor = Color.Transparent),
+                            leadingContent = { Text("${index + 1}", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary) },
+                            headlineContent = { Text(p.name) },
+                            supportingContent = { Text(if (p.id == activeProvider) "Active · $model" else "Fallback · $model", maxLines = 1) },
+                            trailingContent = {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    if (p.id != activeProvider) TextButton(shapes = com.opensplit.ui.theme.appButtonShapes(), onClick = { onSelectProvider(p.id) }) { Text("Use") }
+                                    IconButton(shapes = com.opensplit.ui.theme.appIconButtonShapes(), onClick = { openForm(p) }) { SymbolIcon(OpenSplitIcons.Edit, contentDescription = "Replace ${p.name} key") }
+                                    if (p.id != "custom") IconButton(shapes = com.opensplit.ui.theme.appIconButtonShapes(), onClick = { pendingRemove = p }) {
+                                        SymbolIcon(OpenSplitIcons.Delete, contentDescription = "Remove ${p.name} key", tint = MaterialTheme.colorScheme.error)
                                     }
                                 }
-                            )
-                        }
-                        if (!formOpen) {
-                            OutlinedButton(shapes = com.opensplit.ui.theme.appButtonShapes(), onClick = { openForm(AI_PROVIDERS_CATALOG.first { it.id !in saved.map { s -> s.id } && it.id != "custom" } ) }, modifier = Modifier.fillMaxWidth()) {
-                                SymbolIcon(OpenSplitIcons.Add, contentDescription = null)
-                                Spacer(Modifier.width(8.dp))
-                                Text("Add new API key")
                             }
+                        )
+                    }
+                    if (!formOpen) {
+                        SettingsGroupDivider()
+                        OutlinedButton(shapes = com.opensplit.ui.theme.appButtonShapes(), onClick = { openForm(AI_PROVIDERS_CATALOG.first { it.id !in saved.map { s -> s.id } && it.id != "custom" } ) }, modifier = Modifier.fillMaxWidth().padding(16.dp)) {
+                            SymbolIcon(OpenSplitIcons.Add, contentDescription = null)
+                            Spacer(Modifier.width(8.dp))
+                            Text("Add new API key")
                         }
                     }
                 }
             }
 
             if (formOpen) item {
-                Card(shape = MaterialTheme.shapes.medium, colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh), modifier = Modifier.fillMaxWidth()) {
+                SettingsGroupCard(title = "New API Key", icon = OpenSplitIcons.VpnKey) {
                     Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text("New API key", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
-                            if (saved.isNotEmpty()) TextButton(shapes = com.opensplit.ui.theme.appButtonShapes(), onClick = { formOpen = false }) { Text("Cancel") }
-                        }
                         ExposedDropdownMenuBox(expanded = providerMenu, onExpandedChange = { providerMenu = it }) {
                             OutlinedTextField(
                                 value = formProvider.name, onValueChange = {}, readOnly = true, singleLine = true,
@@ -218,6 +213,8 @@ fun AiProvidersSubScreen(
                         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                             TextButton(shapes = com.opensplit.ui.theme.appButtonShapes(), onClick = { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(formProvider.helpUrl))) }) { Text("Get a key") }
                             Spacer(Modifier.weight(1f))
+                            // Cancel moved here from the old header row; the group card owns the title now.
+                            if (saved.isNotEmpty()) TextButton(shapes = com.opensplit.ui.theme.appButtonShapes(), onClick = { formOpen = false }) { Text("Cancel") }
                             Button(
                                 shapes = com.opensplit.ui.theme.appButtonShapes(),
                                 enabled = !testing && (keyInput.isNotBlank() || formProvider.id == "custom"),
@@ -251,29 +248,30 @@ fun AiProvidersSubScreen(
             }
 
             item {
-                Card(shape = MaterialTheme.shapes.medium, colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer), modifier = Modifier.fillMaxWidth()) {
-                    Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {
-                        Text("Features", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, modifier = Modifier.padding(vertical = 8.dp))
-                        AiFeature.entries.forEach { feature ->
-                            val on = feature.name !in disabledFeatures
-                            Row(modifier = Modifier.fillMaxWidth().height(52.dp), verticalAlignment = Alignment.CenterVertically) {
-                                Column(modifier = Modifier.weight(1f)) {
-                                    Text(feature.label, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
-                                    Text(feature.description, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1)
-                                }
-                                Spacer(Modifier.width(8.dp))
-                                Switch(checked = on && aiEnabled, enabled = aiEnabled, onCheckedChange = { onToggleFeature(feature.name, it) })
+                SettingsGroupCard(title = "Features", icon = OpenSplitIcons.AutoAwesome) {
+                    AiFeature.entries.forEachIndexed { index, feature ->
+                        if (index > 0) SettingsGroupDivider()
+                        val on = feature.name !in disabledFeatures
+                        Row(modifier = Modifier.fillMaxWidth().padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(feature.label, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
+                                Text(feature.description, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1)
                             }
-                        }
-                        val total = usage.values.sum()
-                        if (total > 0) {
-                            Text(
-                                "Used from this device: " + usage.entries.joinToString(" · ") { (id, n) -> "${AI_PROVIDERS_CATALOG.find { it.id == id }?.name ?: id} $n calls, ${tokens[id] ?: 0} tokens" } +
-                                    ". Remaining quota isn't exposed by providers; check your provider dashboard.",
-                                style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(vertical = 8.dp)
-                            )
+                            Spacer(Modifier.width(8.dp))
+                            Switch(checked = on && aiEnabled, enabled = aiEnabled, onCheckedChange = { onToggleFeature(feature.name, it) })
                         }
                     }
+                }
+            }
+
+            val total = usage.values.sum()
+            if (total > 0) item {
+                SettingsGroupCard(title = "Usage", icon = OpenSplitIcons.Insights) {
+                    Text(
+                        "Used from this device: " + usage.entries.joinToString(" · ") { (id, n) -> "${AI_PROVIDERS_CATALOG.find { it.id == id }?.name ?: id} $n calls, ${tokens[id] ?: 0} tokens" } +
+                            ". Remaining quota isn't exposed by providers; check your provider dashboard.",
+                        style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(16.dp)
+                    )
                 }
             }
         }

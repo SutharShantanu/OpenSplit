@@ -53,7 +53,11 @@ fun ShareViaRow(message: String, subject: String, chooserTitle: String) {
     val snackbar = LocalSnackbarController.current
     val targets = remember(subject, chooserTitle) {
         listOf(
-            ShareTarget(OpenSplitIcons.Sms, "SMS") { Intent(Intent.ACTION_SENDTO, Uri.parse("smsto:")).putExtra("sms_body", it) },
+            // Straight to the default SMS app; otherwise other "smsto:" handlers (WhatsApp, carrier apps) force a chooser.
+            ShareTarget(OpenSplitIcons.Sms, "SMS") {
+                Intent(Intent.ACTION_SENDTO, Uri.parse("smsto:")).putExtra("sms_body", it)
+                    .setPackage(android.provider.Telephony.Sms.getDefaultSmsPackage(context))
+            },
             ShareTarget(OpenSplitIcons.Whatsapp, "WhatsApp") { textIntent(it).setPackage("com.whatsapp") },
             ShareTarget(OpenSplitIcons.Mail, "Email") { Intent(Intent.ACTION_SENDTO, Uri.parse("mailto:")).putExtra(Intent.EXTRA_SUBJECT, subject).putExtra(Intent.EXTRA_TEXT, it) },
             ShareTarget(OpenSplitIcons.Send, "Telegram") { textIntent(it).setPackage("org.telegram.messenger") },

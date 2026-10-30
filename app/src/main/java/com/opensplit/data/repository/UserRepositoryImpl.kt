@@ -68,7 +68,8 @@ class UserRepositoryImpl(
             val user = User(
                 uid = uid,
                 displayName = current.displayName?.ifBlank { "You" } ?: "You",
-                email = current.email ?: ""
+                email = current.email ?: "",
+                photoUrl = current.photoUrl?.toString()
             )
             localUsers.update { it + (uid to user) }
             return user
@@ -101,7 +102,7 @@ class UserRepositoryImpl(
                     if (e != null) {
                         val current = com.google.firebase.auth.FirebaseAuth.getInstance().currentUser
                         if (current != null && current.uid == uid) {
-                            trySend(User(uid = uid, displayName = current.displayName ?: "User", email = current.email ?: ""))
+                            trySend(User(uid = uid, displayName = current.displayName ?: "User", email = current.email ?: "", photoUrl = current.photoUrl?.toString()))
                         } else {
                             trySend(null)
                         }
@@ -148,12 +149,28 @@ class UserRepositoryImpl(
             email = email ?: "",
             photoUrl = photoUrl
         )
-        persistUser(user)
+        // Keep cached fields (currency etc.); only fill a missing photo or placeholder name.
+        val cached = localUsers.value[uid]
+        persistUser(
+            cached?.copy(
+                photoUrl = cached.photoUrl?.takeIf { it.isNotBlank() } ?: photoUrl,
+                displayName = cached.displayName.takeIf { it.isNotBlank() && it != "User" } ?: user.displayName
+            ) ?: user
+        )
         return try {
             kotlinx.coroutines.withTimeoutOrNull(1500) {
                 val snapshot = usersCollection.document(uid).get().await()
                 if (!snapshot.exists()) {
                     usersCollection.document(uid).set(user).awaitWrite()
+                } else {
+                    // Profiles created before photos were saved: fill in the Google photo and name
+                    // so other members see them instead of an initial.
+                    val fill = buildMap<String, Any> {
+                        if (snapshot.getString("photoUrl").isNullOrBlank() && !photoUrl.isNullOrBlank()) put("photoUrl", photoUrl)
+                        val name = snapshot.getString("displayName")
+                        if ((name.isNullOrBlank() || name == "User") && !displayName.isNullOrBlank()) put("displayName", displayName)
+                    }
+                    if (fill.isNotEmpty()) usersCollection.document(uid).update(fill).awaitWrite()
                 }
             }
             Result.success(Unit)

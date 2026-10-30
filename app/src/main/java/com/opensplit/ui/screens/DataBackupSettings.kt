@@ -6,6 +6,8 @@ import com.opensplit.ui.theme.Symbol
 import com.opensplit.data.ai.AI_PROVIDERS_CATALOG
 import com.opensplit.data.ai.AiProviderInfo
 import com.opensplit.data.ai.AiFeature
+import com.opensplit.ui.components.SettingsGroupCard
+import com.opensplit.ui.components.SettingsGroupDivider
 import com.opensplit.ui.components.SymbolIcon
 import com.opensplit.ui.components.responsiveContentWidth
 import android.content.Intent
@@ -101,67 +103,38 @@ fun DataBackupSubScreen(
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
             item {
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = MaterialTheme.shapes.large,
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh)
-                ) {
-                    Column {
-                        listOf(
-                            Triple("Recurring bills", "Rent, utilities, subscriptions", OpenSplitIcons.Autorenew) to onOpenRecurring,
-                            Triple("Recently deleted", "Restore expenses from the last 90 days", OpenSplitIcons.Delete) to onOpenRecentlyDeleted
-                        ).forEachIndexed { index, (row, onClick) ->
-                            if (index > 0) HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f))
-                            ListItem(
-                                modifier = Modifier.clickable(onClick = onClick),
-                                colors = ListItemDefaults.colors(containerColor = Color.Transparent),
-                                leadingContent = { SymbolIcon(row.third, contentDescription = null, tint = MaterialTheme.colorScheme.primary) },
-                                headlineContent = { Text(row.first, fontWeight = FontWeight.SemiBold) },
-                                supportingContent = { Text(row.second, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) },
-                                trailingContent = { SymbolIcon(OpenSplitIcons.ChevronRight, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant) }
-                            )
+                SettingsGroupCard(title = "Recurring & Deleted", icon = OpenSplitIcons.History) {
+                    listOf(
+                        Triple("Recurring bills", "Rent, utilities, subscriptions", OpenSplitIcons.Autorenew) to onOpenRecurring,
+                        Triple("Recently deleted", "Restore expenses from the last 90 days", OpenSplitIcons.Delete) to onOpenRecentlyDeleted
+                    ).forEachIndexed { index, (row, onClick) ->
+                        if (index > 0) SettingsGroupDivider()
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable(onClick = onClick)
+                                .padding(16.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            SymbolIcon(row.third, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                            Spacer(modifier = Modifier.width(16.dp))
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(row.first, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.SemiBold)
+                                Text(row.second, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            }
+                            SymbolIcon(OpenSplitIcons.ChevronRight, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
                     }
                 }
             }
             item {
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = MaterialTheme.shapes.large,
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh)
-                ) {
-                    Column(modifier = Modifier.padding(20.dp)) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Surface(
-                                shape = MaterialTheme.shapes.small,
-                                color = MaterialTheme.colorScheme.primaryContainer,
-                                modifier = Modifier.size(40.dp)
-                            ) {
-                                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                                    SymbolIcon(
-                                        symbol = OpenSplitIcons.Download,
-                                        contentDescription = null,
-                                        tint = MaterialTheme.colorScheme.onPrimaryContainer,
-                                        modifier = Modifier.size(20.dp)
-                                    )
-                                }
-                            }
-
-                            Spacer(modifier = Modifier.width(14.dp))
-
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text(
-                                    text = "Export Data",
-                                    style = MaterialTheme.typography.titleMedium,
-                                    fontWeight = FontWeight.Bold
-                                )
-                                Text(
-                                    text = "$expenseCount expenses recorded",
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            }
-                        }
+                SettingsGroupCard(title = "Export Data", icon = OpenSplitIcons.Download) {
+                    Column(modifier = Modifier.padding(16.dp)) {
+                        Text(
+                            text = "$expenseCount ${if (expenseCount == 1) "expense" else "expenses"} recorded",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
 
                         Spacer(modifier = Modifier.height(16.dp))
 
@@ -187,43 +160,13 @@ fun DataBackupSubScreen(
                 var clearedResult by remember { mutableStateOf<String?>(null) }
                 val coroutineScope = rememberCoroutineScope()
 
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = MaterialTheme.shapes.large,
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh)
-                ) {
-                    Column(modifier = Modifier.padding(20.dp)) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Surface(
-                                shape = MaterialTheme.shapes.small,
-                                color = MaterialTheme.colorScheme.secondaryContainer,
-                                modifier = Modifier.size(40.dp)
-                            ) {
-                                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                                    SymbolIcon(
-                                        symbol = OpenSplitIcons.CleaningServices,
-                                        contentDescription = null,
-                                        tint = MaterialTheme.colorScheme.onSecondaryContainer,
-                                        modifier = Modifier.size(20.dp)
-                                    )
-                                }
-                            }
-
-                            Spacer(modifier = Modifier.width(14.dp))
-
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text(
-                                    text = "Cache",
-                                    style = MaterialTheme.typography.titleMedium,
-                                    fontWeight = FontWeight.Bold
-                                )
-                                Text(
-                                    text = "Images and temporary files",
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            }
-                        }
+                SettingsGroupCard(title = "Cache", icon = OpenSplitIcons.CleaningServices) {
+                    Column(modifier = Modifier.padding(16.dp)) {
+                        Text(
+                            text = "Images and temporary files",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
 
                         androidx.compose.animation.AnimatedVisibility(visible = isClearing) {
                             Column(modifier = Modifier.fillMaxWidth().padding(top = 16.dp)) {
@@ -339,13 +282,8 @@ private fun SettingsBackupCard(
         }
     }
 
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        shape = MaterialTheme.shapes.large,
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh)
-    ) {
-        Column(modifier = Modifier.padding(20.dp)) {
-            Text("Settings backup", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+    SettingsGroupCard(title = "Settings Backup", icon = OpenSplitIcons.Settings) {
+        Column(modifier = Modifier.padding(16.dp)) {
             Text(
                 "Theme, currency, notifications, budgets and pinned groups. API keys are never included.",
                 style = MaterialTheme.typography.bodySmall,

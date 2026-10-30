@@ -31,6 +31,7 @@ import androidx.core.content.FileProvider
 import coil.compose.AsyncImage
 import com.opensplit.BuildConfig
 import com.opensplit.ui.components.LocalSnackbarController
+import com.opensplit.ui.components.SettingsGroupCard
 import com.opensplit.ui.components.SymbolIcon
 import com.opensplit.ui.components.responsiveContentWidth
 import com.opensplit.ui.theme.OpenSplitIcons
@@ -120,91 +121,96 @@ fun BugReportSubScreen(onBack: () -> Unit) {
                     )
                 }
                 item {
-                    OutlinedTextField(
-                        value = title, onValueChange = { title = it.take(MAX_TITLE) },
-                        label = { Text("Summary") },
-                        placeholder = { Text("e.g. Balance wrong after editing an expense") },
-                        singleLine = true, modifier = Modifier.fillMaxWidth()
-                    )
-                }
-                item {
-                    OutlinedTextField(
-                        value = whatHappened, onValueChange = { whatHappened = it },
-                        label = { Text("What happened?") },
-                        placeholder = { Text("Describe the problem you saw") },
-                        minLines = 3, modifier = Modifier.fillMaxWidth()
-                    )
-                }
-                item {
-                    OutlinedTextField(
-                        value = steps, onValueChange = { steps = it },
-                        label = { Text("Steps to reproduce (optional)") },
-                        placeholder = { Text("1. Open a group\n2. Edit an expense\n3. …") },
-                        minLines = 3, modifier = Modifier.fillMaxWidth()
-                    )
-                }
-                item {
-                    OutlinedTextField(
-                        value = expected, onValueChange = { expected = it },
-                        label = { Text("What did you expect? (optional)") },
-                        minLines = 2, modifier = Modifier.fillMaxWidth()
-                    )
-                }
-                item {
-                    Text("How often does it happen?", style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary, modifier = Modifier.padding(start = 8.dp, bottom = 8.dp))
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        FREQUENCIES.forEach { f ->
-                            FilterChip(selected = frequency == f, onClick = { frequency = f }, label = { Text(f) })
+                    SettingsGroupCard(title = "Your Report", icon = OpenSplitIcons.Description) {
+                        Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                            OutlinedTextField(
+                                value = title, onValueChange = { title = it.take(MAX_TITLE) },
+                                label = { Text("Summary") },
+                                placeholder = { Text("e.g. Balance wrong after editing an expense") },
+                                singleLine = true, modifier = Modifier.fillMaxWidth()
+                            )
+                            OutlinedTextField(
+                                value = whatHappened, onValueChange = { whatHappened = it },
+                                label = { Text("What happened?") },
+                                placeholder = { Text("Describe the problem you saw") },
+                                minLines = 3, modifier = Modifier.fillMaxWidth()
+                            )
+                            OutlinedTextField(
+                                value = steps, onValueChange = { steps = it },
+                                label = { Text("Steps to reproduce (optional)") },
+                                placeholder = { Text("1. Open a group\n2. Edit an expense\n3. …") },
+                                minLines = 3, modifier = Modifier.fillMaxWidth()
+                            )
+                            OutlinedTextField(
+                                value = expected, onValueChange = { expected = it },
+                                label = { Text("What did you expect? (optional)") },
+                                minLines = 2, modifier = Modifier.fillMaxWidth()
+                            )
                         }
                     }
                 }
                 item {
-                    Text("Screenshots or videos (${attachments.size}/$MAX_ATTACHMENTS)", style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary, modifier = Modifier.padding(start = 8.dp, bottom = 8.dp))
-                    LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        items(attachments, key = { it.toString() }) { uri ->
-                            Box(modifier = Modifier.size(96.dp)) {
-                                AsyncImage(
-                                    model = uri, contentDescription = "Attachment", contentScale = ContentScale.Crop,
-                                    modifier = Modifier.fillMaxSize().clip(MaterialTheme.shapes.medium)
-                                )
+                    SettingsGroupCard(title = "How Often Does It Happen?", icon = OpenSplitIcons.Schedule) {
+                        Row(modifier = Modifier.padding(16.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            FREQUENCIES.forEach { f ->
+                                FilterChip(selected = frequency == f, onClick = { frequency = f }, label = { Text(f) })
+                            }
+                        }
+                    }
+                }
+                item {
+                    SettingsGroupCard(title = "Screenshots or Videos (${attachments.size}/$MAX_ATTACHMENTS)", icon = OpenSplitIcons.PhotoLibrary) {
+                        // contentPadding (not padding) so thumbnails scroll to the surface edge.
+                        LazyRow(contentPadding = PaddingValues(16.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            items(attachments, key = { it.toString() }) { uri ->
+                                Box(modifier = Modifier.size(96.dp)) {
+                                    AsyncImage(
+                                        model = uri, contentDescription = "Attachment", contentScale = ContentScale.Crop,
+                                        modifier = Modifier.fillMaxSize().clip(MaterialTheme.shapes.medium)
+                                    )
+                                    Surface(
+                                        onClick = { attachments = attachments - uri },
+                                        shape = CircleShape,
+                                        color = MaterialTheme.colorScheme.inverseSurface,
+                                        contentColor = MaterialTheme.colorScheme.inverseOnSurface,
+                                        modifier = Modifier.align(Alignment.TopEnd).padding(4.dp).size(28.dp)
+                                    ) {
+                                        Box(contentAlignment = Alignment.Center) {
+                                            SymbolIcon(OpenSplitIcons.Close, contentDescription = "Remove attachment", modifier = Modifier.size(16.dp))
+                                        }
+                                    }
+                                }
+                            }
+                            if (attachments.size < MAX_ATTACHMENTS) item {
                                 Surface(
-                                    onClick = { attachments = attachments - uri },
-                                    shape = CircleShape,
-                                    color = MaterialTheme.colorScheme.inverseSurface,
-                                    contentColor = MaterialTheme.colorScheme.inverseOnSurface,
-                                    modifier = Modifier.align(Alignment.TopEnd).padding(4.dp).size(28.dp)
+                                    onClick = { picker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageAndVideo)) },
+                                    shape = MaterialTheme.shapes.medium,
+                                    color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                                    modifier = Modifier.size(96.dp)
                                 ) {
-                                    Box(contentAlignment = Alignment.Center) {
-                                        SymbolIcon(OpenSplitIcons.Close, contentDescription = "Remove attachment", modifier = Modifier.size(16.dp))
+                                    Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
+                                        SymbolIcon(OpenSplitIcons.PhotoLibrary, contentDescription = null)
+                                        Spacer(Modifier.height(4.dp))
+                                        Text("Add", style = MaterialTheme.typography.labelMedium)
                                     }
                                 }
                             }
                         }
-                        if (attachments.size < MAX_ATTACHMENTS) item {
-                            Surface(
-                                onClick = { picker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageAndVideo)) },
-                                shape = MaterialTheme.shapes.medium,
-                                color = MaterialTheme.colorScheme.surfaceContainerHigh,
-                                modifier = Modifier.size(96.dp)
-                            ) {
-                                Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
-                                    SymbolIcon(OpenSplitIcons.PhotoLibrary, contentDescription = null)
-                                    Spacer(Modifier.height(4.dp))
-                                    Text("Add", style = MaterialTheme.typography.labelMedium)
-                                }
-                            }
-                        }
                     }
                 }
                 item {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier.fillMaxWidth().clip(MaterialTheme.shapes.medium).clickable { includeDevice = !includeDevice }
-                    ) {
-                        Checkbox(checked = includeDevice, onCheckedChange = { includeDevice = it })
-                        Column {
-                            Text("Include app and device details", style = MaterialTheme.typography.bodyLarge)
-                            Text(deviceInfo, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    SettingsGroupCard(title = "Details", icon = OpenSplitIcons.Info) {
+                        // Checkbox carries its own 12dp touch inset, so less start padding keeps it aligned at 16dp.
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.fillMaxWidth().clickable { includeDevice = !includeDevice }
+                                .padding(start = 4.dp, end = 16.dp, top = 8.dp, bottom = 8.dp)
+                        ) {
+                            Checkbox(checked = includeDevice, onCheckedChange = { includeDevice = it })
+                            Column {
+                                Text("Include app and device details", style = MaterialTheme.typography.bodyLarge)
+                                Text(deviceInfo, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            }
                         }
                     }
                 }

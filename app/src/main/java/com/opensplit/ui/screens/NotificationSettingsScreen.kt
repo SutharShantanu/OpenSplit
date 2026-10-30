@@ -3,6 +3,8 @@
 package com.opensplit.ui.screens
 
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.opensplit.ui.components.SettingsGroupCard
+import com.opensplit.ui.components.SettingsGroupDivider
 import com.opensplit.ui.components.SymbolIcon
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
@@ -88,140 +90,52 @@ fun NotificationSettingsScreen(
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
 
-            // Expense Alerts Card
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                shape = MaterialTheme.shapes.large,
-                colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.secondaryContainer
+            SettingsGroupCard(title = "Expense Alerts", icon = OpenSplitIcons.ReceiptLong) {
+                NotificationToggleRow(
+                    title = "New Expenses",
+                    subtitle = "When someone adds a new expense involving you.",
+                    checked = newExpensesEnabled,
+                    onCheckedChange = {
+                        set(NotificationType.EXPENSE_ADDED, it)
+                        snackbar.showMessage(if (it) "New expense alerts enabled" else "New expense alerts disabled")
+                    }
                 )
-            ) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(16.dp)
-                ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(12.dp),
-                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
-                    ) {
-                        SymbolIcon(
-                            symbol = OpenSplitIcons.ReceiptLong,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.size(24.dp)
-                        )
-                        Text(
-                            text = "Expense Alerts",
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.onSecondaryContainer
-                        )
+
+                SettingsGroupDivider()
+
+                NotificationToggleRow(
+                    title = "Expense Updates",
+                    subtitle = "Changes to amount, date, or split logic on your expenses.",
+                    checked = expenseUpdatesEnabled,
+                    onCheckedChange = {
+                        set(NotificationType.EXPENSE_EDITED, it)
+                        snackbar.showMessage(if (it) "Expense update alerts enabled" else "Expense update alerts disabled")
                     }
-
-                    Surface(
-                        shape = MaterialTheme.shapes.medium,
-                        color = MaterialTheme.colorScheme.surface,
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Column {
-                            NotificationToggleRow(
-                                title = "New Expenses",
-                                subtitle = "When someone adds a new expense involving you.",
-                                checked = newExpensesEnabled,
-                                onCheckedChange = {
-                                    set(NotificationType.EXPENSE_ADDED, it)
-                                    snackbar.showMessage(if (it) "New expense alerts enabled" else "New expense alerts disabled")
-                                }
-                            )
-
-                            HorizontalDivider(
-                                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f),
-                                modifier = Modifier.padding(horizontal = 16.dp)
-                            )
-
-                            NotificationToggleRow(
-                                title = "Expense Updates",
-                                subtitle = "Changes to amount, date, or split logic on your expenses.",
-                                checked = expenseUpdatesEnabled,
-                                onCheckedChange = {
-                                    set(NotificationType.EXPENSE_EDITED, it)
-                                    snackbar.showMessage(if (it) "Expense update alerts enabled" else "Expense update alerts disabled")
-                                }
-                            )
-                        }
-                    }
-                }
+                )
             }
 
-            // Settlement Reminders Card
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                shape = MaterialTheme.shapes.large,
-                colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.secondaryContainer
+            SettingsGroupCard(title = "Settlement Reminders", icon = OpenSplitIcons.Payments) {
+                NotificationToggleRow(
+                    title = "Payment Requests",
+                    subtitle = "When someone sends you a reminder to settle up.",
+                    checked = paymentRequestsEnabled,
+                    onCheckedChange = {
+                        set(NotificationType.PAYMENT, it)
+                        snackbar.showMessage(if (it) "Payment request reminders enabled" else "Payment request reminders disabled")
+                    }
                 )
-            ) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(16.dp)
-                ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(12.dp),
-                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
-                    ) {
-                        SymbolIcon(
-                            symbol = OpenSplitIcons.Payments,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.size(24.dp)
-                        )
-                        Text(
-                            text = "Settlement Reminders",
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.onSecondaryContainer
-                        )
+
+                SettingsGroupDivider()
+
+                NotificationToggleRow(
+                    title = "Automatic Reminders",
+                    subtitle = "Weekly digest of outstanding balances you owe.",
+                    checked = automaticRemindersEnabled,
+                    onCheckedChange = {
+                        set(NotificationType.REMINDER, it)
+                        snackbar.showMessage(if (it) "Weekly digest reminders enabled" else "Weekly digest reminders disabled")
                     }
-
-                    Surface(
-                        shape = MaterialTheme.shapes.medium,
-                        color = MaterialTheme.colorScheme.surface,
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Column {
-                            NotificationToggleRow(
-                                title = "Payment Requests",
-                                subtitle = "When someone sends you a reminder to settle up.",
-                                checked = paymentRequestsEnabled,
-                                onCheckedChange = {
-                                    set(NotificationType.PAYMENT, it)
-                                    snackbar.showMessage(if (it) "Payment request reminders enabled" else "Payment request reminders disabled")
-                                }
-                            )
-
-                            HorizontalDivider(
-                                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f),
-                                modifier = Modifier.padding(horizontal = 16.dp)
-                            )
-
-                            NotificationToggleRow(
-                                title = "Automatic Reminders",
-                                subtitle = "Weekly digest of outstanding balances you owe.",
-                                checked = automaticRemindersEnabled,
-                                onCheckedChange = {
-                                    set(NotificationType.REMINDER, it)
-                                    snackbar.showMessage(if (it) "Weekly digest reminders enabled" else "Weekly digest reminders disabled")
-                                }
-                            )
-                        }
-                    }
-                }
+                )
             }
 
             Spacer(modifier = Modifier.height(24.dp))

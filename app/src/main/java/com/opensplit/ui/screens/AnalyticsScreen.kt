@@ -310,7 +310,7 @@ fun AnalyticsScreen(
                                 verticalAlignment = Alignment.Bottom,
                                 horizontalArrangement = Arrangement.spacedBy(10.dp)
                             ) {
-                                val currencySymbol = CurrencyFormatter.getCurrencySymbol(analyticsState.currency)
+                                val currencySymbol = analyticsState.currency
                                 Text(
                                     text = "$currencySymbol${CurrencyFormatter.format(analyticsState.monthlySpendTotal, showSymbol = false)}",
                                     style = MaterialTheme.typography.displaySmall,
@@ -427,13 +427,9 @@ fun AnalyticsScreen(
                                 } else {
                                     listOf(0.0) to listOf("No data")
                                 }
-                            } else if (chartMode == "Weekly") {
-                                val total = analyticsState.monthlySpendTotal
-                                val w1 = total * 0.22
-                                val w2 = total * 0.35
-                                val w3 = total * 0.18
-                                val w4 = total * 0.25
-                                listOf(w1, w2, w3, w4) to listOf("W1", "W2", "W3", "W4")
+                            } else if (chartMode == "Weekly" && analyticsState.weeklyBuckets.isNotEmpty()) {
+                                val weeks = analyticsState.weeklyBuckets
+                                weeks.map { it.amount } to weeks.map { it.monthLabel }
                             } else {
                                 val buckets = analyticsState.monthlyBuckets
                                 if (buckets.isNotEmpty()) {
@@ -727,7 +723,7 @@ fun AnalyticsScreen(
                                 },
                                 trailingContent = {
                                     Text(
-                                        text = "${analyticsState.currency}${String.format("%.2f", exp.amount)}",
+                                        text = CurrencyFormatter.format(exp.amount, exp.currency),
                                         style = MaterialTheme.typography.titleSmall,
                                         fontWeight = FontWeight.Bold,
                                         color = MaterialTheme.colorScheme.primary
@@ -1163,7 +1159,7 @@ private fun PeriodPickerDialog(
  */
 @Composable
 private fun MonthSummaryCard(state: AnalyticsUiState, budgets: Map<String, Double>) {
-    val symbol = CurrencyFormatter.getCurrencySymbol(state.currency)
+    val symbol = state.currency
     fun money(v: Double) = symbol + CurrencyFormatter.format(v, showSymbol = false)
     Surface(
         shape = MaterialTheme.shapes.extraLarge,

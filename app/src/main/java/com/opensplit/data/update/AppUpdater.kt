@@ -10,6 +10,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
 import okhttp3.Request
@@ -31,11 +32,11 @@ class AppUpdater(
         data object UpToDate : State
         data class Available(val release: Release) : State
         /** [progress] is 0..1, or null while the total size is still unknown. */
-        data class Downloading(val release: Release, val progress: Float?) : State
+        data class Downloading(val release: Release, val progress: Float?, val bytes: Long = 0, val totalBytes: Long = 0) : State
         /** APK downloaded and verified; [needsPermission] until "install unknown apps" is allowed. */
         data class Downloaded(val release: Release, val apk: java.io.File, val needsPermission: Boolean = false) : State
-        /** Handed to PackageInstaller; Android may show its confirm dialog. */
-        data class Installing(val release: Release) : State
+        /** Handed to PackageInstaller; [progress] 0..1 covers copying the APK in and Android installing it. */
+        data class Installing(val release: Release, val progress: Float = 0f) : State
         data class Failed(val message: String) : State
     }
 
@@ -54,6 +55,9 @@ class AppUpdater(
     val state: StateFlow<State> = _state.asStateFlow()
 
     private var autoChecked = false
+
+    /** Copies the APK into the installer session off the main thread. */
+    private val installScope = kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.SupervisorJob() + Dispatchers.IO)
 
     private val prefs by lazy { context.getSharedPreferences("app_updater", Context.MODE_PRIVATE) }
 
@@ -155,7 +159,9 @@ class AppUpdater(
                             lastEmit = read
                             _state.value = State.Downloading(
                                 release,
-                                if (total > 0) (read.toFloat() / total).coerceIn(0f, 1f) else null
+                                if (total > 0) (read.toFloat() / total).coerceIn(0f, 1f) else null,
+                                read,
+                                total
                             )
                         }
                     }
@@ -179,32 +185,63 @@ class AppUpdater(
             return
         }
         _state.value = State.Installing(ready.release)
-        runCatching {
-            val installer = context.packageManager.packageInstaller
-            val params = android.content.pm.PackageInstaller.SessionParams(
-                android.content.pm.PackageInstaller.SessionParams.MODE_FULL_INSTALL
-            ).apply {
-                setAppPackageName(context.packageName)
-                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
-                    setRequireUserAction(android.content.pm.PackageInstaller.SessionParams.USER_ACTION_NOT_REQUIRED)
+        installScope.launch {
+            runCatching {
+                val installer = context.packageManager.packageInstaller
+                val params = android.content.pm.PackageInstaller.SessionParams(
+                    android.content.pm.PackageInstaller.SessionParams.MODE_FULL_INSTALL
+                ).apply {
+                    setAppPackageName(context.packageName)
+                    if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
+                        setRequireUserAction(android.content.pm.PackageInstaller.SessionParams.USER_ACTION_NOT_REQUIRED)
+                    }
                 }
-            }
-            val sessionId = installer.createSession(params)
-            installer.openSession(sessionId).use { session ->
-                session.openWrite("base.apk", 0, ready.apk.length()).use { out ->
-                    ready.apk.inputStream().use { it.copyTo(out) }
-                    session.fsync(out)
+                val sessionId = installer.createSession(params)
+                // Android reports staging + install progress (0..1) for the session; only ever move forward.
+                fun report(p: Float) {
+                    val cur = _state.value as? State.Installing ?: return
+                    if (p > cur.progress) _state.value = cur.copy(progress = p.coerceAtMost(1f))
                 }
-                val callback = android.app.PendingIntent.getBroadcast(
-                    context, sessionId,
-                    Intent(context, UpdateInstallReceiver::class.java),
-                    android.app.PendingIntent.FLAG_UPDATE_CURRENT or android.app.PendingIntent.FLAG_MUTABLE
-                )
-                session.commit(callback.intentSender)
+                installer.registerSessionCallback(object : android.content.pm.PackageInstaller.SessionCallback() {
+                    override fun onCreated(id: Int) = Unit
+                    override fun onBadgingChanged(id: Int) = Unit
+                    override fun onActiveChanged(id: Int, active: Boolean) = Unit
+                    override fun onProgressChanged(id: Int, progress: Float) { if (id == sessionId) report(progress) }
+                    override fun onFinished(id: Int, success: Boolean) {
+                        if (id != sessionId) return
+                        if (success) report(1f)
+                        installer.unregisterSessionCallback(this)
+                    }
+                }, android.os.Handler(android.os.Looper.getMainLooper()))
+
+                installer.openSession(sessionId).use { session ->
+                    val total = ready.apk.length().coerceAtLeast(1)
+                    session.openWrite("base.apk", 0, total).use { out ->
+                        ready.apk.inputStream().use { input ->
+                            val buf = ByteArray(64 * 1024)
+                            var copied = 0L
+                            while (true) {
+                                val n = input.read(buf)
+                                if (n < 0) break
+                                out.write(buf, 0, n)
+                                copied += n
+                                // Copying the APK in is staging; Android turns this into session progress.
+                                session.setStagingProgress(copied.toFloat() / total)
+                            }
+                        }
+                        session.fsync(out)
+                    }
+                    val callback = android.app.PendingIntent.getBroadcast(
+                        context, sessionId,
+                        Intent(context, UpdateInstallReceiver::class.java),
+                        android.app.PendingIntent.FLAG_UPDATE_CURRENT or android.app.PendingIntent.FLAG_MUTABLE
+                    )
+                    session.commit(callback.intentSender)
+                }
+            }.onFailure {
+                Log.w(TAG, "install failed", it)
+                _state.value = State.Failed("Couldn't start the installer")
             }
-        }.onFailure {
-            Log.w(TAG, "install failed", it)
-            _state.value = State.Failed("Couldn't start the installer")
         }
     }
 
