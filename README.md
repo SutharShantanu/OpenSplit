@@ -25,20 +25,7 @@ fewest payments, and bring your own AI key for receipt scanning and natural-lang
 ## Screenshots
 
 <p align="center">
-  <img src="docs/screenshots/onboarding_1.png" width="19%" alt="Onboarding: track expenses together" />
-  <img src="docs/screenshots/onboarding_2.png" width="19%" alt="Onboarding: AI receipt parsing" />
-  <img src="docs/screenshots/onboarding_3.png" width="19%" alt="Onboarding: always free" />
-  <img src="docs/screenshots/signin.png" width="19%" alt="Sign in with Google" />
-  <img src="docs/screenshots/groups.png" width="19%" alt="Groups tab with net balance" />
-</p>
-<p align="center">
-  <img src="docs/screenshots/new_group.png" width="19%" alt="Create group sheet with avatar suggestion" />
-  <img src="docs/screenshots/activity.png" width="19%" alt="Activity feed" />
-  <img src="docs/screenshots/insights.png" width="19%" alt="Insights: spend, cash flow, budgets" />
-  <img src="docs/screenshots/people.png" width="19%" alt="People tab with invite link" />
-  <img src="docs/screenshots/settings.png" width="19%" alt="Settings overview" />
-</p>
-<p align="center">
+  <img src="docs/screenshots/settings.png" width="24%" alt="Settings overview" />
   <img src="docs/screenshots/ai_settings.png" width="24%" alt="AI provider configuration" />
   <img src="docs/screenshots/appearance.png" width="24%" alt="Appearance and theme selection" />
   <img src="docs/screenshots/bug_report.png" width="24%" alt="In-app bug report with system diagnostics" />
