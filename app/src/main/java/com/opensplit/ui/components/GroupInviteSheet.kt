@@ -50,8 +50,6 @@ fun qrBitmap(text: String, size: Int): android.graphics.Bitmap {
     return bmp
 }
 
-private class GroupShareTarget(val icon: Symbol, val label: String, val send: (Context, String) -> Unit)
-
 /**
  * Modern dual-tab QR-based sheet for group invites.
  * Tab 0: "Group QR & Link" with large QR code, copy pill, quick-share buttons, email/contact invite.
@@ -270,71 +268,11 @@ private fun GroupQrTab(
 
             Spacer(Modifier.height(OpenSplitTokens.SpaceMD))
 
-            // Share Targets
-            Text(
-                text = "Share via",
-                style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+            ShareViaRow(
+                message = "Join our group \"$groupName\" on OpenSplit to easily split expenses: ${inviteLink.url}",
+                subject = "Join $groupName on OpenSplit",
+                chooserTitle = "Share invite link"
             )
-            Spacer(Modifier.height(OpenSplitTokens.SpaceSM))
-
-            val shareMessage = "Join our group \"$groupName\" on OpenSplit to easily split expenses: ${inviteLink.url}"
-            val targets = remember(shareMessage) {
-                listOf(
-                    GroupShareTarget(OpenSplitIcons.Sms, "SMS") { c, m ->
-                        c.startActivity(Intent(Intent.ACTION_SENDTO, Uri.parse("smsto:")).putExtra("sms_body", m))
-                    },
-                    GroupShareTarget(OpenSplitIcons.Whatsapp, "WhatsApp") { c, m ->
-                        c.startActivity(Intent(Intent.ACTION_SEND).setType("text/plain").setPackage("com.whatsapp").putExtra(Intent.EXTRA_TEXT, m))
-                    },
-                    GroupShareTarget(OpenSplitIcons.Mail, "Email") { c, m ->
-                        c.startActivity(Intent(Intent.ACTION_SENDTO, Uri.parse("mailto:")).putExtra(Intent.EXTRA_SUBJECT, "Join $groupName on OpenSplit").putExtra(Intent.EXTRA_TEXT, m))
-                    },
-                    GroupShareTarget(OpenSplitIcons.Send, "Telegram") { c, m ->
-                        c.startActivity(Intent(Intent.ACTION_SEND).setType("text/plain").setPackage("org.telegram.messenger").putExtra(Intent.EXTRA_TEXT, m))
-                    },
-                    GroupShareTarget(OpenSplitIcons.Share, "More") { c, m ->
-                        c.startActivity(Intent.createChooser(Intent(Intent.ACTION_SEND).setType("text/plain").putExtra(Intent.EXTRA_TEXT, m), "Share invite link"))
-                    }
-                )
-            }
-
-            Row(horizontalArrangement = Arrangement.SpaceEvenly, modifier = Modifier.fillMaxWidth()) {
-                targets.forEach { t ->
-                    Column(
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        modifier = Modifier
-                            .clickable {
-                                try {
-                                    t.send(context, shareMessage)
-                                    snackbar.showMessage("Opening ${t.label}…")
-                                } catch (e: ActivityNotFoundException) {
-                                    snackbar.showMessage("${t.label} is not installed")
-                                } catch (e: Exception) {
-                                    snackbar.showMessage("Couldn't share via ${t.label}")
-                                }
-                            }
-                            .padding(4.dp)
-                    ) {
-                        Surface(
-                            shape = CircleShape,
-                            color = MaterialTheme.colorScheme.secondaryContainer,
-                            modifier = Modifier.size(48.dp)
-                        ) {
-                            Box(contentAlignment = Alignment.Center) {
-                                SymbolIcon(
-                                    t.icon,
-                                    contentDescription = "Share via ${t.label}",
-                                    tint = MaterialTheme.colorScheme.onSecondaryContainer,
-                                    modifier = Modifier.size(22.dp)
-                                )
-                            }
-                        }
-                        Spacer(Modifier.height(4.dp))
-                        Text(t.label, style = MaterialTheme.typography.labelSmall)
-                    }
-                }
-            }
         }
 
         // Direct Email Invite

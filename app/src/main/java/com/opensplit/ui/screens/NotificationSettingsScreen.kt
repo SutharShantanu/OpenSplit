@@ -51,10 +51,10 @@ fun NotificationSettingsScreen(
 
     Scaffold(
         topBar = {
-            androidx.compose.material3.LargeTopAppBar(
+            androidx.compose.material3.TopAppBar(
                 title = {
                     Text(
-                        text = "Settings",
+                        text = "Notifications",
                         fontWeight = FontWeight.Bold
                     )
                 },
@@ -82,20 +82,11 @@ fun NotificationSettingsScreen(
                     .padding(horizontal = 20.dp, vertical = 16.dp),
                 verticalArrangement = Arrangement.spacedBy(24.dp)
             ) {
-            // Header Section
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text(
-                    text = "Notifications",
-                    style = MaterialTheme.typography.headlineLarge,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.primary
-                )
-                Text(
-                    text = "Control how and when openSplit alerts you about shared expenses and group activity.",
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
+            Text(
+                text = "Control how and when OpenSplit alerts you about shared expenses and group activity.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
 
             // Expense Alerts Card
             Card(

@@ -37,12 +37,10 @@ fun RoundBackButton(onClick: () -> Unit) {
     HeaderAction(OpenSplitIcons.ArrowBack, "Back", onClick = onClick)
 }
 
-/** Shape of row [index] of [count] in a segmented list: large outer corners, tight between rows (per theme). */
-@Composable
+/** Shape of row [index] of [count] in a segmented list: large outer corners, tight between rows. */
 fun segmentShape(index: Int, count: Int): androidx.compose.ui.graphics.Shape {
-    val style = com.opensplit.ui.theme.LocalAppStyle.current
-    val top = if (index == 0) style.segmentOuter else style.segmentInner
-    val bottom = if (index == count - 1) style.segmentOuter else style.segmentInner
+    val top = if (index == 0) 28.dp else 6.dp
+    val bottom = if (index == count - 1) 28.dp else 6.dp
     return androidx.compose.foundation.shape.RoundedCornerShape(top, top, bottom, bottom)
 }
 

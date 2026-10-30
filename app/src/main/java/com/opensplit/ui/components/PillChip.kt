@@ -38,7 +38,7 @@ fun FilterChip(
     enabled: Boolean = true,
     leadingIcon: @Composable (() -> Unit)? = null,
     trailingIcon: @Composable (() -> Unit)? = null,
-    shape: Shape = com.opensplit.ui.theme.LocalAppStyle.current.pill,
+    shape: Shape = androidx.compose.foundation.shape.CircleShape,
     colors: SelectableChipColors = pillChipColors(),
     border: BorderStroke? = null
 ) {
@@ -84,7 +84,7 @@ fun PillTabs(
 ) {
     val c = MaterialTheme.colorScheme
     androidx.compose.material3.Surface(
-        shape = com.opensplit.ui.theme.LocalAppStyle.current.pill,
+        shape = androidx.compose.foundation.shape.CircleShape,
         color = c.surfaceContainerHigh,
         modifier = modifier.fillMaxWidth().height(56.dp)
     ) {
@@ -96,7 +96,7 @@ fun PillTabs(
                 val on = i == selected
                 androidx.compose.material3.Surface(
                     onClick = { onSelect(i) },
-                    shape = com.opensplit.ui.theme.LocalAppStyle.current.pill,
+                    shape = androidx.compose.foundation.shape.CircleShape,
                     color = if (on) c.primary else androidx.compose.ui.graphics.Color.Transparent,
                     contentColor = if (on) c.onPrimary else c.onSurfaceVariant,
                     modifier = Modifier
@@ -134,5 +134,11 @@ fun PillTabContent(selected: Int, content: @Composable (Int) -> Unit) {
                 .using(androidx.compose.animation.SizeTransform(clip = false))
         },
         label = "pillTabContent"
-    ) { tab -> content(tab) }
+    ) { tab ->
+        // AnimatedContent stacks children in a Box; tabs emit several siblings, so lay them out as a column.
+        androidx.compose.foundation.layout.Column(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) { content(tab) }
+    }
 }

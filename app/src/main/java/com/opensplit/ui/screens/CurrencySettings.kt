@@ -44,8 +44,8 @@ fun CurrencySettingsSubScreen(
                 .fillMaxSize()
                 .responsiveContentWidth(maxWidth = 760.dp)
         ) {
-            LargeTopAppBar(
-                title = { Text("Currency") },
+            TopAppBar(
+                title = { Text("Currency", fontWeight = androidx.compose.ui.text.font.FontWeight.Bold) },
                 navigationIcon = { com.opensplit.ui.components.RoundBackButton(onClick = onBack) },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent),
                 windowInsets = WindowInsets(0, 0, 0, 0)
@@ -73,7 +73,7 @@ fun CurrencySettingsSubScreen(
                                     val selected = code.equals(defaultCurrency, ignoreCase = true)
                                     Surface(
                                         onClick = { onCurrencySelected(code) },
-                                        shape = com.opensplit.ui.theme.LocalAppStyle.current.pill,
+                                        shape = androidx.compose.foundation.shape.CircleShape,
                                         color = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceContainerHigh,
                                         contentColor = if (selected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface,
                                         modifier = Modifier.weight(1f).height(48.dp)
@@ -169,10 +169,10 @@ private fun CurrencySearchDropdown(selected: CurrencyData, onSelect: (String) ->
             value = query,
             onValueChange = { query = it; expanded = true },
             singleLine = true,
-            placeholder = { Text("${selected.flag} ${selected.code} · search country, name or code") },
+            placeholder = { Text("Search country, name or code", maxLines = 1) },
             leadingIcon = { SymbolIcon(OpenSplitIcons.Search, contentDescription = null) },
             trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
-            shape = com.opensplit.ui.theme.LocalAppStyle.current.pill,
+            shape = androidx.compose.foundation.shape.CircleShape,
             modifier = Modifier
                 .fillMaxWidth()
                 .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryEditable)

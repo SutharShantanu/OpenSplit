@@ -127,7 +127,7 @@ fun AiProvidersSubScreen(
                 .fillMaxSize()
                 .responsiveContentWidth(maxWidth = 760.dp)
         ) {
-            androidx.compose.material3.LargeTopAppBar(
+            androidx.compose.material3.TopAppBar(
                 title = { Text("AI", fontWeight = FontWeight.Bold) },
                 navigationIcon = { com.opensplit.ui.components.RoundBackButton(onClick = onBack) },
                 actions = { Switch(checked = aiEnabled, onCheckedChange = onToggleAi, modifier = Modifier.padding(end = 12.dp)) },

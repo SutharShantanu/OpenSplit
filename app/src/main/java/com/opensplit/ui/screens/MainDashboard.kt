@@ -174,7 +174,7 @@ fun MainDashboard(
     val groupsFab: @Composable () -> Unit = {
         FloatingActionButton(
             onClick = { addExpense() },
-            shape = com.opensplit.ui.theme.LocalAppStyle.current.pill,
+            shape = androidx.compose.foundation.shape.CircleShape,
             modifier = Modifier.size(72.dp),
             containerColor = MaterialTheme.colorScheme.primaryContainer,
             contentColor = MaterialTheme.colorScheme.onPrimaryContainer
@@ -183,7 +183,7 @@ fun MainDashboard(
     val peopleFab: @Composable () -> Unit = {
         FloatingActionButton(
             onClick = { mainViewModel.ensureFriendLink(); showQrSheet = true },
-            shape = com.opensplit.ui.theme.LocalAppStyle.current.pill,
+            shape = androidx.compose.foundation.shape.CircleShape,
             modifier = Modifier.size(72.dp),
             containerColor = MaterialTheme.colorScheme.primaryContainer,
             contentColor = MaterialTheme.colorScheme.onPrimaryContainer

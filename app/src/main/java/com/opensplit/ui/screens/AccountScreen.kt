@@ -103,6 +103,10 @@ enum class AccountCategory(
         title = "Security",
         icon = OpenSplitIcons.Security
     ),
+    BUG_REPORT(
+        title = "Report a bug",
+        icon = OpenSplitIcons.Warning
+    ),
     ABOUT(
         title = "About",
         icon = OpenSplitIcons.Info
@@ -122,8 +126,6 @@ fun AccountScreen(
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
 
     val theme by viewModel.themeFlow.collectAsStateWithLifecycle(initialValue = "system")
-    val colorPalette by viewModel.colorPaletteFlow.collectAsStateWithLifecycle(initialValue = "material")
-    val amoledPref by viewModel.amoledFlow.collectAsStateWithLifecycle(initialValue = false)
     val dynamicColor by viewModel.dynamicColorFlow.collectAsStateWithLifecycle(initialValue = Build.VERSION.SDK_INT >= Build.VERSION_CODES.S)
     val notificationsEnabled by viewModel.notificationsEnabledFlow.collectAsStateWithLifecycle(initialValue = true)
     val aiProvider by viewModel.aiProviderFlow.collectAsStateWithLifecycle(initialValue = "openai")
@@ -172,7 +174,6 @@ fun AccountScreen(
                         AccountOverviewScreen(
                             data = data,
                             theme = theme,
-                            colorPalette = colorPalette,
                             dynamicColor = dynamicColor,
                             aiProvider = aiProvider,
                             providerApiKeys = providerApiKeys,
@@ -180,7 +181,6 @@ fun AccountScreen(
                             aiTokens = aiTokens,
                             onSelectCategory = { selectedCategory = it },
                             onSignOutClick = { showSignOutDialog = true },
-                            onDeleteAccountClick = { showDeleteAccountDialog = true },
                             onNavigateToHistory = { rootNavController.navigate("settlement_history") },
                             onNavigateToActivity = { rootNavController.navigate("activity") },
                             onUpdateDisplayName = { newName ->
@@ -194,10 +194,6 @@ fun AccountScreen(
                         AppearanceSettingsSubScreen(
                             theme = theme,
                             onThemeChange = { viewModel.setTheme(it) },
-                            palette = colorPalette,
-                            onPaletteChange = { viewModel.setColorPalette(it) },
-                            amoled = amoledPref,
-                            onAmoledChange = { viewModel.setAmoled(it) },
                             onBack = { selectedCategory = null }
                         )
                     }
@@ -286,6 +282,9 @@ fun AccountScreen(
                                 onBack = { selectedCategory = null }
                             )
                         }
+                        AccountCategory.BUG_REPORT -> {
+                            BugReportSubScreen(onBack = { selectedCategory = null })
+                        }
                         AccountCategory.ABOUT -> {
                             AboutSupportSubScreen(
                                 onBack = { selectedCategory = null }
@@ -370,7 +369,6 @@ fun AccountScreen(
 fun AccountOverviewScreen(
     data: AccountUiState,
     theme: String,
-    colorPalette: String = "dynamic",
     dynamicColor: Boolean,
     aiProvider: String,
     providerApiKeys: Map<String, String>,
@@ -378,7 +376,6 @@ fun AccountOverviewScreen(
     aiTokens: Map<String, Int> = emptyMap(),
     onSelectCategory: (AccountCategory) -> Unit,
     onSignOutClick: () -> Unit,
-    onDeleteAccountClick: () -> Unit,
     onNavigateToHistory: () -> Unit,
     onNavigateToActivity: () -> Unit,
     onUpdateDisplayName: (String) -> Unit = {},
@@ -518,6 +515,7 @@ fun AccountOverviewScreen(
                         sectionTitle = "Security & About",
                         categories = listOf(
                             AccountCategory.SECURITY,
+                            AccountCategory.BUG_REPORT,
                             AccountCategory.ABOUT
                         )
                     )
@@ -715,17 +713,11 @@ fun AccountOverviewScreen(
                                         com.opensplit.util.StorageStats.formatMb(cacheBytes + appDataBytes)
                                     }
                                     AccountCategory.THEME -> {
-                                        val modeLabel = when (theme) {
+                                        when (theme) {
                                             "light" -> "Light"
                                             "dark" -> "Dark"
-                                            "amoled" -> "AMOLED"
                                             else -> "System"
                                         }
-                                        val palLabel = when (colorPalette) {
-                                            "monochrome" -> "Monochrome"
-                                            else -> "Material"
-                                        }
-                                        "$modeLabel · $palLabel"
                                     }
                                     AccountCategory.CURRENCIES -> {
                                         "${CurrencyFormatter.getCurrencyFlag(data.defaultCurrency)} ${data.defaultCurrency} (${CurrencyFormatter.getCurrencySymbol(data.defaultCurrency)})"
@@ -737,6 +729,7 @@ fun AccountOverviewScreen(
                                     AccountCategory.NOTIFICATIONS -> "On"
                                     AccountCategory.DATA_BACKUP -> "${data.allExpenses.size} items"
                                     AccountCategory.SECURITY -> "Protected"
+                                    AccountCategory.BUG_REPORT -> "GitHub"
                                     AccountCategory.ABOUT -> "v${com.opensplit.BuildConfig.VERSION_NAME}"
                                 }
 
@@ -863,25 +856,6 @@ fun AccountOverviewScreen(
                         style = MaterialTheme.typography.labelLarge,
                         fontWeight = FontWeight.Bold
                     )
-                }
-
-                Spacer(modifier = Modifier.height(6.dp))
-
-                Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
-                    TextButton(onClick = onDeleteAccountClick) {
-                        SymbolIcon(
-                            symbol = OpenSplitIcons.DeleteOutline,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.error.copy(alpha = 0.7f),
-                            modifier = Modifier.size(16.dp)
-                        )
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text(
-                            text = "Delete account",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.error.copy(alpha = 0.7f)
-                        )
-                    }
                 }
 
                 Spacer(modifier = Modifier.height(4.dp))

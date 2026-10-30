@@ -66,7 +66,7 @@ fun FloatingNavBar(
     ) {
         // Plain tonal pill like Pixel apps: no custom shadow, no blur or tint behind it.
         Surface(
-            shape = com.opensplit.ui.theme.LocalAppStyle.current.pill,
+            shape = androidx.compose.foundation.shape.CircleShape,
             color = MaterialTheme.colorScheme.surfaceContainerHigh,
             modifier = Modifier.weight(1f).height(72.dp)
         ) {
@@ -99,7 +99,7 @@ private fun RowScope.NavPill(item: FloatingNavItem) {
             haptic.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.TextHandleMove)
             item.onClick()
         },
-        shape = com.opensplit.ui.theme.LocalAppStyle.current.pill,
+        shape = androidx.compose.foundation.shape.CircleShape,
         color = container,
         contentColor = content,
         modifier = Modifier

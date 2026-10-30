@@ -38,8 +38,6 @@ class UserPreferencesRepositoryImpl(private val context: Context) : UserPreferen
     private val GEMINI_API_KEY = stringPreferencesKey("gemini_api_key")
     private val AI_PROVIDER_KEY = stringPreferencesKey("ai_provider")
     private val DYNAMIC_COLOR_KEY = booleanPreferencesKey("dynamic_color")
-    private val COLOR_PALETTE_KEY = stringPreferencesKey("color_palette")
-    private val AMOLED_KEY = booleanPreferencesKey("amoled_pure_black")
 
     private val CUSTOM_ENDPOINT_KEY = stringPreferencesKey("custom_ai_endpoint")
     private val CUSTOM_MODEL_KEY = stringPreferencesKey("custom_ai_model")
@@ -172,33 +170,6 @@ class UserPreferencesRepositoryImpl(private val context: Context) : UserPreferen
     override suspend fun setDynamicColor(enabled: Boolean) {
         context.dataStore.edit { preferences ->
             preferences[DYNAMIC_COLOR_KEY] = enabled
-        }
-    }
-
-    override val colorPaletteFlow: Flow<String> = context.dataStore.data
-        .map { preferences ->
-            preferences[COLOR_PALETTE_KEY] ?: "material"
-        }
-
-    override suspend fun setColorPalette(palette: String) {
-        context.dataStore.edit { preferences ->
-            preferences[COLOR_PALETTE_KEY] = palette
-            if (palette == "dynamic") {
-                preferences[DYNAMIC_COLOR_KEY] = true
-            } else {
-                preferences[DYNAMIC_COLOR_KEY] = false
-            }
-        }
-    }
-
-    override val amoledFlow: Flow<Boolean> = context.dataStore.data
-        .map { preferences ->
-            preferences[AMOLED_KEY] ?: false
-        }
-
-    override suspend fun setAmoled(enabled: Boolean) {
-        context.dataStore.edit { preferences ->
-            preferences[AMOLED_KEY] = enabled
         }
     }
 

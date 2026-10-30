@@ -86,7 +86,7 @@ fun DataBackupSubScreen(
                 .fillMaxSize()
                 .responsiveContentWidth(maxWidth = 760.dp)
         ) {
-            androidx.compose.material3.LargeTopAppBar(
+            androidx.compose.material3.TopAppBar(
                 title = { Text("Data, Export & Backup", fontWeight = FontWeight.Bold) },
                 navigationIcon = {
                     com.opensplit.ui.components.RoundBackButton(onClick = onBack)

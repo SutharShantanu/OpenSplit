@@ -96,7 +96,7 @@ fun AboutSupportSubScreen(
                 .fillMaxSize()
                 .responsiveContentWidth(maxWidth = 760.dp)
         ) {
-            androidx.compose.material3.LargeTopAppBar(
+            androidx.compose.material3.TopAppBar(
                 title = { Text("About OpenSplit", fontWeight = FontWeight.Bold) },
                 navigationIcon = {
                     com.opensplit.ui.components.RoundBackButton(onClick = onBack)
@@ -267,7 +267,7 @@ private fun OpenSourceLicenses(onBack: () -> Unit) {
         }
     }
     Column(Modifier.fillMaxSize()) {
-        androidx.compose.material3.LargeTopAppBar(
+        androidx.compose.material3.TopAppBar(
             title = { Text("Open-source licenses", fontWeight = FontWeight.Bold) },
             navigationIcon = {
                 com.opensplit.ui.components.RoundBackButton(onClick = onBack)

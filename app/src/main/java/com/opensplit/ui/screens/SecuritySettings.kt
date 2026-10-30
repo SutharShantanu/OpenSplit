@@ -89,7 +89,7 @@ fun AccountSecuritySubScreen(
                 .fillMaxSize()
                 .responsiveContentWidth(maxWidth = 760.dp)
         ) {
-            androidx.compose.material3.LargeTopAppBar(
+            androidx.compose.material3.TopAppBar(
                 title = { Text("Account & Security", fontWeight = FontWeight.Bold) },
                 navigationIcon = {
                     com.opensplit.ui.components.RoundBackButton(onClick = onBack)

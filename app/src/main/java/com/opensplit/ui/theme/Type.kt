@@ -37,10 +37,8 @@ val AppFontFamily = FontFamily(weights.map { flex(it) })
 /** Slightly wider cut for big screen titles and hero numbers with Pixel roundness. */
 val DisplayFontFamily = FontFamily(weights.map { flex(it, width = 112f) })
 
-/** Amounts: the display family of the active theme (Inter in Monochrome). */
-val MoneyFontFamily: FontFamily
-    @androidx.compose.runtime.Composable
-    get() = if (LocalAppStyle.current.monochrome) InterFamily else DisplayFontFamily
+/** Amounts use the display family. */
+val MoneyFontFamily = DisplayFontFamily
 
 /**
  * Pixel-style expanded display typography for hero numbers, balance headers, and dashboard titles.
@@ -106,31 +104,4 @@ val Typography = Typography(
     labelLarge = style(AppFontFamily, FontWeight.SemiBold, 14, 20, 0.1),
     labelMedium = style(AppFontFamily, FontWeight.SemiBold, 12, 16, 0.4),
     labelSmall = style(AppFontFamily, FontWeight.SemiBold, 11, 16, 0.4)
-)
-
-/** Inter (OFL, third_party/inter), used by the Monochrome theme for a neutral, Nothing-style look. */
-@OptIn(androidx.compose.ui.text.ExperimentalTextApi::class)
-private val InterFamily = FontFamily(
-    weights.map { w ->
-        Font(R.font.inter, weight = w, variationSettings = FontVariation.Settings(FontVariation.weight(w.weight)))
-    }
-)
-
-/** Monochrome typography: Inter throughout, lighter display weights and tighter tracking. */
-val MonoTypography = Typography(
-    displayLarge = style(InterFamily, FontWeight.SemiBold, 57, 64, -1.5),
-    displayMedium = style(InterFamily, FontWeight.SemiBold, 45, 52, -1.0),
-    displaySmall = style(InterFamily, FontWeight.SemiBold, 36, 44, -0.8),
-    headlineLarge = style(InterFamily, FontWeight.SemiBold, 32, 40, -0.6),
-    headlineMedium = style(InterFamily, FontWeight.SemiBold, 28, 36, -0.4),
-    headlineSmall = style(InterFamily, FontWeight.SemiBold, 24, 32, -0.3),
-    titleLarge = style(InterFamily, FontWeight.Medium, 22, 28, -0.2),
-    titleMedium = style(InterFamily, FontWeight.Medium, 16, 24),
-    titleSmall = style(InterFamily, FontWeight.Medium, 14, 20),
-    bodyLarge = style(InterFamily, FontWeight.Normal, 16, 24),
-    bodyMedium = style(InterFamily, FontWeight.Normal, 14, 20),
-    bodySmall = style(InterFamily, FontWeight.Normal, 12, 16, 0.1),
-    labelLarge = style(InterFamily, FontWeight.Medium, 14, 20, 0.1),
-    labelMedium = style(InterFamily, FontWeight.Medium, 12, 16, 0.5),
-    labelSmall = style(InterFamily, FontWeight.Medium, 11, 16, 0.6)
 )

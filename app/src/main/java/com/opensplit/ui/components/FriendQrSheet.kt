@@ -53,9 +53,6 @@ import com.opensplit.ui.theme.OpenSplitIcons
 import com.opensplit.ui.theme.OpenSplitTokens
 import com.opensplit.ui.theme.Symbol
 
-/** One way to share an invite: a fixed-package app, or the system chooser. */
-private class ShareTarget(val icon: Symbol, val label: String, val send: (Context, String) -> Unit)
-
 /**
  * The single "invite a friend" surface. Tab 1 shows the user's QR code, link (copy) and a short
  * share row; tab 2 scans another phone's code with the camera. Every action reports success or
@@ -142,35 +139,11 @@ private fun MyInviteTab(link: FriendLink?, linkError: String?, onRetry: () -> Un
                 }
             }
             Spacer(Modifier.height(OpenSplitTokens.SpaceLG))
-            Text("Share via", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            Spacer(Modifier.height(OpenSplitTokens.SpaceSM))
-            val message = "Add me on OpenSplit so we can split expenses: ${link.url}"
-            val targets = remember {
-                listOf(
-                    ShareTarget(OpenSplitIcons.Sms, "SMS") { c, m -> c.startActivity(Intent(Intent.ACTION_SENDTO, Uri.parse("smsto:")).putExtra("sms_body", m)) },
-                    ShareTarget(OpenSplitIcons.Whatsapp, "WhatsApp") { c, m -> c.startActivity(Intent(Intent.ACTION_SEND).setType("text/plain").setPackage("com.whatsapp").putExtra(Intent.EXTRA_TEXT, m)) },
-                    ShareTarget(OpenSplitIcons.Mail, "Email") { c, m -> c.startActivity(Intent(Intent.ACTION_SENDTO, Uri.parse("mailto:")).putExtra(Intent.EXTRA_SUBJECT, "Join me on OpenSplit").putExtra(Intent.EXTRA_TEXT, m)) },
-                    ShareTarget(OpenSplitIcons.Send, "Telegram") { c, m -> c.startActivity(Intent(Intent.ACTION_SEND).setType("text/plain").setPackage("org.telegram.messenger").putExtra(Intent.EXTRA_TEXT, m)) },
-                    ShareTarget(OpenSplitIcons.Share, "More") { c, m -> c.startActivity(Intent.createChooser(Intent(Intent.ACTION_SEND).setType("text/plain").putExtra(Intent.EXTRA_TEXT, m), "Share your invite")) }
-                )
-            }
-            Row(horizontalArrangement = Arrangement.SpaceEvenly, modifier = Modifier.fillMaxWidth()) {
-                targets.forEach { t ->
-                    Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.clickable {
-                        try { t.send(context, message); snackbar.showMessage("Opening ${t.label}…") }
-                        catch (e: ActivityNotFoundException) { snackbar.showMessage("${t.label} isn't installed on this phone") }
-                        catch (e: Exception) { snackbar.showMessage("Couldn't share via ${t.label}") }
-                    }.padding(6.dp)) {
-                        Surface(shape = CircleShape, color = MaterialTheme.colorScheme.secondaryContainer, modifier = Modifier.size(52.dp)) {
-                            androidx.compose.foundation.layout.Box(contentAlignment = Alignment.Center) {
-                                SymbolIcon(t.icon, contentDescription = "Share via ${t.label}", tint = MaterialTheme.colorScheme.onSecondaryContainer, modifier = Modifier.size(24.dp))
-                            }
-                        }
-                        Spacer(Modifier.height(4.dp))
-                        Text(t.label, style = MaterialTheme.typography.labelSmall)
-                    }
-                }
-            }
+            ShareViaRow(
+                message = "Add me on OpenSplit so we can split expenses: ${link.url}",
+                subject = "Join me on OpenSplit",
+                chooserTitle = "Share your invite"
+            )
         }
     }
 }

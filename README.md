@@ -102,7 +102,7 @@ stored encrypted on the device and never leave it except to call the provider yo
 
 ### Experience
 - 100% Jetpack Compose, Material 3 Expressive, Material Symbols Rounded.
-- System / Light / Dark / AMOLED themes. Brand violet, Material You, or monochrome palettes.
+- System / Light / Dark themes with Material You colors (Sage fallback on grey wallpapers).
 - Navigation rail and list-detail layouts on tablets. Home screen widgets.
 - Offline-first: Firestore local persistence keeps everything usable without a connection.
 
@@ -179,8 +179,7 @@ Planned, roughly in order. Open an issue to vote or claim one.
 - [ ] **Localization** beyond English.
 - [ ] **F-Droid** and Play Store listings.
 
-Done recently: Android 17 widgets, QR invites, recurring bills, multi-provider AI, AMOLED and
-monochrome themes, tablet layouts, edit history, recently deleted, budgets.
+Done recently: Android 17 widgets, QR invites, recurring bills, multi-provider AI, tablet layouts, edit history, recently deleted, budgets.
 
 ---
 

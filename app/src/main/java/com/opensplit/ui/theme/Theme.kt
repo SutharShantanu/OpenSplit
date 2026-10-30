@@ -26,69 +26,6 @@ import androidx.core.view.WindowCompat
 
 
 // ==========================================
-// Monochrome Palette (Minimalist B&W / Slate)
-// ==========================================
-private val MonochromeLightColorScheme = lightColorScheme(
-    primary = Color(0xFF18181B),
-    onPrimary = Color(0xFFFFFFFF),
-    primaryContainer = Color(0xFF27272A),
-    onPrimaryContainer = Color(0xFFF4F4F5),
-    secondary = Color(0xFF52525B),
-    onSecondary = Color(0xFFFFFFFF),
-    secondaryContainer = Color(0xFFE4E4E7),
-    onSecondaryContainer = Color(0xFF18181B),
-    tertiary = Color(0xFF71717A),
-    onTertiary = Color(0xFFFFFFFF),
-    tertiaryContainer = Color(0xFFF4F4F5),
-    onTertiaryContainer = Color(0xFF27272A),
-    surface = Color(0xFFFAFAFA),
-    onSurface = Color(0xFF18181B),
-    surfaceVariant = Color(0xFFE4E4E7),
-    onSurfaceVariant = Color(0xFF52525B),
-    surfaceContainerLowest = Color(0xFFFFFFFF),
-    surfaceContainerLow = Color(0xFFF4F4F5),
-    surfaceContainer = Color(0xFFECECEE),
-    surfaceContainerHigh = Color(0xFFE4E4E7),
-    surfaceContainerHighest = Color(0xFFD4D4D8),
-    surfaceBright = Color(0xFFFFFFFF),
-    surfaceDim = Color(0xFFD4D4D8),
-    background = Color(0xFFFAFAFA),
-    onBackground = Color(0xFF18181B),
-    outline = Color(0xFF71717A),
-    outlineVariant = Color(0xFFD4D4D8)
-)
-
-private val MonochromeDarkColorScheme = darkColorScheme(
-    primary = Color(0xFFF4F4F5),
-    onPrimary = Color(0xFF18181B),
-    primaryContainer = Color(0xFF3F3F46),
-    onPrimaryContainer = Color(0xFFF4F4F5),
-    secondary = Color(0xFFA1A1AA),
-    onSecondary = Color(0xFF18181B),
-    secondaryContainer = Color(0xFF27272A),
-    onSecondaryContainer = Color(0xFFE4E4E7),
-    tertiary = Color(0xFFD4D4D8),
-    onTertiary = Color(0xFF18181B),
-    tertiaryContainer = Color(0xFF3F3F46),
-    onTertiaryContainer = Color(0xFFFAFAFA),
-    surface = Color(0xFF121214),
-    onSurface = Color(0xFFF4F4F5),
-    surfaceVariant = Color(0xFF27272A),
-    onSurfaceVariant = Color(0xFFA1A1AA),
-    surfaceContainerLowest = Color(0xFF09090B),
-    surfaceContainerLow = Color(0xFF18181B),
-    surfaceContainer = Color(0xFF1F1F23),
-    surfaceContainerHigh = Color(0xFF27272A),
-    surfaceContainerHighest = Color(0xFF333338),
-    surfaceBright = Color(0xFF3F3F46),
-    surfaceDim = Color(0xFF121214),
-    background = Color(0xFF121214),
-    onBackground = Color(0xFFF4F4F5),
-    outline = Color(0xFF71717A),
-    outlineVariant = Color(0xFF3F3F46)
-)
-
-// ==========================================
 // Sage (default): Material tonal scheme from a green seed, so surfaces carry a
 // soft tint instead of flat grey, like Pixel apps.
 // ==========================================
@@ -174,57 +111,17 @@ fun OpenSplitStatusBarStyle(
     }
 }
 
-/**
- * Per-theme component styling that Material's Shapes don't cover: the "pill" used by buttons,
- * chips, tabs and the nav bar, and segmented-list corners. Material = round and soft;
- * Monochrome = squarer, Nothing-style.
- */
-data class AppStyle(
-    val monochrome: Boolean,
-    val pill: androidx.compose.ui.graphics.Shape,
-    val pillPressed: androidx.compose.ui.graphics.Shape,
-    val segmentOuter: androidx.compose.ui.unit.Dp,
-    val segmentInner: androidx.compose.ui.unit.Dp
-)
-
-private val MaterialStyle = AppStyle(
-    monochrome = false,
-    pill = androidx.compose.foundation.shape.CircleShape,
-    pillPressed = androidx.compose.foundation.shape.RoundedCornerShape(16.dp),
-    segmentOuter = 28.dp,
-    segmentInner = 6.dp
-)
-
-private val MonochromeStyle = AppStyle(
-    monochrome = true,
-    pill = androidx.compose.foundation.shape.RoundedCornerShape(10.dp),
-    pillPressed = androidx.compose.foundation.shape.RoundedCornerShape(6.dp),
-    segmentOuter = 14.dp,
-    segmentInner = 3.dp
-)
-
-val LocalAppStyle = androidx.compose.runtime.staticCompositionLocalOf { MaterialStyle }
-
-/** Button shapes that follow the active theme style (pill in Material, squarer in Monochrome). */
+/** Button shapes: pill at rest, softer square when pressed. */
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
-@Composable
-fun appButtonShapes() = LocalAppStyle.current.let {
-    androidx.compose.material3.ButtonShapes(shape = it.pill, pressedShape = it.pillPressed)
-}
+fun appButtonShapes() = androidx.compose.material3.ButtonShapes(
+    shape = androidx.compose.foundation.shape.CircleShape,
+    pressedShape = androidx.compose.foundation.shape.RoundedCornerShape(16.dp)
+)
 
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
-@Composable
-fun appIconButtonShapes() = LocalAppStyle.current.let {
-    androidx.compose.material3.IconButtonShapes(shape = it.pill, pressedShape = it.pillPressed)
-}
-
-/** Monochrome: tight corners for a flatter, technical look. */
-private val MonoShapes = androidx.compose.material3.Shapes(
-    extraSmall = androidx.compose.foundation.shape.RoundedCornerShape(4.dp),
-    small = androidx.compose.foundation.shape.RoundedCornerShape(6.dp),
-    medium = androidx.compose.foundation.shape.RoundedCornerShape(10.dp),
-    large = androidx.compose.foundation.shape.RoundedCornerShape(14.dp),
-    extraLarge = androidx.compose.foundation.shape.RoundedCornerShape(18.dp)
+fun appIconButtonShapes() = androidx.compose.material3.IconButtonShapes(
+    shape = androidx.compose.foundation.shape.CircleShape,
+    pressedShape = androidx.compose.foundation.shape.RoundedCornerShape(16.dp)
 )
 
 /** Large, soft corners throughout, as in Pixel / M3 Expressive apps. */
@@ -240,59 +137,30 @@ val OpenSplitShapes = androidx.compose.material3.Shapes(
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 fun OpenSplitTheme(
   darkTheme: Boolean = isSystemInDarkTheme(),
-  amoled: Boolean = false,
-  palette: String = "material",
   content: @Composable () -> Unit,
 ) {
   val context = LocalContext.current
-  val baseScheme = when (palette) {
-    "monochrome" -> if (darkTheme) MonochromeDarkColorScheme else MonochromeLightColorScheme
-    // "material" (and any legacy palette id): wallpaper colours when they carry some hue,
-    // otherwise Sage. Monochrome wallpapers (e.g. Nothing OS) would yield a flat grey scheme.
-    else -> {
-      val dynamic = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-        if (darkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
-      } else null
-      if (dynamic != null && isColourful(dynamic.primary)) dynamic
-      else if (darkTheme) SageDarkColorScheme else SageLightColorScheme
-    }
-  }
-
-
-  // AMOLED only replaces surface tokens, so brand or dynamic accents stay intact.
-  val colorScheme =
-    if (darkTheme && amoled) {
-      baseScheme.copy(
-        surface = SurfaceAmoled,
-        background = SurfaceAmoled,
-        surfaceDim = SurfaceDimAmoled,
-        surfaceBright = SurfaceBrightAmoled,
-        surfaceContainerLowest = SurfaceContainerLowestAmoled,
-        surfaceContainerLow = SurfaceContainerLowAmoled,
-        surfaceContainer = SurfaceContainerAmoled,
-        surfaceContainerHigh = SurfaceContainerHighAmoled,
-        surfaceContainerHighest = SurfaceContainerHighestAmoled,
-        surfaceVariant = SurfaceVariantAmoled
-      )
-    } else baseScheme
+  // Wallpaper colours when they carry some hue, otherwise Sage: grey wallpapers
+  // (e.g. Nothing OS) would yield a flat grey scheme.
+  val dynamic = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+    if (darkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
+  } else null
+  val colorScheme = if (dynamic != null && isColourful(dynamic.primary)) dynamic
+    else if (darkTheme) SageDarkColorScheme else SageLightColorScheme
 
   OpenSplitStatusBarStyle(
       color = colorScheme.background,
       navigationColor = colorScheme.background
   )
 
-  val mono = palette == "monochrome"
-  androidx.compose.runtime.CompositionLocalProvider(LocalAppStyle provides if (mono) MonochromeStyle else MaterialStyle) {
-    MaterialExpressiveTheme(
-      colorScheme = colorScheme,
-      motionScheme = MotionScheme.expressive(),
-      typography = if (mono) MonoTypography else Typography,
-      shapes = if (mono) MonoShapes else OpenSplitShapes,
-      content = content
-    )
-  }
+  MaterialExpressiveTheme(
+    colorScheme = colorScheme,
+    motionScheme = MotionScheme.expressive(),
+    typography = Typography,
+    shapes = OpenSplitShapes,
+    content = content
+  )
 }
-
 
 /** True when [color] has enough saturation to read as a hue rather than a grey. */
 private fun isColourful(color: Color): Boolean {

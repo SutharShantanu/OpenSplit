@@ -13,6 +13,17 @@
     <queries>
         <package android:name="com.google.android.gms" />
         <package android:name="com.android.vending" />
+        <!-- Share row shows these apps' real icons. -->
+        <package android:name="com.whatsapp" />
+        <package android:name="org.telegram.messenger" />
+        <intent>
+            <action android:name="android.intent.action.SENDTO" />
+            <data android:scheme="smsto" />
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.SENDTO" />
+            <data android:scheme="mailto" />
+        </intent>
         <intent>
             <action android:name="com.google.firebase.MESSAGING_EVENT" />
         </intent>

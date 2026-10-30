@@ -50,11 +50,9 @@ class MainActivity : ComponentActivity() {
 
         setContent {
             val themeMode by appContainer.userPreferencesRepository.themeFlow.collectAsStateWithLifecycle(initialValue = "system")
-            val colorPalette by appContainer.userPreferencesRepository.colorPaletteFlow.collectAsStateWithLifecycle(initialValue = "material")
-            val amoledPref by appContainer.userPreferencesRepository.amoledFlow.collectAsStateWithLifecycle(initialValue = false)
             val isDark = when (themeMode) {
                 "light" -> false
-                "dark", "amoled" -> true
+                "dark" -> true
                 else -> isSystemInDarkTheme()
             }
 
@@ -67,11 +65,7 @@ class MainActivity : ComponentActivity() {
                 controller.isAppearanceLightNavigationBars = !isDark
             }
 
-            OpenSplitTheme(
-                darkTheme = isDark,
-                amoled = (themeMode == "amoled" || amoledPref) && isDark,
-                palette = colorPalette
-            ) {
+            OpenSplitTheme(darkTheme = isDark) {
                 // One snackbar host for the whole app, overlaid above every screen so any
                 // composable can confirm an action via LocalSnackbarController.
                 val snackbarHostState = remember { SnackbarHostState() }

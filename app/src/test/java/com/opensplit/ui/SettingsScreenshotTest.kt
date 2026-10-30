@@ -12,7 +12,7 @@ import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 import org.robolectric.annotation.GraphicsMode
 
-/** Golden images for the AI settings screen in light and AMOLED; run `./gradlew recordRoborazziDebug` to refresh. */
+/** Golden images for the AI settings screen in light and dark; run `./gradlew recordRoborazziDebug` to refresh. */
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [36], qualifiers = "w411dp-h891dp-xxhdpi")
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
@@ -21,7 +21,7 @@ class SettingsScreenshotTest {
 
     private fun content(dark: Boolean) {
         compose.setContent {
-            OpenSplitTheme(darkTheme = dark, amoled = dark) {
+            OpenSplitTheme(darkTheme = dark) {
                 androidx.compose.material3.Surface(color = androidx.compose.material3.MaterialTheme.colorScheme.background) {
                 AiProvidersSubScreen(
                     activeProvider = "anthropic",
@@ -46,8 +46,8 @@ class SettingsScreenshotTest {
     }
 
     @Test
-    fun aiSettingsAmoled() {
+    fun aiSettingsDark() {
         content(dark = true)
-        compose.onRoot().captureRoboImage("src/test/screenshots/ai_settings_amoled.png")
+        compose.onRoot().captureRoboImage("src/test/screenshots/ai_settings_dark.png")
     }
 }
