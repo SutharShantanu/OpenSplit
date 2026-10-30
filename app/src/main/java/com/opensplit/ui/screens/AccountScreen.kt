@@ -156,17 +156,8 @@ fun AccountScreen(
         StateLayout(state = uiState) { data ->
             AnimatedContent(
                 targetState = selectedCategory,
-                transitionSpec = {
-                    if (targetState != null) {
-                        (slideInHorizontally(tween(300)) { width -> width / 3 } + fadeIn()).togetherWith(
-                            slideOutHorizontally(tween(300)) { width -> -width / 3 } + fadeOut()
-                        )
-                    } else {
-                        (slideInHorizontally(tween(300)) { width -> -width / 3 } + fadeIn()).togetherWith(
-                            slideOutHorizontally(tween(300)) { width -> width / 3 } + fadeOut()
-                        )
-                    }
-                },
+                // Same shared-axis motion as full-screen routes (e.g. Notifications).
+                transitionSpec = { com.opensplit.ui.theme.OpenSplitMotion.sharedAxisX(forward = targetState != null) },
                 label = "accountCategoryNavigation"
             ) { category ->
                 when (category) {

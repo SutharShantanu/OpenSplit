@@ -36,7 +36,12 @@ fewest payments, and bring your own AI key for receipt scanning and natural-lang
   <img src="docs/screenshots/activity.png" width="19%" alt="Activity feed" />
   <img src="docs/screenshots/insights.png" width="19%" alt="Insights: spend, cash flow, budgets" />
   <img src="docs/screenshots/people.png" width="19%" alt="People tab with invite link" />
-  <img src="docs/screenshots/settings.png" width="19%" alt="Settings" />
+  <img src="docs/screenshots/settings.png" width="19%" alt="Settings overview" />
+</p>
+<p align="center">
+  <img src="docs/screenshots/ai_settings.png" width="24%" alt="AI provider configuration" />
+  <img src="docs/screenshots/appearance.png" width="24%" alt="Appearance and theme selection" />
+  <img src="docs/screenshots/bug_report.png" width="24%" alt="In-app bug report with system diagnostics" />
 </p>
 
 ---
@@ -69,6 +74,7 @@ adb install -r OpenSplit.apk
 ### Groups and people
 - Groups with emoji, letter, or image avatars. AI suggests an emoji from the name.
 - Invite by link or QR code, with expiry (1 hour to never) and optional max uses.
+- Fast **Share via** action bar to share invite links via WhatsApp, Telegram, SMS, Email, or system chooser.
 - Friend requests, direct 1:1 expenses outside any group, archived groups, pinned groups.
 - Group currency locks once the group has expenses. Balances settle **per currency**, never
   summed into a meaningless mixed total.
@@ -103,6 +109,9 @@ stored encrypted on the device and never leave it except to call the provider yo
 ### Experience
 - 100% Jetpack Compose, Material 3 Expressive, Material Symbols Rounded.
 - System / Light / Dark themes with Material You colors (Sage fallback on grey wallpapers).
+- Floating navigation bar with expressive animated pill indicators and docked quick actions.
+- In-app updates: checks GitHub Releases directly, displays release notes, and triggers the installer.
+- Built-in **Report a bug** screen with automatic device diagnostics (app version, Android release, device manufacturer/model).
 - Navigation rail and list-detail layouts on tablets. Home screen widgets.
 - Offline-first: Firestore local persistence keeps everything usable without a connection.
 
@@ -179,7 +188,7 @@ Planned, roughly in order. Open an issue to vote or claim one.
 - [ ] **Localization** beyond English.
 - [ ] **F-Droid** and Play Store listings.
 
-Done recently: Android 17 widgets, QR invites, recurring bills, multi-provider AI, tablet layouts, edit history, recently deleted, budgets.
+Done recently: In-app GitHub updates, in-app bug reporting with diagnostics, unified share bar, Android 17 widgets, QR invites, recurring bills, multi-provider AI, tablet layouts, edit history, recently deleted, budgets.
 
 ---
 
