@@ -1,6 +1,7 @@
 package com.opensplit.domain.model
 
 import com.google.firebase.Timestamp
+import com.google.firebase.firestore.PropertyName
 
 enum class SplitType { EQUAL, EXACT, PERCENTAGE, SHARES, ITEMIZED }
 
@@ -58,6 +59,8 @@ data class Expense(
     val receiptImageUrl: String? = null,
     val createdBy: String = "",
     val createdAt: Timestamp = Timestamp.now(),
+    // Without the annotations Firestore stores this as "deleted", while soft delete writes "isDeleted".
+    @get:PropertyName("isDeleted") @field:PropertyName("isDeleted")
     val isDeleted: Boolean = false,
     /** Set on soft delete; "Recently deleted" keeps entries for 90 days after this. */
     val deletedAt: Timestamp? = null,

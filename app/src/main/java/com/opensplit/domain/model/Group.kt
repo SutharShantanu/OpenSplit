@@ -1,6 +1,7 @@
 package com.opensplit.domain.model
 
 import com.google.firebase.Timestamp
+import com.google.firebase.firestore.PropertyName
 
 data class Group(
     val id: String = "",
@@ -20,5 +21,7 @@ data class Group(
     /** Token of the invite link last used to join; lets Firestore rules verify self-joins. */
     val lastJoinToken: String? = null,
     /** Hidden two-person group that backs one-to-one expenses between friends. */
+    // Without the annotations Firestore stores this as "direct", but lookups query "isDirect".
+    @get:PropertyName("isDirect") @field:PropertyName("isDirect")
     val isDirect: Boolean = false
 )
