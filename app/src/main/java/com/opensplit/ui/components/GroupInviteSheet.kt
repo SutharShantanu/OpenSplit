@@ -50,6 +50,13 @@ fun qrBitmap(text: String, size: Int): android.graphics.Bitmap {
     return bmp
 }
 
+/** [qrBitmap] built off the main thread, because it stalls a sheet's opening. Null until ready. */
+@Composable
+fun rememberQrBitmap(text: String, size: Int): android.graphics.Bitmap? =
+    produceState<android.graphics.Bitmap?>(null, text, size) {
+        value = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Default) { qrBitmap(text, size) }
+    }.value
+
 /**
  * Modern dual-tab QR-based sheet for group invites.
  * Tab 0: "Group QR & Link" with large QR code, copy pill, quick-share buttons, email/contact invite.
@@ -194,13 +201,13 @@ private fun GroupQrTab(
             InlineBusy("Preparing group invite link…")
             Spacer(Modifier.height(OpenSplitTokens.SpaceMD))
         } else {
-            val qr = remember(inviteLink.url) { qrBitmap(inviteLink.url, 640) }
+            val qr = rememberQrBitmap(inviteLink.url, 640)
             Surface(
                 shape = MaterialTheme.shapes.large,
                 color = Color.White,
                 modifier = Modifier.size(232.dp)
             ) {
-                Image(
+                if (qr != null) Image(
                     bitmap = qr.asImageBitmap(),
                     contentDescription = "QR code for group invite",
                     modifier = Modifier.padding(14.dp)

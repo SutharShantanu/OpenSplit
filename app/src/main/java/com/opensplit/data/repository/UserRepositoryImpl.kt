@@ -3,6 +3,7 @@ package com.opensplit.data.repository
 import com.opensplit.domain.model.User
 import com.opensplit.domain.repository.UserRepository
 import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.firestore.SetOptions
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.tasks.await
@@ -169,8 +170,11 @@ class UserRepositoryImpl(
                         if (snapshot.getString("photoUrl").isNullOrBlank() && !photoUrl.isNullOrBlank()) put("photoUrl", photoUrl)
                         val name = snapshot.getString("displayName")
                         if ((name.isNullOrBlank() || name == "User") && !displayName.isNullOrBlank()) put("displayName", displayName)
+                        // A profile created by a single-field merge has no identity fields yet.
+                        if (snapshot.getString("uid").isNullOrBlank()) put("uid", uid)
+                        if (snapshot.getString("email").isNullOrBlank() && !email.isNullOrBlank()) put("email", email)
                     }
-                    if (fill.isNotEmpty()) usersCollection.document(uid).update(fill).awaitWrite()
+                    if (fill.isNotEmpty()) mergeUser(uid, fill).awaitWrite()
                 }
             }
             Result.success(Unit)
@@ -186,7 +190,7 @@ class UserRepositoryImpl(
         localUsers.value = localUsers.value + (uid to existing.copy(defaultCurrency = currency))
         return try {
             kotlinx.coroutines.withTimeoutOrNull(1000) {
-                usersCollection.document(uid).update("defaultCurrency", currency).awaitWrite()
+                mergeUser(uid, mapOf("defaultCurrency" to currency)).awaitWrite()
             }
             Result.success(Unit)
         } catch (e: Exception) {
@@ -199,7 +203,7 @@ class UserRepositoryImpl(
             ?: return Result.failure(Exception("No user"))
         val existing = localUsers.value[uid] ?: getUser(uid) ?: User(uid = uid)
         localUsers.value = localUsers.value + (uid to existing.copy(upiId = upiId))
-        usersCollection.document(uid).update("upiId", upiId).enqueue()
+        mergeUser(uid, mapOf("upiId" to upiId)).enqueue()
         return Result.success(Unit)
     }
 
@@ -207,7 +211,7 @@ class UserRepositoryImpl(
         if (user.uid.isBlank()) return Result.failure(IllegalArgumentException("User ID cannot be blank"))
         return try {
             kotlinx.coroutines.withTimeoutOrNull(1000) {
-                usersCollection.document(user.uid).update("displayName", user.displayName).awaitWrite()
+                mergeUser(user.uid, mapOf("displayName" to user.displayName)).awaitWrite()
             }
             Result.success(Unit)
         } catch (e: Exception) {
@@ -222,13 +226,17 @@ class UserRepositoryImpl(
         if (uid.isBlank()) return Result.failure(IllegalArgumentException("UID cannot be blank"))
         return try {
             kotlinx.coroutines.withTimeoutOrNull(1000) {
-                usersCollection.document(uid).update("lastSeenActivityTimestamp", timestamp).awaitWrite()
+                mergeUser(uid, mapOf("lastSeenActivityTimestamp" to timestamp)).awaitWrite()
             }
             Result.success(Unit)
         } catch (e: Exception) {
             Result.failure(e)
         }
     }
+
+    /** Merge instead of update: update() is rejected when the profile doc doesn't exist yet. */
+    private fun mergeUser(uid: String, fields: Map<String, Any?>) =
+        usersCollection.document(uid).set(fields, SetOptions.merge())
     override fun searchUsersByEmail(query: String): Flow<List<User>> = callbackFlow {
         if (query.isBlank()) {
             trySend(emptyList())

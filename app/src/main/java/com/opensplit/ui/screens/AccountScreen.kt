@@ -35,6 +35,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -139,6 +140,8 @@ fun AccountScreen(
     val aiTokens by viewModel.aiTokensFlow.collectAsStateWithLifecycle(initialValue = emptyMap())
 
     var selectedCategory by rememberSaveable { mutableStateOf<AccountCategory?>(null) }
+    // Keeps the overview's scroll position and search text while a category is open.
+    val overviewState = rememberSaveableStateHolder()
 
     BackHandler(enabled = selectedCategory != null) {
         selectedCategory = null
@@ -161,7 +164,7 @@ fun AccountScreen(
                 label = "accountCategoryNavigation"
             ) { category ->
                 when (category) {
-                    null -> {
+                    null -> overviewState.SaveableStateProvider("overview") {
                         AccountOverviewScreen(
                             data = data,
                             theme = theme,
@@ -384,6 +387,8 @@ fun AccountOverviewScreen(
     androidx.compose.runtime.LaunchedEffect(data.user.uid) {
         serverReachable = isServerReachable(data.user.uid)
     }
+    // "Offline" only when the phone has no internet; otherwise the sync backend is at fault.
+    val isOnline = com.opensplit.ui.components.rememberIsOnline()
 
     var isClearingCache by remember { mutableStateOf(false) }
     val storageContext = LocalContext.current
@@ -695,7 +700,7 @@ fun AccountOverviewScreen(
                                         when {
                                             isSyncingNow -> "Syncing..."
                                             serverReachable == null -> "Checking…"
-                                            serverReachable == false -> "Offline"
+                                            serverReachable == false -> if (isOnline) "Sync issue" else "Offline"
                                             lastSyncPingMs > 0 -> "Synced · ${lastSyncPingMs}ms"
                                             else -> "Synced"
                                         }
@@ -893,7 +898,8 @@ fun AccountOverviewScreen(
                                 syncStatusText = "Synced (${lastSyncPingMs}ms)"
                                 snackbar.showMessage("All changes synced with cloud")
                             } else {
-                                syncStatusText = "Offline: changes will sync when connected"
+                                syncStatusText = if (isOnline) "Sync server unavailable: changes are saved on this device"
+                                    else "Offline: changes will sync when connected"
                                 snackbar.showMessage("Couldn't reach the server; changes are saved on this device")
                             }
                         }

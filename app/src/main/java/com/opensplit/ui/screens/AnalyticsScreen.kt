@@ -321,7 +321,8 @@ fun AnalyticsScreen(
                                 )
 
                                 val mom = analyticsState.monthOverMonth
-                                if (analyticsState.periodType != AnalyticsPeriodType.ALL_TIME && mom != null) {
+                                // An empty period isn't a "100% drop", so no comparison until there's spending.
+                                if (analyticsState.periodType != AnalyticsPeriodType.ALL_TIME && mom != null && analyticsState.monthlySpendTotal > 0.009) {
                                     Surface(
                                         shape = CircleShape,
                                         color = Color.White.copy(alpha = 0.2f),
@@ -747,6 +748,16 @@ fun CashFlowLineChart(
     labels: List<String>,
     currency: String
 ) {
+    if (values.all { it <= 0.0 }) {
+        Box(modifier = Modifier.fillMaxWidth().height(170.dp), contentAlignment = Alignment.Center) {
+            Text(
+                "No spending in this period",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+        return
+    }
     val primaryColor = MaterialTheme.colorScheme.primary
     val gridColor = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f)
     val maxVal = remember(values) { maxOf(1.0, values.maxOrNull() ?: 1.0) }
@@ -1184,7 +1195,9 @@ private fun MonthSummaryCard(state: AnalyticsUiState, budgets: Map<String, Doubl
                     }
             }
             val diff = state.monthlySpendTotal - state.previousPeriodTotal
-            if (state.previousPeriodTotal > 0.009) {
+            if (state.monthlySpendTotal <= 0.009) {
+                Text("No spending recorded this month", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            } else if (state.previousPeriodTotal > 0.009) {
                 Text(
                     when {
                         kotlin.math.abs(diff) < 0.01 -> "Same as last month"

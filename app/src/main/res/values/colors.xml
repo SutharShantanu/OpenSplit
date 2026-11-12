@@ -26,4 +26,7 @@
     <color name="widget_badge_settled_text">#43474E</color>
     <!-- Launch window, matches the Sage surface -->
     <color name="splash_background">#F9FAEF</color>
+    <!-- Launcher icon before API 31; system palette from API 31 (values-v31). -->
+    <color name="ic_launcher_bg">#CDEDA3</color>
+    <color name="ic_launcher_fg">#354E16</color>
 </resources>

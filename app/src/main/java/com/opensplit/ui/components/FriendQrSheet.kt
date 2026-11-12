@@ -120,9 +120,9 @@ private fun MyInviteTab(link: FriendLink?, linkError: String?, onRetry: () -> Un
         }
         link == null -> InlineBusy("Preparing your invite…")
         else -> {
-            val qr = remember(link.url) { qrBitmap(link.url, 640) }
+            val qr = rememberQrBitmap(link.url, 640)
             Surface(shape = MaterialTheme.shapes.large, color = Color.White, modifier = Modifier.size(232.dp)) {
-                Image(bitmap = qr.asImageBitmap(), contentDescription = "QR code that adds you as a friend", modifier = Modifier.padding(14.dp))
+                if (qr != null) Image(bitmap = qr.asImageBitmap(), contentDescription = "QR code that adds you as a friend", modifier = Modifier.padding(14.dp))
             }
             Spacer(Modifier.height(OpenSplitTokens.SpaceSM))
             val expiry = remember(link.expiresAt) { java.text.SimpleDateFormat("d MMM", java.util.Locale.getDefault()).format(link.expiresAt.toDate()) }

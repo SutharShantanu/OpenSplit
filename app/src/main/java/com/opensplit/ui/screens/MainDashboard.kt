@@ -72,7 +72,7 @@ enum class DashboardTab(val label: String, val icon: Symbol) {
     PEOPLE("People", OpenSplitIcons.Friends),
     ACTIVITY("Activity", OpenSplitIcons.Activity),
     INSIGHTS("Insights", OpenSplitIcons.Insights),
-    SETTINGS("Settings", OpenSplitIcons.Account)
+    SETTINGS("Settings", OpenSplitIcons.Settings)
 }
 
 /** Material 3 window-size breakpoint: medium and up gets a rail instead of a bar. */

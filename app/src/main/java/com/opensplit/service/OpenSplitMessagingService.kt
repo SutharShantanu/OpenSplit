@@ -25,7 +25,8 @@ class OpenSplitMessagingService : FirebaseMessagingService() {
             val uid = FirebaseAuth.getInstance().currentUser?.uid ?: return
             FirebaseFirestore.getInstance()
                 .collection("users").document(uid)
-                .update("fcmToken", token)
+                // Merge, not update: the profile doc may not exist yet.
+                .set(mapOf("fcmToken" to token), com.google.firebase.firestore.SetOptions.merge())
         } catch (e: Exception) {
             // Broker or firestore disconnected
         }
