@@ -85,7 +85,7 @@ class GroupRepositoryImpl(
         if (group.id.isBlank()) return Result.failure(IllegalArgumentException("Group ID cannot be blank"))
         com.opensplit.data.local.InMemoryDataStore.updateGroup(group)
         return try {
-            groupsCollection.document(group.id).set(group).awaitWrite()
+            groupsCollection.document(group.id).set(group).enqueue()
             Result.success(Unit)
         } catch (e: Exception) {
             Result.failure(e)
@@ -96,7 +96,7 @@ class GroupRepositoryImpl(
         if (groupId.isBlank()) return Result.failure(IllegalArgumentException("Group ID cannot be blank"))
         com.opensplit.data.local.InMemoryDataStore.removeGroup(groupId)
         return try {
-            groupsCollection.document(groupId).delete().awaitWrite()
+            groupsCollection.document(groupId).delete().enqueue()
             Result.success(Unit)
         } catch (e: Exception) {
             Result.failure(e)

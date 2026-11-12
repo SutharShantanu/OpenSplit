@@ -98,7 +98,7 @@ class ExpenseRepositoryImpl(
             }
             val docRef = commentsRef.document()
             val newComment = comment.copy(id = docRef.id)
-            docRef.set(newComment).awaitWrite()
+            docRef.set(newComment).enqueue()
             if (groupId.isNotBlank()) {
                 activityRepository.logActivity(groupId, Activity(type = ActivityType.COMMENT_ADDED, actorUid = comment.uid, message = "commented on an expense", relatedExpenseId = expenseId))
             }
@@ -116,7 +116,7 @@ class ExpenseRepositoryImpl(
                 topLevelExpensesCollection.document()
             }
             val newExpense = expense.copy(id = docRef.id)
-            docRef.set(newExpense).awaitWrite()
+            docRef.set(newExpense).enqueue()
 
             if (expense.groupId.isNotBlank()) {
                 activityRepository.logActivity(
@@ -148,7 +148,7 @@ class ExpenseRepositoryImpl(
             val withHistory = if (changes.isEmpty()) expense else expense.copy(
                 history = (previous?.history.orEmpty() + com.opensplit.domain.model.ExpenseChange(uid = actorUid, changes = changes)).takeLast(50)
             )
-            docRef.set(withHistory).awaitWrite()
+            docRef.set(withHistory).enqueue()
 
             if (expense.groupId.isNotBlank()) {
                 val actType = if (expense.isDeleted) ActivityType.EXPENSE_DELETED else ActivityType.EXPENSE_EDITED
@@ -202,7 +202,7 @@ class ExpenseRepositoryImpl(
             }
             val snapshot = docRef.get().await()
             if (snapshot.exists()) {
-                docRef.update(mapOf("isDeleted" to true, "deletedAt" to com.google.firebase.Timestamp.now())).awaitWrite()
+                docRef.update(mapOf("isDeleted" to true, "deletedAt" to com.google.firebase.Timestamp.now())).enqueue()
                 if (groupId.isNotBlank()) {
                     val expense = snapshot.toObject(Expense::class.java)
                     activityRepository.logActivity(
@@ -227,7 +227,7 @@ class ExpenseRepositoryImpl(
 
     override suspend fun restoreExpense(groupId: String, expenseId: String): Result<Unit> = try {
         val ref = expenseRef(groupId, expenseId)
-        ref.update(mapOf("isDeleted" to false, "deletedAt" to null)).awaitWrite()
+        ref.update(mapOf("isDeleted" to false, "deletedAt" to null)).enqueue()
         if (groupId.isNotBlank()) {
             val expense = ref.get().await().toObject(Expense::class.java)
             activityRepository.logActivity(
@@ -239,7 +239,7 @@ class ExpenseRepositoryImpl(
     } catch (e: Exception) { Result.failure(e) }
 
     override suspend fun purgeExpense(groupId: String, expenseId: String): Result<Unit> = try {
-        expenseRef(groupId, expenseId).delete().awaitWrite()
+        expenseRef(groupId, expenseId).delete().enqueue()
         Result.success(Unit)
     } catch (e: Exception) { Result.failure(e) }
 

@@ -44,7 +44,7 @@ class SettlementRepositoryImpl(
             val docRef = firestore.collection("groups").document(groupId)
                 .collection("settlements").document(docId)
             // The caller logs the activity with payer/payee names; logging here duplicated it.
-            docRef.set(settlementWithId).awaitWrite()
+            docRef.set(settlementWithId).enqueue()
 
             Result.success(docRef.id)
         } catch (e: Exception) {
