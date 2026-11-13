@@ -35,49 +35,16 @@ class OpenSplitMessagingService : FirebaseMessagingService() {
     override fun onMessageReceived(message: RemoteMessage) {
         val title = message.notification?.title ?: message.data["title"] ?: "OpenSplit"
         val body = message.notification?.body ?: message.data["body"] ?: return
-        val type = message.data["type"]
+        val type = com.opensplit.domain.model.NotificationType.fromId(message.data["type"])
         val groupId = message.data["groupId"]
-        // Honour the user's per-type and per-group switches before showing anything.
-        val prefs = (application as? com.opensplit.OpenSplitApp)?.container?.userPreferencesRepository
-        if (prefs != null) {
-            val allowed = kotlinx.coroutines.runBlocking {
-                val enabled = prefs.notificationsEnabledFlow.first()
-                val disabledTypes = prefs.disabledNotificationTypesFlow.first()
-                val muted = prefs.mutedGroupIdsFlow.first()
-                enabled && (type == null || type !in disabledTypes) && (groupId == null || groupId !in muted)
-            }
-            if (!allowed) return
-        }
-        showNotification(title, body, groupId, message.data["expenseId"])
-    }
-
-    private fun showNotification(title: String, body: String, groupId: String?, expenseId: String?) {
-        val open = android.content.Intent(this, com.opensplit.MainActivity::class.java).apply {
-            flags = android.content.Intent.FLAG_ACTIVITY_SINGLE_TOP or android.content.Intent.FLAG_ACTIVITY_CLEAR_TOP
-            if (groupId != null) putExtra("groupId", groupId)
-            if (expenseId != null) putExtra("expenseId", expenseId)
-        }
-        val pending = android.app.PendingIntent.getActivity(
-            this, (System.currentTimeMillis() % Int.MAX_VALUE).toInt(), open,
-            android.app.PendingIntent.FLAG_UPDATE_CURRENT or android.app.PendingIntent.FLAG_IMMUTABLE
+        // Honour the user's master, per-type and per-group switches before showing anything.
+        if (!kotlinx.coroutines.runBlocking { NotificationHelper.isAllowed(this@OpenSplitMessagingService, type, groupId) }) return
+        NotificationHelper.show(
+            this, type, title, body,
+            groupId = groupId,
+            groupName = message.data["groupName"]?.ifBlank { null },
+            key = message.data["expenseId"]?.ifBlank { null }
         )
-        val notification = NotificationCompat.Builder(this, CHANNEL_ID)
-            .setSmallIcon(R.mipmap.ic_launcher)
-            .setContentTitle(title)
-            .setContentText(body)
-            .setStyle(NotificationCompat.BigTextStyle().bigText(body))
-            .setContentIntent(pending)
-            .setAutoCancel(true)
-            .setPriority(NotificationCompat.PRIORITY_DEFAULT)
-            .build()
-        try {
-            NotificationManagerCompat.from(this).notify(System.currentTimeMillis().toInt(), notification)
-        } catch (e: SecurityException) {
-            // POST_NOTIFICATIONS not granted — nothing to show.
-        }
     }
 
-    companion object {
-        const val CHANNEL_ID = "opensplit_activity"
-    }
 }

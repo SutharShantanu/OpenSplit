@@ -162,6 +162,11 @@ fun MainDashboard(
                     selectedTab = DashboardTab.ACTIVITY
                     onWidgetActionConsumed()
                 }
+                else -> if (pendingWidgetAction.startsWith(com.opensplit.service.NotificationHelper.ACTION_OPEN_GROUP_PREFIX)) {
+                    // Tapped a notification about a group.
+                    rootNavController.navigate("group_detail/" + pendingWidgetAction.removePrefix(com.opensplit.service.NotificationHelper.ACTION_OPEN_GROUP_PREFIX))
+                    onWidgetActionConsumed()
+                }
             }
         }
     }

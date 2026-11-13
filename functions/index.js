@@ -36,6 +36,7 @@ exports.onExpenseCreated = onDocumentCreated("groups/{groupId}/expenses/{expense
     title: g.get("isDirect") ? `${actor} added an expense with you` : `${actor} added "${e.description}"`,
     body: `${e.amount} ${e.currency} in ${g.get("isDirect") ? "a direct expense" : g.get("name")}`,
     groupId: event.params.groupId,
+    groupName: g.get("isDirect") ? "" : g.get("name") || "",
     expenseId: event.params.expenseId,
   });
 });
@@ -44,11 +45,13 @@ exports.onSettlementCreated = onDocumentCreated("groups/{groupId}/settlements/{s
   const s = event.data.data();
   if (!s) return;
   const from = await nameOf(s.fromUid);
+  const g = await db.collection("groups").doc(event.params.groupId).get();
   await send([s.toUid], {
     type: "payment",
     title: `${from} paid you`,
     body: `${s.amount} ${s.currency} recorded as ${s.method || "a payment"}`,
     groupId: event.params.groupId,
+    groupName: g.get("isDirect") ? "" : g.get("name") || "",
   });
 });
 
@@ -77,6 +80,7 @@ exports.onActivityCreated = onDocumentCreated("groups/{groupId}/activity/{activi
     title: g.get("name") || "OpenSplit",
     body: `${actor} ${a.message}`,
     groupId: event.params.groupId,
+    groupName: g.get("name") || "",
     expenseId: a.relatedExpenseId || "",
   });
 });
