@@ -365,7 +365,8 @@ fun MainNavHost(
                 prefs = appContainer.userPreferencesRepository,
                 store = appContainer.detectedPayments,
                 onOpenAction = { inAppAction = it; navController.popBackStack("home", inclusive = false) },
-                onNavigateBack = { navController.popBackStack() }
+                onNavigateBack = { navController.popBackStack() },
+                updater = appContainer.appUpdater
             )
         }
 

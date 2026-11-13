@@ -4,7 +4,8 @@ name: Build Debug APK
 # uploads it as a downloadable artifact — no local Gradle/SDK required.
 on:
   push:
-    branches: [ main ]
+    # payment-detection: same app plus the notification-listener payment detection (see README).
+    branches: [ main, payment-detection ]
   workflow_dispatch:
 
 permissions:

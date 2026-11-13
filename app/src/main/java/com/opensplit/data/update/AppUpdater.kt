@@ -96,9 +96,47 @@ class AppUpdater(
         }
     }
 
+    /** This build has payment detection, so it updates from the payment-detection (-pd) releases. */
+    private val paymentDetectionBuild by lazy { com.opensplit.service.PaymentDetector.isIncluded(context) }
+
+    /**
+     * Newest payment-detection release (pre-release tagged "-pd"), or null. Normal builds use it
+     * only when the user asks for that build; payment-detection builds update from it.
+     */
+    private fun latestPaymentDetectionRelease(): Release? {
+        val request = Request.Builder().url("$RELEASES_URL?per_page=30").header("Accept", "application/vnd.github+json").build()
+        val list = client.newCall(request).execute().use { response ->
+            if (!response.isSuccessful) error("GitHub HTTP ${response.code}")
+            org.json.JSONArray(response.body?.string().orEmpty())
+        }
+        return (0 until list.length()).map { list.getJSONObject(it) }
+            .firstOrNull { it.getString("tag_name").endsWith(PD_SUFFIX) && !it.optBoolean("draft") }
+            ?.let(::parseRelease)
+    }
+
+    /**
+     * The payment-detection build if one newer than this install exists (Android won't downgrade).
+     * Null when there is none yet.
+     */
+    suspend fun findPaymentDetectionBuild(): Result<Release?> = withContext(Dispatchers.IO) {
+        runCatching {
+            latestPaymentDetectionRelease()?.takeIf {
+                it.apkUrl != null && compareVersions(it.version, parseVersion(BuildConfig.VERSION_NAME)) > 0
+            }
+        }
+    }
+
+    /** Hands [release] to the normal update sheet (download, checksum check, install). */
+    fun offer(release: Release) {
+        _state.value = State.Available(release)
+    }
+
     suspend fun check(): State = withContext(Dispatchers.IO) {
         _state.value = State.Checking
-        val next = runCatching { fetchRelease("$RELEASES_URL/latest") }.fold(
+        val next = runCatching {
+            if (paymentDetectionBuild) latestPaymentDetectionRelease() ?: error("No payment-detection release yet")
+            else fetchRelease("$RELEASES_URL/latest")
+        }.fold(
             onSuccess = { release ->
                 if (compareVersions(release.version, parseVersion(BuildConfig.VERSION_NAME)) > 0) {
                     State.Available(release.withCommitNotes("v${BuildConfig.VERSION_NAME}"))
@@ -317,6 +355,10 @@ class AppUpdater(
             if (!response.isSuccessful) error("GitHub HTTP ${response.code}")
             JSONObject(response.body?.string().orEmpty())
         }
+        return parseRelease(json)
+    }
+
+    private fun parseRelease(json: JSONObject): Release {
         val tag = json.getString("tag_name")
         var apkUrl: String? = null
         var apkBytes = 0L
@@ -348,6 +390,8 @@ class AppUpdater(
         private const val APK_MIME = "application/vnd.android.package-archive"
         private const val KEY_LAST_SEEN = "last_seen_version"
         private const val KEY_SNOOZED_TAG = "snoozed_release_tag"
+        /** Tag suffix of payment-detection releases (see .github/workflows/release.yml). */
+        const val PD_SUFFIX = "-pd"
         const val REPO_API_URL = "https://api.github.com/repos/SutharShantanu/OpenSplit"
         const val RELEASES_URL = "$REPO_API_URL/releases"
 

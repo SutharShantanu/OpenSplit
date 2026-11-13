@@ -41,9 +41,14 @@ fun PaymentDetectionScreen(
     prefs: UserPreferencesRepository,
     store: DetectedPaymentStore,
     onOpenAction: (String) -> Unit,
-    onNavigateBack: () -> Unit
+    onNavigateBack: () -> Unit,
+    updater: com.opensplit.data.update.AppUpdater? = null
 ) {
     val context = LocalContext.current
+    if (!PaymentDetector.isIncluded(context)) {
+        NotInThisBuild(updater, onNavigateBack)
+        return
+    }
     val scope = rememberCoroutineScope()
     // Re-check on resume: the user grants access in system settings and comes back.
     var hasAccess by remember { mutableStateOf(PaymentDetector.hasAccess(context)) }
@@ -185,6 +190,66 @@ private fun DetectedPaymentCard(p: DetectedPayment, onAddExpense: () -> Unit, on
                 Button(onClick = onAddExpense) { Text("Add expense") }
                 OutlinedButton(onClick = onSettle) { Text("Settle up") }
                 TextButton(onClick = onIgnore) { Text("Ignore") }
+            }
+        }
+    }
+}
+
+/**
+ * Default build: the notification listener isn't declared (Play Protect blocks sideloading APKs
+ * that declare one), so explain that and offer the payment-detection build from GitHub releases.
+ */
+@Composable
+private fun NotInThisBuild(updater: com.opensplit.data.update.AppUpdater?, onNavigateBack: () -> Unit) {
+    val scope = rememberCoroutineScope()
+    val snackbar = com.opensplit.ui.components.LocalSnackbarController.current
+    var checking by remember { mutableStateOf(false) }
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { Text("Payment detection", fontWeight = FontWeight.Bold) },
+                navigationIcon = { com.opensplit.ui.components.RoundBackButton(onClick = onNavigateBack) }
+            )
+        }
+    ) { padding ->
+        Column(
+            modifier = Modifier.fillMaxSize().padding(padding).padding(horizontal = 20.dp, vertical = 8.dp),
+            verticalArrangement = Arrangement.spacedBy(18.dp)
+        ) {
+            SettingsGroupCard(title = "Not in this build", icon = OpenSplitIcons.Info) {
+                Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Text(
+                        "Spotting payments from GPay, PhonePe and bank app notifications needs notification access. " +
+                            "Google Play Protect blocks installing any app that asks for it from a browser or chat, " +
+                            "so the standard OpenSplit leaves it out.",
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                    Text(
+                        "The payment-detection build is the same app with this feature. It installs over this one and keeps your data. " +
+                            "If Play Protect still blocks it, install it over USB (adb install) instead.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    val height = ButtonDefaults.MediumContainerHeight
+                    Button(
+                        onClick = {
+                            if (updater == null || checking) return@Button
+                            checking = true
+                            scope.launch {
+                                updater.findPaymentDetectionBuild()
+                                    .onSuccess { r -> if (r != null) updater.offer(r) else snackbar.showMessage("No newer payment-detection build yet") }
+                                    .onFailure { snackbar.showMessage("Couldn't reach GitHub. Try again.") }
+                                checking = false
+                            }
+                        },
+                        enabled = updater != null && !checking,
+                        shapes = ButtonDefaults.shapesFor(height),
+                        modifier = Modifier.fillMaxWidth().heightIn(min = height)
+                    ) {
+                        if (checking) com.opensplit.ui.components.InlineLoadingIndicator(color = MaterialTheme.colorScheme.onPrimary)
+                        else Text("Get the payment-detection build", style = ButtonDefaults.textStyleFor(height))
+                    }
+                }
             }
         }
     }

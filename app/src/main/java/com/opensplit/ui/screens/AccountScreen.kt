@@ -749,7 +749,9 @@ fun AccountOverviewScreen(
                                         if (!hasKey) "Off" else aiProvider.replaceFirstChar { it.uppercase() }
                                     }
                                     AccountCategory.NOTIFICATIONS -> "On"
-                                    AccountCategory.PAYMENT_DETECTION -> if (com.opensplit.service.PaymentDetector.hasAccess(androidx.compose.ui.platform.LocalContext.current)) "On" else "Off"
+                                    AccountCategory.PAYMENT_DETECTION -> androidx.compose.ui.platform.LocalContext.current.let { ctx ->
+                                        when { !com.opensplit.service.PaymentDetector.isIncluded(ctx) -> "Not included"; com.opensplit.service.PaymentDetector.hasAccess(ctx) -> "On"; else -> "Off" }
+                                    }
                                     AccountCategory.DATA_BACKUP -> data.allExpenses.size.let { "$it ${if (it == 1) "item" else "items"}" }
                                     AccountCategory.SECURITY -> "Protected"
                                     AccountCategory.BUG_REPORT -> "Email"

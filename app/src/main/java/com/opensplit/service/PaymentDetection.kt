@@ -82,6 +82,14 @@ object PaymentDetector {
         else -> SOURCES[packageName]
     }
 
+    /**
+     * Whether this build declares the notification listener (the payment-detection build). The
+     * default release leaves it out, because Play Protect blocks sideloading such APKs.
+     */
+    fun isIncluded(context: Context): Boolean = runCatching {
+        context.packageManager.getServiceInfo(ComponentName(context, PaymentNotificationListener::class.java), 0)
+    }.isSuccess
+
     /** True when the user has turned on notification access for OpenSplit in system settings. */
     fun hasAccess(context: Context) =
         NotificationManagerCompat.getEnabledListenerPackages(context).contains(context.packageName)
