@@ -128,8 +128,11 @@ fun ExportBottomSheet(
         }
     }
 
-    val totalVolume = remember(filteredExpenses) { filteredExpenses.sumOf { it.amount } }
     val primaryCurrency = remember(filteredExpenses) { filteredExpenses.firstOrNull()?.currency ?: "INR" }
+    // Mixed-currency selections are converted, never added raw (₹ + $).
+    val totalVolume = remember(filteredExpenses, primaryCurrency) {
+        filteredExpenses.sumOf { CurrencyFormatter.convert(it.amount, it.currency.ifBlank { primaryCurrency }, primaryCurrency) }
+    }
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
@@ -145,233 +148,87 @@ fun ExportBottomSheet(
                 .padding(horizontal = 24.dp)
                 .padding(bottom = 32.dp)
                 .verticalScroll(rememberScrollState()),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
+            verticalArrangement = Arrangement.spacedBy(20.dp)
         ) {
             // Header
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = "Export Expenses — $scopeName",
-                        style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onSurface
-                    )
-                    Text(
-                        text = "Configure basis, scope, period, and format",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
+                    Text("Export expenses", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+                    Text(scopeName, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1)
                 }
-                IconButton(shapes = com.opensplit.ui.theme.appIconButtonShapes(), onClick = onDismiss) {
-                    SymbolIcon(OpenSplitIcons.Close, contentDescription = "Close")
-                }
+                HeaderAction(OpenSplitIcons.Close, "Close", onClick = onDismiss)
             }
 
-            // 1. Report Basis / Grouping
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text(
-                    text = "Report Basis (Grouping)",
-                    style = MaterialTheme.typography.labelLarge,
-                    fontWeight = FontWeight.SemiBold,
-                    color = MaterialTheme.colorScheme.onSurface
+            val scopeLabels = listOf("All", "Paid by you", "With you")
+            // Single choices are connected button groups; the selected one morphs round.
+            ExportSection("Group by") {
+                ConnectedChoiceGroup(
+                    options = listOf("Date", "Category", "Payer"),
+                    selectedIndex = selectedBasis.ordinal,
+                    onSelect = { selectedBasis = ExpenseReportBasis.entries[it] }
                 )
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    ExpenseReportBasis.values().forEach { basis ->
-                        val isSelected = selectedBasis == basis
-                        Surface(
-                            modifier = Modifier
-                                .weight(1f)
-                                .heightIn(min = 48.dp)
-                                .clickable { selectedBasis = basis },
-                            shape = MaterialTheme.shapes.small,
-                            color = if (isSelected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceContainerHigh,
-                            border = if (isSelected) BorderStroke(1.5.dp, MaterialTheme.colorScheme.primary) else null
-                        ) {
-                            Box(
-                                modifier = Modifier.fillMaxSize(),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Text(
-                                    text = basis.title,
-                                    style = MaterialTheme.typography.labelMedium,
-                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
-                                    color = if (isSelected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurface
-                                )
-                            }
-                        }
-                    }
-                }
             }
-
-            // 2. Transaction Scope
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text(
-                    text = "Expense Scope",
-                    style = MaterialTheme.typography.labelLarge,
-                    fontWeight = FontWeight.SemiBold,
-                    color = MaterialTheme.colorScheme.onSurface
+            ExportSection("Include") {
+                ConnectedChoiceGroup(
+                    options = scopeLabels,
+                    selectedIndex = selectedScope.ordinal,
+                    onSelect = { selectedScope = ExpenseReportScope.entries[it] }
                 )
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    ExpenseReportScope.values().forEach { scope ->
-                        val isSelected = selectedScope == scope
-                        Surface(
-                            modifier = Modifier
-                                .weight(1f)
-                                .heightIn(min = 48.dp)
-                                .clickable { selectedScope = scope },
-                            shape = MaterialTheme.shapes.small,
-                            color = if (isSelected) MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.surfaceContainerHigh,
-                            border = if (isSelected) BorderStroke(1.5.dp, MaterialTheme.colorScheme.secondary) else null
-                        ) {
-                            Box(
-                                modifier = Modifier.fillMaxSize(),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Text(
-                                    text = scope.title,
-                                    style = MaterialTheme.typography.labelMedium,
-                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
-                                    color = if (isSelected) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onSurface
-                                )
-                            }
-                        }
-                    }
-                }
             }
-
-            // 3. Time Period
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text(
-                    text = "Time Period",
-                    style = MaterialTheme.typography.labelLarge,
-                    fontWeight = FontWeight.SemiBold,
-                    color = MaterialTheme.colorScheme.onSurface
-                )
+            ExportSection("Period") {
+                // Five options don't fit one row, so they wrap as toggle buttons (one selected).
                 androidx.compose.foundation.layout.FlowRow(
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    ExpenseReportPeriod.values().forEach { period ->
-                        val isSelected = selectedPeriod == period
-                        FilterChip(
-                            selected = isSelected,
-                            onClick = { selectedPeriod = period },
-                            label = { Text(period.title) },
-                            shape = MaterialTheme.shapes.extraSmall,
-                            colors = FilterChipDefaults.filterChipColors(
-                                selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
-                                selectedLabelColor = MaterialTheme.colorScheme.onPrimaryContainer
-                            )
-                        )
+                    ExpenseReportPeriod.entries.forEach { period ->
+                        androidx.compose.material3.OutlinedToggleButton(
+                            checked = selectedPeriod == period,
+                            onCheckedChange = { selectedPeriod = period }
+                        ) { Text(period.title) }
                     }
                 }
             }
-
-            // 4. File Format
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text(
-                    text = "Export Format",
-                    style = MaterialTheme.typography.labelLarge,
-                    fontWeight = FontWeight.SemiBold,
-                    color = MaterialTheme.colorScheme.onSurface
+            ExportSection("Format") {
+                ConnectedChoiceGroup(
+                    options = ExpenseExportDocType.entries.map { it.name },
+                    icons = ExpenseExportDocType.entries.map { it.icon },
+                    selectedIndex = selectedFormat.ordinal,
+                    onSelect = { selectedFormat = ExpenseExportDocType.entries[it] }
                 )
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    ExpenseExportDocType.values().forEach { format ->
-                        val isSelected = selectedFormat == format
-                        Surface(
-                            modifier = Modifier
-                                .weight(1f)
-                                .height(64.dp)
-                                .clickable { selectedFormat = format },
-                            shape = MaterialTheme.shapes.small,
-                            color = if (isSelected) MaterialTheme.colorScheme.tertiaryContainer else MaterialTheme.colorScheme.surfaceContainerHigh,
-                            border = if (isSelected) BorderStroke(1.5.dp, MaterialTheme.colorScheme.tertiary) else null
-                        ) {
-                            Column(
-                                modifier = Modifier
-                                    .fillMaxSize()
-                                    .padding(6.dp),
-                                horizontalAlignment = Alignment.CenterHorizontally,
-                                verticalArrangement = Arrangement.Center
-                            ) {
-                                SymbolIcon(
-                                    symbol = format.icon,
-                                    contentDescription = null,
-                                    modifier = Modifier.size(20.dp),
-                                    tint = if (isSelected) MaterialTheme.colorScheme.onTertiaryContainer else MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                                Spacer(modifier = Modifier.height(2.dp))
-                                Text(
-                                    text = format.name,
-                                    style = MaterialTheme.typography.labelSmall,
-                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                                    color = if (isSelected) MaterialTheme.colorScheme.onTertiaryContainer else MaterialTheme.colorScheme.onSurface
-                                )
-                            }
-                        }
-                    }
-                }
+                Text(selectedFormat.description, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
 
-            // 5. Summary Card
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                shape = MaterialTheme.shapes.medium,
-                colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.7f)
-                )
-            ) {
+            // Live summary: count and total roll as the filters change.
+            Surface(shape = MaterialTheme.shapes.large, color = MaterialTheme.colorScheme.surfaceContainerHigh) {
                 Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 12.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 16.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Column {
-                        Text(
-                            text = "${filteredExpenses.size} expenses selected",
-                            style = MaterialTheme.typography.titleSmall,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.onSurface
+                    Column(modifier = Modifier.weight(1f)) {
+                        AnimatedAmountText(
+                            value = filteredExpenses.size.toDouble(),
+                            format = { n -> n.toInt().let { if (it == 1) "1 expense" else "$it expenses" } },
+                            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold)
                         )
-                        Text(
-                            text = "Scope: ${selectedScope.title} · ${selectedPeriod.title}",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
+                        Text("${scopeLabels[selectedScope.ordinal]} · ${selectedPeriod.title}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
-                    Text(
-                        text = CurrencyFormatter.format(totalVolume, primaryCurrency),
-                        fontFamily = com.opensplit.ui.theme.MoneyFontFamily,
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold,
+                    AnimatedAmountText(
+                        value = totalVolume,
+                        format = { CurrencyFormatter.format(it, primaryCurrency) },
+                        style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold, fontFamily = com.opensplit.ui.theme.MoneyFontFamily),
                         color = MaterialTheme.colorScheme.primary
                     )
                 }
             }
 
-            // 6. Action Button
-            FilledTonalButton(
-                shapes = com.opensplit.ui.theme.appButtonShapes(),
+            // Primary call to action: filled, medium (56dp) expressive button.
+            val height = ButtonDefaults.MediumContainerHeight
+            Button(
                 onClick = {
-                    if (filteredExpenses.isEmpty()) {
-                        snackbar.showMessage("No expenses match the selected filters")
-                        return@FilledTonalButton
-                    }
                     isExporting = true
                     busy.show("Generating ${selectedFormat.title}…")
                     coroutineScope.launch {
@@ -399,29 +256,33 @@ fun ExportBottomSheet(
                         }
                     }
                 },
-                enabled = !isExporting,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(52.dp)
+                enabled = !isExporting && filteredExpenses.isNotEmpty(),
+                shapes = ButtonDefaults.shapesFor(height),
+                contentPadding = ButtonDefaults.contentPaddingFor(height),
+                modifier = Modifier.fillMaxWidth().heightIn(min = height)
             ) {
                 if (isExporting) {
-                    com.opensplit.ui.components.InlineLoadingIndicator(modifier = Modifier.size(20.dp), color = MaterialTheme.colorScheme.onSecondaryContainer)
-                    Spacer(modifier = Modifier.width(10.dp))
-                    Text("Exporting…")
+                    InlineLoadingIndicator(modifier = Modifier.size(24.dp), color = MaterialTheme.colorScheme.onPrimary)
+                    Spacer(modifier = Modifier.width(ButtonDefaults.iconSpacingFor(height)))
+                    Text("Exporting…", style = ButtonDefaults.textStyleFor(height))
                 } else {
-                    SymbolIcon(
-                        symbol = selectedFormat.icon,
-                        contentDescription = null,
-                        modifier = Modifier.size(20.dp)
-                    )
-                    Spacer(modifier = Modifier.width(10.dp))
+                    SymbolIcon(selectedFormat.icon, contentDescription = null, modifier = Modifier.size(ButtonDefaults.iconSizeFor(height)))
+                    Spacer(modifier = Modifier.width(ButtonDefaults.iconSpacingFor(height)))
                     Text(
-                        text = "Export ${selectedFormat.name} Report",
-                        style = MaterialTheme.typography.labelLarge,
-                        fontWeight = FontWeight.Bold
+                        if (filteredExpenses.isEmpty()) "Nothing to export" else "Export ${selectedFormat.name}",
+                        style = ButtonDefaults.textStyleFor(height)
                     )
                 }
             }
         }
+    }
+}
+
+/** Labelled block in the export sheet. */
+@Composable
+private fun ExportSection(title: String, content: @Composable () -> Unit) {
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Text(title, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        content()
     }
 }
