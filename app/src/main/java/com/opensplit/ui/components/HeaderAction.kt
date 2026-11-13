@@ -36,48 +36,33 @@ fun HeaderAction(
     ) { SymbolIcon(icon, contentDescription = contentDescription) }
 }
 
-/** One action in a [HeaderSplitButton]. */
+/** One action in a [HeaderButtonGroup]. */
 data class MenuAction(val icon: Symbol, val label: String, val onClick: () -> Unit)
 
 /**
- * Header split button (M3 Expressive): the screen's main action as a tonal icon button joined to
- * a trailing toggle that opens the related actions, instead of a row of separate icon buttons.
+ * Header actions as one connected (segmented) button group: tonal icon buttons side by side with
+ * round outer ends and tight inner corners, each squeezing a little when pressed. All actions stay
+ * visible, unlike a split button's menu.
  */
-@OptIn(androidx.compose.material3.ExperimentalMaterial3ExpressiveApi::class)
 @Composable
-fun HeaderSplitButton(primary: MenuAction, more: List<MenuAction>, modifier: Modifier = Modifier) {
-    var open by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(false) }
-    androidx.compose.foundation.layout.Box(modifier.padding(horizontal = 4.dp)) {
-        androidx.compose.material3.SplitButtonLayout(
-            leadingButton = {
-                androidx.compose.material3.SplitButtonDefaults.TonalLeadingButton(
-                    onClick = primary.onClick,
-                    modifier = Modifier.size(width = 56.dp, height = 48.dp)
-                        .semantics { contentDescription = primary.label }
-                ) { SymbolIcon(primary.icon, contentDescription = null) }
-            },
-            trailingButton = {
-                androidx.compose.material3.SplitButtonDefaults.TonalTrailingButton(
-                    checked = open,
-                    onCheckedChange = { open = it },
-                    modifier = Modifier.size(width = 44.dp, height = 48.dp)
-                        .semantics { contentDescription = "More actions" }
-                ) {
-                    SymbolIcon(
-                        OpenSplitIcons.Dropdown, contentDescription = null,
-                        modifier = Modifier.graphicsLayer { rotationZ = if (open) 180f else 0f }
-                    )
-                }
-            }
+fun HeaderButtonGroup(actions: List<MenuAction>, modifier: Modifier = Modifier) {
+    androidx.compose.foundation.layout.Row(
+        modifier = modifier.padding(horizontal = 4.dp),
+        horizontalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(
+            androidx.compose.material3.ButtonGroupDefaults.ConnectedSpaceBetween
         )
-        androidx.compose.material3.DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
-            more.forEach { action ->
-                androidx.compose.material3.DropdownMenuItem(
-                    text = { androidx.compose.material3.Text(action.label) },
-                    leadingIcon = { SymbolIcon(action.icon, contentDescription = null) },
-                    onClick = { open = false; action.onClick() }
+    ) {
+        actions.forEachIndexed { i, action ->
+            fun corners(outer: androidx.compose.ui.unit.Dp, inner: androidx.compose.ui.unit.Dp) =
+                androidx.compose.foundation.shape.RoundedCornerShape(
+                    topStart = if (i == 0) outer else inner, bottomStart = if (i == 0) outer else inner,
+                    topEnd = if (i == actions.lastIndex) outer else inner, bottomEnd = if (i == actions.lastIndex) outer else inner
                 )
-            }
+            FilledTonalIconButton(
+                onClick = action.onClick,
+                shapes = androidx.compose.material3.IconButtonShapes(shape = corners(24.dp, 8.dp), pressedShape = corners(24.dp, 4.dp)),
+                modifier = Modifier.size(width = 52.dp, height = 48.dp)
+            ) { SymbolIcon(action.icon, contentDescription = action.label) }
         }
     }
 }

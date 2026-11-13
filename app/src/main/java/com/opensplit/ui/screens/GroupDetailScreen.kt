@@ -88,13 +88,11 @@ fun GroupDetailScreen(
                     com.opensplit.ui.components.RoundBackButton(onClick = onNavigateBack)
                 },
                 actions = {
-                    com.opensplit.ui.components.HeaderSplitButton(
-                        primary = com.opensplit.ui.components.MenuAction(OpenSplitIcons.Filter, "Filter and sort") { showFilterSortSheet = true },
-                        more = listOf(
-                            com.opensplit.ui.components.MenuAction(OpenSplitIcons.Export, "Export expenses") { showExportSheet = true },
-                            com.opensplit.ui.components.MenuAction(OpenSplitIcons.Settings, "Group settings") { showSettings = true }
-                        )
-                    )
+                    com.opensplit.ui.components.HeaderButtonGroup(listOf(
+                        com.opensplit.ui.components.MenuAction(OpenSplitIcons.Filter, "Filter and sort") { showFilterSortSheet = true },
+                        com.opensplit.ui.components.MenuAction(OpenSplitIcons.Export, "Export expenses") { showExportSheet = true },
+                        com.opensplit.ui.components.MenuAction(OpenSplitIcons.More, "Group settings") { showSettings = true }
+                    ))
                     Spacer(Modifier.width(8.dp))
                 },
                 colors = TopAppBarDefaults.topAppBarColors(

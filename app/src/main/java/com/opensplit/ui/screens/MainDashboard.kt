@@ -260,18 +260,16 @@ fun MainDashboard(
                 val c = MaterialTheme.colorScheme
                 val search = com.opensplit.ui.components.MenuAction(OpenSplitIcons.Search, "Search") { showGlobalSearch = true }
                 when (tab) {
-                    // Main action up front; the rest in the split button's menu.
-                    DashboardTab.GROUPS -> com.opensplit.ui.components.HeaderSplitButton(
-                        primary = com.opensplit.ui.components.MenuAction(OpenSplitIcons.GroupAdd, "New group") { showCreateGroup = true },
-                        more = listOf(
-                            com.opensplit.ui.components.MenuAction(OpenSplitIcons.History, "Settlement history") { rootNavController.navigate("settlement_history") },
-                            search
-                        )
-                    )
-                    DashboardTab.PEOPLE -> com.opensplit.ui.components.HeaderSplitButton(
-                        primary = com.opensplit.ui.components.MenuAction(OpenSplitIcons.QrCode, "Show or scan a QR code") { mainViewModel.ensureFriendLink(); showQrSheet = true },
-                        more = listOf(search)
-                    )
+                    // Related actions as one connected button group.
+                    DashboardTab.GROUPS -> com.opensplit.ui.components.HeaderButtonGroup(listOf(
+                        com.opensplit.ui.components.MenuAction(OpenSplitIcons.GroupAdd, "New group") { showCreateGroup = true },
+                        com.opensplit.ui.components.MenuAction(OpenSplitIcons.History, "Settlement history") { rootNavController.navigate("settlement_history") },
+                        search
+                    ))
+                    DashboardTab.PEOPLE -> com.opensplit.ui.components.HeaderButtonGroup(listOf(
+                        com.opensplit.ui.components.MenuAction(OpenSplitIcons.QrCode, "Show or scan a QR code") { mainViewModel.ensureFriendLink(); showQrSheet = true },
+                        search
+                    ))
                     else -> com.opensplit.ui.components.HeaderAction(OpenSplitIcons.Search, "Search", c.primaryContainer, c.onPrimaryContainer) { showGlobalSearch = true }
                 }
                 Spacer(Modifier.width(8.dp))
