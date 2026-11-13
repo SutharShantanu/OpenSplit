@@ -37,6 +37,8 @@ class OpenSplitMessagingService : FirebaseMessagingService() {
         val body = message.notification?.body ?: message.data["body"] ?: return
         val type = com.opensplit.domain.model.NotificationType.fromId(message.data["type"])
         val groupId = message.data["groupId"]
+        // Something changed in a group: refresh the home-screen balance even if the notification is muted.
+        if (groupId != null) com.opensplit.widget.WidgetDataHelper.refreshData(this)
         // Honour the user's master, per-type and per-group switches before showing anything.
         if (!kotlinx.coroutines.runBlocking { NotificationHelper.isAllowed(this@OpenSplitMessagingService, type, groupId) }) return
         NotificationHelper.show(

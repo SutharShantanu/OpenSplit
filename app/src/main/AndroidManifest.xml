@@ -122,7 +122,6 @@
             android:exported="true">
             <intent-filter>
                 <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
-                <action android:name="com.opensplit.widget.ACTION_REFRESH_BALANCE" />
             </intent-filter>
             <meta-data
                 android:name="android.appwidget.provider"

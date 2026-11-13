@@ -42,7 +42,7 @@ import kotlin.math.hypot
 // Sage (default): Material tonal scheme from a green seed, so surfaces carry a
 // soft tint instead of flat grey, like Pixel apps.
 // ==========================================
-private val SageLightColorScheme = lightColorScheme(
+internal val SageLightColorScheme = lightColorScheme(
     primary = Color(0xFF4C662B), onPrimary = Color(0xFFFFFFFF),
     primaryContainer = Color(0xFFCDEDA3), onPrimaryContainer = Color(0xFF354E16),
     secondary = Color(0xFF586249), onSecondary = Color(0xFFFFFFFF),
@@ -61,7 +61,7 @@ private val SageLightColorScheme = lightColorScheme(
     inversePrimary = Color(0xFFB1D18A)
 )
 
-private val SageDarkColorScheme = darkColorScheme(
+internal val SageDarkColorScheme = darkColorScheme(
     primary = Color(0xFFB1D18A), onPrimary = Color(0xFF1F3701),
     primaryContainer = Color(0xFF354E16), onPrimaryContainer = Color(0xFFCDEDA3),
     secondary = Color(0xFFBFCBAD), onSecondary = Color(0xFF2A331E),
@@ -157,22 +157,9 @@ fun OpenSplitTheme(
   content: @Composable () -> Unit,
 ) {
   val context = LocalContext.current
-  // The system palette when it has hue. A monochrome system style (e.g. Nothing OS) makes it
-  // grey whatever the wallpaper is, so build the scheme from the wallpaper's own colours instead.
-  val dynamic = if (dynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-    if (darkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
-  } else null
   val wallpaper = rememberWallpaperColors()
-  val colorScheme = when {
-    dynamic != null && isColourful(dynamic.primary) -> dynamic
-    dynamicColor && wallpaper != null -> remember(wallpaper, darkTheme) {
-      val primary = wallpaper.primaryColor.toArgb()
-      val secondary = wallpaper.secondaryColor?.toArgb() ?: primary
-      val tertiary = wallpaper.tertiaryColor?.toArgb() ?: secondary
-      wallpaperColorScheme(primary, secondary, tertiary, darkTheme)
-    }
-    darkTheme -> SageDarkColorScheme
-    else -> SageLightColorScheme
+  val colorScheme = remember(context, darkTheme, dynamicColor, wallpaper) {
+    pickColorScheme(context, darkTheme, dynamicColor, wallpaper)
   }
 
   OpenSplitStatusBarStyle(
@@ -320,6 +307,33 @@ internal fun wallpaperColorScheme(primary: Int, secondary: Int, tertiary: Int, d
 }
 
 /** True when [color] has enough saturation to read as a hue rather than a grey. */
+/**
+ * The app's colour scheme; the home-screen widgets use it too so both look the same.
+ * The system palette when it has hue. A monochrome system style (e.g. Nothing OS) makes it
+ * grey whatever the wallpaper is, so build the scheme from the wallpaper's own colours instead.
+ */
+internal fun pickColorScheme(context: Context, dark: Boolean, dynamicColor: Boolean, wallpaper: WallpaperColors?): ColorScheme {
+  val dynamic = if (dynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+    if (dark) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
+  } else null
+  return when {
+    dynamic != null && isColourful(dynamic.primary) -> dynamic
+    dynamicColor && wallpaper != null -> {
+      val primary = wallpaper.primaryColor.toArgb()
+      val secondary = wallpaper.secondaryColor?.toArgb() ?: primary
+      val tertiary = wallpaper.tertiaryColor?.toArgb() ?: secondary
+      wallpaperColorScheme(primary, secondary, tertiary, dark)
+    }
+    dark -> SageDarkColorScheme
+    else -> SageLightColorScheme
+  }
+}
+
+/** Current system wallpaper colours, or null before Android 8.1. */
+internal fun currentWallpaperColors(context: Context): WallpaperColors? =
+  if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O_MR1) null
+  else WallpaperManager.getInstance(context).getWallpaperColors(WallpaperManager.FLAG_SYSTEM)
+
 private fun isColourful(color: Color): Boolean {
   val hsv = FloatArray(3)
   android.graphics.Color.colorToHSV(color.toArgb(), hsv)

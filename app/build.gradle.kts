@@ -139,6 +139,8 @@ dependencies {
   implementation(libs.androidx.credentials)
   implementation(libs.androidx.credentials.play.services.auth)
   implementation(libs.androidx.work.runtime.ktx)
+  implementation(libs.androidx.glance.appwidget)
+  implementation(libs.androidx.glance.material3)
   implementation(libs.haze)
   implementation(libs.aboutlibraries.compose.m3)
   implementation(libs.androidx.profileinstaller)

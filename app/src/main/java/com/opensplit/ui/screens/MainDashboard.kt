@@ -137,20 +137,28 @@ fun MainDashboard(
         else -> showAddExpensePicker = true
     }
 
-    // Handle deep actions from Android 17 M3 home screen widgets
-    androidx.compose.runtime.LaunchedEffect(pendingWidgetAction, allGroups.size) {
-        if (pendingWidgetAction != null) {
+    // Settling needs someone else in the group: open the only such group, pick between several, or say there is none.
+    val settleUp: () -> Unit = {
+        val settleable = allGroups.filter { it.memberIds.size > 1 }
+        when (settleable.size) {
+            0 -> snackbar.showMessage("Nobody to settle with yet. Add people to a group first.")
+            1 -> rootNavController.navigate("settle_up/${settleable.first().id}")
+            else -> showSettleUpPicker = true
+        }
+    }
+
+    // Widget, shortcut, tile and notification actions. Wait for the groups to load: on a cold
+    // start the list is empty for a moment, and acting then would say there is nothing to settle.
+    val groupsLoaded = userGroupsState is ScreenState.Success
+    androidx.compose.runtime.LaunchedEffect(pendingWidgetAction, groupsLoaded) {
+        if (pendingWidgetAction != null && groupsLoaded) {
             when (pendingWidgetAction) {
                 com.opensplit.widget.OpenSplitBalanceWidgetProvider.ACTION_ADD_EXPENSE -> {
                     addExpense()
                     onWidgetActionConsumed()
                 }
                 com.opensplit.widget.OpenSplitBalanceWidgetProvider.ACTION_SETTLE_UP -> {
-                    when {
-                        allGroups.size == 1 -> rootNavController.navigate("settle_up/${allGroups.first().id}")
-                        allGroups.size > 1 -> showSettleUpPicker = true
-                        else -> snackbar.showMessage("No groups to settle")
-                    }
+                    settleUp()
                     onWidgetActionConsumed()
                 }
                 com.opensplit.widget.OpenSplitBalanceWidgetProvider.ACTION_SCAN_QR -> {
@@ -428,7 +436,7 @@ fun MainDashboard(
             onNavigateToFriend = { rootNavController.navigate("person_balance/$it") },
             onAddExpense = { addExpense() },
             onCreateGroup = { showCreateGroup = true },
-            onSettleUp = { showSettleUpPicker = true },
+            onSettleUp = settleUp,
             onInviteFriend = { mainViewModel.ensureFriendLink(); showQrSheet = true }
         )
     }
