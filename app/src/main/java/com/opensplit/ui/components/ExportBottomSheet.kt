@@ -356,6 +356,7 @@ fun ExportBottomSheet(
                     }
                     Text(
                         text = CurrencyFormatter.format(totalVolume, primaryCurrency),
+                        fontFamily = com.opensplit.ui.theme.MoneyFontFamily,
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.primary

@@ -88,10 +88,13 @@ fun GroupDetailScreen(
                     com.opensplit.ui.components.RoundBackButton(onClick = onNavigateBack)
                 },
                 actions = {
-                    val c = MaterialTheme.colorScheme
-                    com.opensplit.ui.components.HeaderAction(OpenSplitIcons.Filter, "Filter and Sort", c.secondaryContainer, c.onSecondaryContainer) { showFilterSortSheet = true }
-                    com.opensplit.ui.components.HeaderAction(OpenSplitIcons.Export, "Export Group Expenses", c.tertiaryContainer, c.onTertiaryContainer) { showExportSheet = true }
-                    com.opensplit.ui.components.HeaderAction(OpenSplitIcons.More, "Group settings") { showSettings = true }
+                    com.opensplit.ui.components.HeaderSplitButton(
+                        primary = com.opensplit.ui.components.MenuAction(OpenSplitIcons.Filter, "Filter and sort") { showFilterSortSheet = true },
+                        more = listOf(
+                            com.opensplit.ui.components.MenuAction(OpenSplitIcons.Export, "Export expenses") { showExportSheet = true },
+                            com.opensplit.ui.components.MenuAction(OpenSplitIcons.Settings, "Group settings") { showSettings = true }
+                        )
+                    )
                     Spacer(Modifier.width(8.dp))
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
@@ -204,7 +207,7 @@ fun GroupDetailScreen(
                                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                                 )
                                                 Spacer(modifier = Modifier.height(4.dp))
-                                                com.opensplit.ui.components.AnimatedAmountText(value = totalSpending, format = { "$currencySymbol${com.opensplit.util.CurrencyFormatter.format(it, showSymbol = false)}" }, style = MaterialTheme.typography.headlineLarge, color = MaterialTheme.colorScheme.onSurface)
+                                                com.opensplit.ui.components.AnimatedAmountText(value = totalSpending, format = { "$currencySymbol${com.opensplit.util.CurrencyFormatter.format(it, showSymbol = false)}" }, style = MaterialTheme.typography.headlineLarge.copy(fontFamily = com.opensplit.ui.theme.MoneyFontFamily), color = MaterialTheme.colorScheme.onSurface)
                                                 Spacer(modifier = Modifier.height(2.dp))
                                                 Text(
                                                     text = "This month",
@@ -388,6 +391,7 @@ fun GroupDetailScreen(
                                                         Text(
                                                             text = com.opensplit.util.CurrencyFormatter.format(exp.amount, exp.currency) +
                                                                 if (exp.currency != data.group.currency) " ${exp.currency}" else "",
+                                                            fontFamily = com.opensplit.ui.theme.MoneyFontFamily,
                                                             style = MaterialTheme.typography.titleMedium,
                                                             fontWeight = FontWeight.Bold
                                                         )

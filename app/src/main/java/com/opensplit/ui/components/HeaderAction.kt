@@ -2,6 +2,11 @@
 
 package com.opensplit.ui.components
 
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.getValue
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material3.FilledTonalIconButton
@@ -29,6 +34,52 @@ fun HeaderAction(
         colors = IconButtonDefaults.filledTonalIconButtonColors(containerColor = container, contentColor = content),
         modifier = Modifier.padding(horizontal = 4.dp).size(48.dp)
     ) { SymbolIcon(icon, contentDescription = contentDescription) }
+}
+
+/** One action in a [HeaderSplitButton]. */
+data class MenuAction(val icon: Symbol, val label: String, val onClick: () -> Unit)
+
+/**
+ * Header split button (M3 Expressive): the screen's main action as a tonal icon button joined to
+ * a trailing toggle that opens the related actions, instead of a row of separate icon buttons.
+ */
+@OptIn(androidx.compose.material3.ExperimentalMaterial3ExpressiveApi::class)
+@Composable
+fun HeaderSplitButton(primary: MenuAction, more: List<MenuAction>, modifier: Modifier = Modifier) {
+    var open by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(false) }
+    androidx.compose.foundation.layout.Box(modifier.padding(horizontal = 4.dp)) {
+        androidx.compose.material3.SplitButtonLayout(
+            leadingButton = {
+                androidx.compose.material3.SplitButtonDefaults.TonalLeadingButton(
+                    onClick = primary.onClick,
+                    modifier = Modifier.size(width = 56.dp, height = 48.dp)
+                        .semantics { contentDescription = primary.label }
+                ) { SymbolIcon(primary.icon, contentDescription = null) }
+            },
+            trailingButton = {
+                androidx.compose.material3.SplitButtonDefaults.TonalTrailingButton(
+                    checked = open,
+                    onCheckedChange = { open = it },
+                    modifier = Modifier.size(width = 44.dp, height = 48.dp)
+                        .semantics { contentDescription = "More actions" }
+                ) {
+                    SymbolIcon(
+                        OpenSplitIcons.Dropdown, contentDescription = null,
+                        modifier = Modifier.graphicsLayer { rotationZ = if (open) 180f else 0f }
+                    )
+                }
+            }
+        )
+        androidx.compose.material3.DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
+            more.forEach { action ->
+                androidx.compose.material3.DropdownMenuItem(
+                    text = { androidx.compose.material3.Text(action.label) },
+                    leadingIcon = { SymbolIcon(action.icon, contentDescription = null) },
+                    onClick = { open = false; action.onClick() }
+                )
+            }
+        }
+    }
 }
 
 /** Round tonal back button for sub-screen headers. */

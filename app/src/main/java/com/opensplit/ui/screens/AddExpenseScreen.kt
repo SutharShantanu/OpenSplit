@@ -680,6 +680,7 @@ fun AddExpenseScreen(
                         Spacer(modifier = Modifier.height(OpenSplitTokens.SpaceXS))
                         Text(
                             text = if (totalAmount > 0) com.opensplit.util.CurrencyFormatter.format(totalAmount, group.currency) else "Type the total; the rest appears as you go",
+                            fontFamily = com.opensplit.ui.theme.MoneyFontFamily,
                             style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )

@@ -701,6 +701,7 @@ fun AnalyticsScreen(
                                 trailingContent = {
                                     Text(
                                         text = CurrencyFormatter.format(exp.amount, exp.currency),
+                                        fontFamily = com.opensplit.ui.theme.MoneyFontFamily,
                                         style = MaterialTheme.typography.titleSmall,
                                         fontWeight = FontWeight.Bold,
                                         color = MaterialTheme.colorScheme.primary

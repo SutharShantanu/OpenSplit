@@ -420,7 +420,7 @@ fun GlobalSearchSheet(
                                 headlineContent = { Text("$from paid $to", fontWeight = FontWeight.SemiBold) },
                                 supportingContent = { Text("$gName • ${st.method.toDisplayName()}" + (st.note?.let { " • $it" } ?: ""), style = MaterialTheme.typography.bodySmall) },
                                 leadingContent = { SymbolIcon(OpenSplitIcons.Settle, contentDescription = null, tint = MaterialTheme.colorScheme.primary) },
-                                trailingContent = { Text(CurrencyFormatter.format(st.amount, st.currency), fontWeight = FontWeight.Bold) }
+                                trailingContent = { Text(CurrencyFormatter.format(st.amount, st.currency), fontWeight = FontWeight.Bold, fontFamily = com.opensplit.ui.theme.MoneyFontFamily) }
                             )
                         }
                     }

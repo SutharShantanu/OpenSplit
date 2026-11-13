@@ -671,6 +671,7 @@ private fun SettlementSuccessOverlay(
                         Spacer(modifier = Modifier.height(8.dp))
                         Text(
                             text = "$currencySymbol${CurrencyFormatter.format(amount, showSymbol = false)}",
+                            fontFamily = com.opensplit.ui.theme.MoneyFontFamily,
                             style = MaterialTheme.typography.displayMedium,
                             fontWeight = FontWeight.Bold,
                             color = MaterialTheme.colorScheme.primary
