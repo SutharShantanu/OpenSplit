@@ -115,10 +115,19 @@
             </intent-filter>
         </service>
 
-        <!-- Payment detection's notification listener is declared only on the payment-detection
-             branch. Play Protect blocks sideloading any APK that declares one, so the default
-             build leaves it out; the code ships in both and PaymentDetector.isIncluded() tells
-             which build this is. -->
+        <!-- payment-detection branch only: this listener is the one difference from main.
+             Play Protect blocks sideloading APKs that declare it, so main leaves it out.
+             Reads only allowlisted UPI/bank app notifications once the user grants notification
+             access; parsed fields stay on-device and message text is never stored. -->
+        <service
+            android:name=".service.PaymentNotificationListener"
+            android:exported="false"
+            android:label="@string/payment_detection_label"
+            android:permission="android.permission.BIND_NOTIFICATION_LISTENER_SERVICE">
+            <intent-filter>
+                <action android:name="android.service.notification.NotificationListenerService" />
+            </intent-filter>
+        </service>
         <receiver
             android:name=".service.PaymentActionReceiver"
             android:exported="false" />
