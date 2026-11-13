@@ -164,13 +164,13 @@ fun UpdateSheet(updater: AppUpdater) {
                         Button(
                             shapes = com.opensplit.ui.theme.appButtonShapes(),
                             onClick = { updater.openInstallPermissionSettings() },
-                            modifier = Modifier.fillMaxWidth().height(56.dp)
+                            modifier = Modifier.fillMaxWidth().heightIn(min = androidx.compose.material3.ButtonDefaults.MediumContainerHeight)
                         ) { Text("Allow installs from OpenSplit") }
                     } else {
                         Button(
                             shapes = com.opensplit.ui.theme.appButtonShapes(),
                             onClick = { updater.install() },
-                            modifier = Modifier.fillMaxWidth().height(56.dp)
+                            modifier = Modifier.fillMaxWidth().heightIn(min = androidx.compose.material3.ButtonDefaults.MediumContainerHeight)
                         ) { Text("Install") }
                     }
                 }

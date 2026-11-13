@@ -381,17 +381,11 @@ private fun GroupQrTab(
                         style = MaterialTheme.typography.labelMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
-                    androidx.compose.foundation.layout.FlowRow(
-                        horizontalArrangement = Arrangement.spacedBy(6.dp)
-                    ) {
-                        expiryOptions.forEachIndexed { i, (label, _) ->
-                            FilterChip(
-                                selected = expiryChoice == i,
-                                onClick = { expiryChoice = i },
-                                label = { Text(label) }
-                            )
-                        }
-                    }
+                    ChoiceToggleRow(
+                        options = expiryOptions.map { it.first },
+                        selectedIndex = expiryChoice,
+                        onSelect = { expiryChoice = it }
+                    )
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
                         modifier = Modifier.fillMaxWidth()

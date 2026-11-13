@@ -180,17 +180,11 @@ fun ExportBottomSheet(
             }
             ExportSection("Period") {
                 // Five options don't fit one row, so they wrap as toggle buttons (one selected).
-                androidx.compose.foundation.layout.FlowRow(
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    ExpenseReportPeriod.entries.forEach { period ->
-                        androidx.compose.material3.OutlinedToggleButton(
-                            checked = selectedPeriod == period,
-                            onCheckedChange = { selectedPeriod = period }
-                        ) { Text(period.title) }
-                    }
-                }
+                ChoiceToggleRow(
+                    options = ExpenseReportPeriod.entries.map { it.title },
+                    selectedIndex = selectedPeriod.ordinal,
+                    onSelect = { selectedPeriod = ExpenseReportPeriod.entries[it] }
+                )
             }
             ExportSection("Format") {
                 ConnectedChoiceGroup(

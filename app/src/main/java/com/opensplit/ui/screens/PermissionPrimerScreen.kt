@@ -143,13 +143,13 @@ fun PermissionPrimerScreen(
                     Spacer(modifier = Modifier.height(28.dp))
 
                     Button(
+                        shapes = androidx.compose.material3.ButtonDefaults.shapesFor(androidx.compose.material3.ButtonDefaults.MediumContainerHeight),
                         onClick = {
                             multiplePermissionLauncher.launch(permissionsToRequest)
                         },
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(52.dp),
-                        shape = MaterialTheme.shapes.medium
+                            .heightIn(min = androidx.compose.material3.ButtonDefaults.MediumContainerHeight)
                     ) {
                         Text("Grant All Permissions", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                     }

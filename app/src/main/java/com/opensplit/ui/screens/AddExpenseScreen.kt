@@ -571,6 +571,7 @@ fun AddExpenseScreen(
                     Spacer(modifier = Modifier.height(8.dp))
 
                     Button(
+                        shapes = androidx.compose.material3.ButtonDefaults.shapesFor(androidx.compose.material3.ButtonDefaults.MediumContainerHeight),
                         onClick = {
                             if (aiNaturalInput.isNotBlank() && !isParsingText) {
                                 isParsingText = true
@@ -606,8 +607,7 @@ fun AddExpenseScreen(
                         },
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(52.dp),
-                        shape = CircleShape
+                            .heightIn(min = androidx.compose.material3.ButtonDefaults.MediumContainerHeight)
                     ) {
                         if (isParsingText) {
                             AppLoadingIndicator(size = 20.dp, color = MaterialTheme.colorScheme.onPrimary)
@@ -847,16 +847,11 @@ fun AddExpenseScreen(
                 Column {
                     Text("Repeat", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                     Spacer(modifier = Modifier.height(OpenSplitTokens.SpaceXS))
-                    FlowRow(horizontalArrangement = Arrangement.spacedBy(OpenSplitTokens.SpaceSM)) {
-                        RecurrenceFrequency.values().forEach { freq ->
-                            val label = com.opensplit.domain.logic.RecurrenceScheduler.label(freq)
-                            FilterChip(
-                                selected = recurrenceFreq == freq,
-                                onClick = { recurrenceFreq = freq },
-                                label = { Text(label) }
-                            )
-                        }
-                    }
+                    com.opensplit.ui.components.ChoiceToggleRow(
+                        options = RecurrenceFrequency.entries.map { com.opensplit.domain.logic.RecurrenceScheduler.label(it) },
+                        selectedIndex = recurrenceFreq.ordinal,
+                        onSelect = { recurrenceFreq = RecurrenceFrequency.entries[it] }
+                    )
                 }
 
                 // Paid By Selection (single payer, or split across multiple payers)
@@ -1252,7 +1247,7 @@ fun AddExpenseScreen(
                             else viewModel.addExpense(builtExpense, pickedReceiptUri, onDone, onError)
                         }
                     },
-                    modifier = Modifier.fillMaxWidth().height(52.dp),
+                    modifier = Modifier.fillMaxWidth().heightIn(min = androidx.compose.material3.ButtonDefaults.MediumContainerHeight),
                     // Stays in the primary colour while saving so the spinner reads clearly; the click guard above prevents double saves.
                     enabled = isFormValid || isSaving
                 ) {

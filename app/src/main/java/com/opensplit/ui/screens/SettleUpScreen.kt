@@ -430,26 +430,13 @@ fun SettleUpScreen(
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                         Spacer(modifier = Modifier.height(OpenSplitTokens.SpaceXS))
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            listOf(
-                                SettlementMethod.UPI to "UPI",
-                                SettlementMethod.CASH to "Cash",
-                                SettlementMethod.BANK_TRANSFER to "Bank",
-                                SettlementMethod.OTHER to "Other"
-                            ).forEach { (m, label) ->
-                                FilterChip(
-                                    selected = method == m,
-                                    onClick = { method = m; methodPickedByHand = true },
-                                    label = { Text(label) },
-                                    leadingIcon = if (method == m) {
-                                        { SymbolIcon(OpenSplitIcons.Check, contentDescription = null, modifier = Modifier.size(16.dp)) }
-                                    } else null
-                                )
-                            }
-                        }
+                        // Connected button group: one method, shape morphs on selection.
+                        val methods = listOf(SettlementMethod.UPI, SettlementMethod.CASH, SettlementMethod.BANK_TRANSFER, SettlementMethod.OTHER)
+                        com.opensplit.ui.components.ConnectedChoiceGroup(
+                            options = listOf("UPI", "Cash", "Bank", "Other"),
+                            selectedIndex = methods.indexOf(method).coerceAtLeast(0),
+                            onSelect = { method = methods[it]; methodPickedByHand = true }
+                        )
                     }
                 }
 
@@ -485,8 +472,8 @@ fun SettleUpScreen(
                     enabled = canSubmit,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(52.dp),
-                    shape = CircleShape,
+                        .heightIn(min = androidx.compose.material3.ButtonDefaults.MediumContainerHeight),
+                    shapes = androidx.compose.material3.ButtonDefaults.shapesFor(androidx.compose.material3.ButtonDefaults.MediumContainerHeight),
                     colors = ButtonDefaults.buttonColors(
                         containerColor = MaterialTheme.colorScheme.primary,
                         contentColor = MaterialTheme.colorScheme.onPrimary
@@ -691,8 +678,8 @@ private fun SettlementSuccessOverlay(
                     onClick = onDone,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(52.dp),
-                    shape = CircleShape,
+                        .heightIn(min = androidx.compose.material3.ButtonDefaults.MediumContainerHeight),
+                    shapes = androidx.compose.material3.ButtonDefaults.shapesFor(androidx.compose.material3.ButtonDefaults.MediumContainerHeight),
                     colors = ButtonDefaults.buttonColors(
                         containerColor = MaterialTheme.colorScheme.primary,
                         contentColor = MaterialTheme.colorScheme.onPrimary
@@ -708,11 +695,11 @@ private fun SettlementSuccessOverlay(
                 Spacer(modifier = Modifier.height(12.dp))
 
                 OutlinedButton(
+                    shapes = androidx.compose.material3.ButtonDefaults.shapesFor(androidx.compose.material3.ButtonDefaults.MediumContainerHeight),
                     onClick = onDone,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(52.dp),
-                    shape = CircleShape
+                        .heightIn(min = androidx.compose.material3.ButtonDefaults.MediumContainerHeight)
                 ) {
                     Text(
                         text = "View receipt",
@@ -823,8 +810,8 @@ fun SettlementFailedOverlay(
                 onClick = onRetry,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(52.dp),
-                shape = CircleShape,
+                    .heightIn(min = androidx.compose.material3.ButtonDefaults.MediumContainerHeight),
+                shapes = androidx.compose.material3.ButtonDefaults.shapesFor(androidx.compose.material3.ButtonDefaults.MediumContainerHeight),
                 colors = ButtonDefaults.buttonColors(
                     containerColor = MaterialTheme.colorScheme.primary,
                     contentColor = MaterialTheme.colorScheme.onPrimary
@@ -838,11 +825,11 @@ fun SettlementFailedOverlay(
             Spacer(modifier = Modifier.height(12.dp))
 
             OutlinedButton(
+                shapes = androidx.compose.material3.ButtonDefaults.shapesFor(androidx.compose.material3.ButtonDefaults.MediumContainerHeight),
                 onClick = onCancel,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(52.dp),
-                shape = CircleShape
+                    .heightIn(min = androidx.compose.material3.ButtonDefaults.MediumContainerHeight)
             ) {
                 Text("Cancel", fontWeight = FontWeight.SemiBold, style = MaterialTheme.typography.titleMedium)
             }

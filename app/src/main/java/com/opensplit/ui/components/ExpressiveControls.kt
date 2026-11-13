@@ -80,6 +80,28 @@ fun ConnectedChoiceGroup(
     }
 }
 
+/**
+ * Single choice among many options (or long labels) as wrapping outlined toggle buttons; the
+ * selected one fills and morphs. Use [ConnectedChoiceGroup] when 2–3 short options fit one row.
+ */
+@OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
+@Composable
+fun ChoiceToggleRow(options: List<String>, selectedIndex: Int, onSelect: (Int) -> Unit, modifier: Modifier = Modifier) {
+    androidx.compose.foundation.layout.FlowRow(
+        modifier = modifier,
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        options.forEachIndexed { i, label ->
+            androidx.compose.material3.OutlinedToggleButton(
+                checked = i == selectedIndex,
+                onCheckedChange = { onSelect(i) },
+                modifier = Modifier.semantics { role = Role.RadioButton; selected = i == selectedIndex }
+            ) { Text(label) }
+        }
+    }
+}
+
 /** Shape-morphing indicator sized for a button or a status line, in place of a small spinner. */
 @Composable
 fun InlineLoadingIndicator(modifier: Modifier = Modifier, color: Color = MaterialTheme.colorScheme.primary) {

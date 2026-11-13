@@ -221,19 +221,11 @@ fun FriendsScreen(
                         }
                     }
 
-                    Row(
-                        horizontalArrangement = Arrangement.spacedBy(OpenSplitTokens.SpaceSM),
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        FriendFilterOption.values().forEach { option ->
-                            FilterChip(
-                                selected = selectedFilter == option,
-                                onClick = { selectedFilter = option },
-                                label = { Text(option.label) },
-                                shape = MaterialTheme.shapes.extraLarge
-                            )
-                        }
-                    }
+                    com.opensplit.ui.components.ChoiceToggleRow(
+                        options = FriendFilterOption.entries.map { it.label },
+                        selectedIndex = selectedFilter.ordinal,
+                        onSelect = { selectedFilter = FriendFilterOption.entries[it] }
+                    )
 
                     Spacer(modifier = Modifier.height(OpenSplitTokens.SpaceMD))
 

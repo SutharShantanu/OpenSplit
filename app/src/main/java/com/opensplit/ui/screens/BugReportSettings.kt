@@ -151,11 +151,12 @@ fun BugReportSubScreen(onBack: () -> Unit) {
                 }
                 item {
                     SettingsGroupCard(title = "How Often Does It Happen?", icon = OpenSplitIcons.Schedule) {
-                        Row(modifier = Modifier.padding(16.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            FREQUENCIES.forEach { f ->
-                                FilterChip(selected = frequency == f, onClick = { frequency = f }, label = { Text(f) })
-                            }
-                        }
+                        com.opensplit.ui.components.ConnectedChoiceGroup(
+                            options = FREQUENCIES,
+                            selectedIndex = FREQUENCIES.indexOf(frequency).coerceAtLeast(0),
+                            onSelect = { frequency = FREQUENCIES[it] },
+                            modifier = Modifier.padding(16.dp)
+                        )
                     }
                 }
                 item {
@@ -219,7 +220,7 @@ fun BugReportSubScreen(onBack: () -> Unit) {
                         onClick = ::send,
                         enabled = !preparing && title.isNotBlank() && whatHappened.isNotBlank(),
                         shapes = com.opensplit.ui.theme.appButtonShapes(),
-                        modifier = Modifier.fillMaxWidth().height(56.dp)
+                        modifier = Modifier.fillMaxWidth().heightIn(min = androidx.compose.material3.ButtonDefaults.MediumContainerHeight)
                     ) {
                         SymbolIcon(OpenSplitIcons.Send, contentDescription = null, modifier = Modifier.size(20.dp))
                         Spacer(Modifier.width(8.dp))

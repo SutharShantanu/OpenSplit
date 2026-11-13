@@ -851,7 +851,7 @@ fun GroupDetailScreen(
                             snackbar.showMessage("Group renamed")
                         },
                         enabled = renameText.isNotBlank() && renameText.trim() != group.name,
-                        modifier = Modifier.fillMaxWidth().height(52.dp)
+                        modifier = Modifier.fillMaxWidth().heightIn(min = androidx.compose.material3.ButtonDefaults.MediumContainerHeight)
                     ) { Text("Rename") }
 
                     // Currency: locked once the group has expenses, so balances stay consistent.
@@ -957,7 +957,7 @@ fun GroupDetailScreen(
                                     snackbar.showMessage("Left ${group.name}. Your past expenses stay in the history.")
                                 }
                             },
-                            modifier = Modifier.weight(1f).height(56.dp)
+                            modifier = Modifier.weight(1f).heightIn(min = androidx.compose.material3.ButtonDefaults.MediumContainerHeight)
                         ) { Text("Leave group", style = MaterialTheme.typography.titleSmall) }
 
                         if (currentUid == group.createdBy) {
@@ -970,7 +970,7 @@ fun GroupDetailScreen(
                                     containerColor = MaterialTheme.colorScheme.errorContainer,
                                     contentColor = MaterialTheme.colorScheme.onErrorContainer
                                 ),
-                                modifier = Modifier.weight(1f).height(56.dp)
+                                modifier = Modifier.weight(1f).heightIn(min = androidx.compose.material3.ButtonDefaults.MediumContainerHeight)
                             ) { Text("Delete group", style = MaterialTheme.typography.titleSmall) }
                         }
                     }

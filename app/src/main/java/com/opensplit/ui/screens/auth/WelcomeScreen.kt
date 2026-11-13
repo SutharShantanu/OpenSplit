@@ -159,8 +159,8 @@ private fun OnboardingCarousel(
                     },
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(56.dp),
-                    shape = CircleShape,
+                        .heightIn(min = androidx.compose.material3.ButtonDefaults.MediumContainerHeight),
+                    shapes = androidx.compose.material3.ButtonDefaults.shapesFor(androidx.compose.material3.ButtonDefaults.MediumContainerHeight),
                     colors = ButtonDefaults.buttonColors(
                         containerColor = MaterialTheme.colorScheme.primary,
                         contentColor = MaterialTheme.colorScheme.onPrimary
@@ -182,8 +182,8 @@ private fun OnboardingCarousel(
                         onClick = onGetStarted,
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(56.dp),
-                        shape = CircleShape,
+                            .heightIn(min = androidx.compose.material3.ButtonDefaults.MediumContainerHeight),
+                        shapes = androidx.compose.material3.ButtonDefaults.shapesFor(androidx.compose.material3.ButtonDefaults.MediumContainerHeight),
                         colors = ButtonDefaults.buttonColors(
                             containerColor = MaterialTheme.colorScheme.primary,
                             contentColor = MaterialTheme.colorScheme.onPrimary
@@ -200,8 +200,8 @@ private fun OnboardingCarousel(
                         onClick = onGetStarted,
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(56.dp),
-                        shape = CircleShape,
+                            .heightIn(min = androidx.compose.material3.ButtonDefaults.MediumContainerHeight),
+                        shapes = androidx.compose.material3.ButtonDefaults.shapesFor(androidx.compose.material3.ButtonDefaults.MediumContainerHeight),
                         colors = ButtonDefaults.outlinedButtonColors(
                             contentColor = MaterialTheme.colorScheme.primary
                         )

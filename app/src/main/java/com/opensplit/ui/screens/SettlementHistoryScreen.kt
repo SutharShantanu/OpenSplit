@@ -870,17 +870,11 @@ fun SettlementReportBottomSheet(
                 )
             }
             com.opensplit.ui.components.ExportSection("Period") {
-                androidx.compose.foundation.layout.FlowRow(
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    SettlementReportPeriod.entries.forEach { period ->
-                        androidx.compose.material3.OutlinedToggleButton(
-                            checked = selectedPeriod == period,
-                            onCheckedChange = { selectedPeriod = period }
-                        ) { Text(period.label) }
-                    }
-                }
+                com.opensplit.ui.components.ChoiceToggleRow(
+                    options = SettlementReportPeriod.entries.map { it.label },
+                    selectedIndex = selectedPeriod.ordinal,
+                    onSelect = { selectedPeriod = SettlementReportPeriod.entries[it] }
+                )
             }
             com.opensplit.ui.components.ExportSection("Format") {
                 com.opensplit.ui.components.ConnectedChoiceGroup(
