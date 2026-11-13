@@ -278,9 +278,9 @@ fun ExportBottomSheet(
     }
 }
 
-/** Labelled block in the export sheet. */
+/** Labelled block in an export sheet. */
 @Composable
-private fun ExportSection(title: String, content: @Composable () -> Unit) {
+internal fun ExportSection(title: String, content: @Composable () -> Unit) {
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Text(title, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurfaceVariant)
         content()

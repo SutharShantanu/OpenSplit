@@ -2,6 +2,7 @@
 
 package com.opensplit.ui.screens
 
+import androidx.compose.foundation.verticalScroll
 import com.opensplit.ui.components.FilterChip
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import android.content.Context
@@ -795,28 +796,39 @@ fun SettlementReportBottomSheet(
     var selectedFormat by rememberSaveable { mutableStateOf(SettlementExportDocType.PDF) }
     var isExporting by remember { mutableStateOf(false) }
 
-    // Filter settlements based on chosen options
-    val exportSettlements = remember(settlements, selectedScope, selectedPeriod, currentUid) {
+    // Filter by direction and period, then order by the chosen basis (it used to only rename the file).
+    val exportSettlements = remember(settlements, selectedScope, selectedPeriod, selectedBasis, currentUid, userMap) {
         val now = System.currentTimeMillis()
-        settlements.filter { s ->
+        val thisYear = java.util.Calendar.getInstance().get(java.util.Calendar.YEAR)
+        val cal = java.util.Calendar.getInstance()
+        val filtered = settlements.filter { s ->
             val isPaidByMe = s.fromUid == currentUid || (currentUid.isEmpty() && s.fromUid == "me")
             val matchesScope = when (selectedScope) {
                 SettlementReportType.ALL -> true
                 SettlementReportType.PAID_ONLY -> isPaidByMe
-                SettlementReportType.RECEIVED_ONLY -> !isPaidByMe
+                // Only payments to you, not ones between two other people.
+                SettlementReportType.RECEIVED_ONLY -> s.toUid == currentUid
             }
-
-            val timeDiff = now - s.date.toDate().time
-            val matchesPeriod = selectedPeriod.days?.let { days ->
-                timeDiff <= (days * 86400000L)
-            } ?: true
-
+            val matchesPeriod = when (selectedPeriod) {
+                SettlementReportPeriod.ALL -> true
+                SettlementReportPeriod.THIS_YEAR -> { cal.time = s.date.toDate(); cal.get(java.util.Calendar.YEAR) == thisYear }
+                else -> now - s.date.toDate().time <= selectedPeriod.days!! * 86_400_000L
+            }
             matchesScope && matchesPeriod
+        }
+        fun other(s: Settlement) = (if (s.fromUid == currentUid) s.toUid else s.fromUid).let { userMap[it]?.displayName ?: it }
+        when (selectedBasis) {
+            SettlementReportBasis.CHRONOLOGICAL -> filtered.sortedByDescending { it.date.toDate().time }
+            SettlementReportBasis.BY_PERSON -> filtered.sortedWith(compareBy<Settlement>({ other(it).lowercase() }).thenByDescending { it.date.toDate().time })
+            SettlementReportBasis.BY_METHOD -> filtered.sortedWith(compareBy<Settlement>({ it.method.name }).thenByDescending { it.date.toDate().time })
         }
     }
 
-    val totalVolume = remember(exportSettlements) { exportSettlements.sumOf { it.amount } }
-    val primaryCurrency = remember(exportSettlements) { exportSettlements.firstOrNull()?.currency ?: "USD" }
+    val primaryCurrency = remember(exportSettlements) { exportSettlements.firstOrNull()?.currency ?: "INR" }
+    // Mixed currencies are converted, never added raw.
+    val totalVolume = remember(exportSettlements, primaryCurrency) {
+        exportSettlements.sumOf { CurrencyFormatter.convert(it.amount, it.currency.ifBlank { primaryCurrency }, primaryCurrency) }
+    }
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
@@ -830,282 +842,116 @@ fun SettlementReportBottomSheet(
                 .wrapContentWidth(Alignment.CenterHorizontally)
                 .widthIn(max = 640.dp)
                 .padding(horizontal = 24.dp)
-                .padding(bottom = 32.dp),
-            verticalArrangement = Arrangement.spacedBy(18.dp)
+                .padding(bottom = 32.dp)
+                .then(Modifier.verticalScroll(rememberScrollState())),
+            verticalArrangement = Arrangement.spacedBy(20.dp)
         ) {
-            // Header
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Column {
-                    Text(
-                        text = "Export Settlement Report",
-                        style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onSurface
-                    )
-                    Text(
-                        text = "Configure basis, transaction scope, and format",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
+            Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text("Export settlements", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+                    Text("Payments recorded between people", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
-
-                IconButton(shapes = com.opensplit.ui.theme.appIconButtonShapes(), onClick = onDismiss) {
-                    SymbolIcon(OpenSplitIcons.Close, contentDescription = "Close")
-                }
+                com.opensplit.ui.components.HeaderAction(OpenSplitIcons.Close, "Close", onClick = onDismiss)
             }
 
-            // 1. Report Basis / Grouping
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text(
-                    text = "Report Basis (Grouping)",
-                    style = MaterialTheme.typography.labelLarge,
-                    fontWeight = FontWeight.SemiBold,
-                    color = MaterialTheme.colorScheme.onSurface
+            val scopeLabels = listOf("All", "Sent", "Received")
+            com.opensplit.ui.components.ExportSection("Group by") {
+                com.opensplit.ui.components.ConnectedChoiceGroup(
+                    options = listOf("Date", "Person", "Method"),
+                    selectedIndex = selectedBasis.ordinal,
+                    onSelect = { selectedBasis = SettlementReportBasis.entries[it] }
                 )
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+            }
+            com.opensplit.ui.components.ExportSection("Include") {
+                com.opensplit.ui.components.ConnectedChoiceGroup(
+                    options = scopeLabels,
+                    selectedIndex = selectedScope.ordinal,
+                    onSelect = { selectedScope = SettlementReportType.entries[it] }
+                )
+            }
+            com.opensplit.ui.components.ExportSection("Period") {
+                androidx.compose.foundation.layout.FlowRow(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    SettlementReportBasis.values().forEach { basis ->
-                        val isSelected = selectedBasis == basis
-                        Surface(
-                            modifier = Modifier
-                                .weight(1f)
-                                .heightIn(min = 48.dp)
-                                .clickable { selectedBasis = basis },
-                            shape = MaterialTheme.shapes.small,
-                            color = if (isSelected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceContainerHigh,
-                            border = if (isSelected) androidx.compose.foundation.BorderStroke(1.5.dp, MaterialTheme.colorScheme.primary) else null
-                        ) {
-                            Box(
-                                modifier = Modifier.fillMaxSize(),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Text(
-                                    text = basis.title,
-                                    style = MaterialTheme.typography.labelMedium,
-                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
-                                    color = if (isSelected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurface
-                                )
-                            }
-                        }
+                    SettlementReportPeriod.entries.forEach { period ->
+                        androidx.compose.material3.OutlinedToggleButton(
+                            checked = selectedPeriod == period,
+                            onCheckedChange = { selectedPeriod = period }
+                        ) { Text(period.label) }
                     }
                 }
             }
-
-            // 2. Transaction Scope
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text(
-                    text = "Transaction Scope",
-                    style = MaterialTheme.typography.labelLarge,
-                    fontWeight = FontWeight.SemiBold,
-                    color = MaterialTheme.colorScheme.onSurface
+            com.opensplit.ui.components.ExportSection("Format") {
+                com.opensplit.ui.components.ConnectedChoiceGroup(
+                    options = SettlementExportDocType.entries.map { it.name },
+                    icons = listOf(OpenSplitIcons.PictureAsPdf, OpenSplitIcons.TableChart, OpenSplitIcons.Code),
+                    selectedIndex = selectedFormat.ordinal,
+                    onSelect = { selectedFormat = SettlementExportDocType.entries[it] }
                 )
-                Row(
-                    modifier = Modifier.horizontalScroll(rememberScrollState()),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    SettlementReportType.values().forEach { scope ->
-                        FilterChip(
-                            selected = selectedScope == scope,
-                            onClick = { selectedScope = scope },
-                            label = { Text(scope.label) },
-                            shape = CircleShape
-                        )
-                    }
-                }
+                Text(selectedFormat.title, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
 
-            // 3. Time Period
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text(
-                    text = "Period",
-                    style = MaterialTheme.typography.labelLarge,
-                    fontWeight = FontWeight.SemiBold,
-                    color = MaterialTheme.colorScheme.onSurface
-                )
+            Surface(shape = MaterialTheme.shapes.large, color = MaterialTheme.colorScheme.surfaceContainerHigh) {
                 Row(
-                    modifier = Modifier.horizontalScroll(rememberScrollState()),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    SettlementReportPeriod.values().forEach { period ->
-                        FilterChip(
-                            selected = selectedPeriod == period,
-                            onClick = { selectedPeriod = period },
-                            label = { Text(period.label) },
-                            shape = CircleShape
-                        )
-                    }
-                }
-            }
-
-            // 4. File Format
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text(
-                    text = "Export Format",
-                    style = MaterialTheme.typography.labelLarge,
-                    fontWeight = FontWeight.SemiBold,
-                    color = MaterialTheme.colorScheme.onSurface
-                )
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(10.dp)
-                ) {
-                    SettlementExportDocType.values().forEach { format ->
-                        val isSelected = selectedFormat == format
-                        Surface(
-                            modifier = Modifier
-                                .weight(1f)
-                                .clickable { selectedFormat = format },
-                            shape = MaterialTheme.shapes.medium,
-                            color = if (isSelected) MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.surfaceContainerHigh,
-                            border = if (isSelected) androidx.compose.foundation.BorderStroke(1.5.dp, MaterialTheme.colorScheme.secondary) else null
-                        ) {
-                            Column(
-                                modifier = Modifier.padding(12.dp),
-                                horizontalAlignment = Alignment.CenterHorizontally,
-                                verticalArrangement = Arrangement.spacedBy(6.dp)
-                            ) {
-                                SymbolIcon(
-                                    symbol = when (format) {
-                                        SettlementExportDocType.PDF -> OpenSplitIcons.PictureAsPdf
-                                        SettlementExportDocType.CSV -> OpenSplitIcons.TableChart
-                                        SettlementExportDocType.JSON -> OpenSplitIcons.Code
-                                    },
-                                    contentDescription = null,
-                                    tint = if (isSelected) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onSurfaceVariant,
-                                    modifier = Modifier.size(24.dp)
-                                )
-                                Text(
-                                    text = format.title,
-                                    style = MaterialTheme.typography.labelSmall,
-                                    fontWeight = FontWeight.Bold,
-                                    color = if (isSelected) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onSurface
-                                )
-                            }
-                        }
-                    }
-                }
-            }
-
-            // Live Scope Preview Box
-            Surface(
-                modifier = Modifier.fillMaxWidth(),
-                shape = MaterialTheme.shapes.medium,
-                color = MaterialTheme.colorScheme.surfaceContainerLow
-            ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(14.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 16.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Column {
-                        Text(
-                            text = "Scope Summary",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                    Column(modifier = Modifier.weight(1f)) {
+                        com.opensplit.ui.components.AnimatedAmountText(
+                            value = exportSettlements.size.toDouble(),
+                            format = { n -> n.toInt().let { if (it == 1) "1 settlement" else "$it settlements" } },
+                            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold)
                         )
-                        Text(
-                            text = "${exportSettlements.size} settlements included",
-                            style = MaterialTheme.typography.bodyMedium,
-                            fontWeight = FontWeight.SemiBold
-                        )
+                        Text("${scopeLabels[selectedScope.ordinal]} · ${selectedPeriod.label}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
-                    Text(
-                        text = CurrencyFormatter.format(totalVolume, primaryCurrency, showSymbol = true),
-                        style = MaterialTheme.typography.titleMedium.copy(fontFamily = MoneyFontFamily),
-                        fontWeight = FontWeight.Bold,
+                    com.opensplit.ui.components.AnimatedAmountText(
+                        value = totalVolume,
+                        format = { CurrencyFormatter.format(it, primaryCurrency) },
+                        style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold, fontFamily = MoneyFontFamily),
                         color = MaterialTheme.colorScheme.primary
                     )
                 }
             }
 
-            // Action Buttons
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(top = 4.dp),
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                OutlinedButton(
-                    onClick = onDismiss,
-                    modifier = Modifier
-                        .weight(1f)
-                        .height(52.dp),
-                    shape = CircleShape,
-                    enabled = !isExporting
-                ) {
-                    Text("Cancel", fontWeight = FontWeight.SemiBold)
-                }
-
-                Button(
-                    onClick = {
-                        if (exportSettlements.isEmpty()) {
-                            snackbar.showMessage("No settlements match the selected criteria")
-                            return@Button
-                        }
-                        isExporting = true
-                        coroutineScope.launch {
-                            try {
-                                val scopeTitle = "Settlements_${selectedBasis.name}_${selectedPeriod.name}"
-                                val file = when (selectedFormat) {
-                                    SettlementExportDocType.PDF -> {
-                                        PdfExportGenerator().generate(
-                                            context = context,
-                                            scopeName = scopeTitle,
-                                            expenses = emptyList(),
-                                            settlements = exportSettlements
-                                        )
-                                    }
-                                    SettlementExportDocType.CSV -> {
-                                        CsvExportGenerator().generate(
-                                            context = context,
-                                            scopeName = scopeTitle,
-                                            expenses = emptyList(),
-                                            settlements = exportSettlements
-                                        )
-                                    }
-                                    SettlementExportDocType.JSON -> {
-                                        JsonExportGenerator().generate(
-                                            context = context,
-                                            scopeName = scopeTitle,
-                                            expenses = emptyList(),
-                                            settlements = exportSettlements
-                                        )
-                                    }
-                                }
-                                ExportUtils.shareFile(context, file, selectedFormat.mime)
-                                isExporting = false
-                                onDismiss()
-                            } catch (e: Exception) {
-                                isExporting = false
-                                snackbar.showMessage("Export failed: ${e.message}")
+            val height = ButtonDefaults.MediumContainerHeight
+            Button(
+                onClick = {
+                    isExporting = true
+                    coroutineScope.launch {
+                        try {
+                            val scopeTitle = "Settlements_${selectedBasis.name}_${selectedPeriod.name}"
+                            val generator = when (selectedFormat) {
+                                SettlementExportDocType.PDF -> PdfExportGenerator()
+                                SettlementExportDocType.CSV -> CsvExportGenerator()
+                                SettlementExportDocType.JSON -> JsonExportGenerator()
                             }
+                            val file = generator.generate(context = context, scopeName = scopeTitle, expenses = emptyList(), settlements = exportSettlements)
+                            ExportUtils.shareFile(context, file, selectedFormat.mime)
+                            isExporting = false
+                            onDismiss()
+                        } catch (e: Exception) {
+                            isExporting = false
+                            snackbar.showMessage("Export failed: ${e.message}")
                         }
-                    },
-                    modifier = Modifier
-                        .weight(1.3f)
-                        .height(52.dp),
-                    shape = CircleShape,
-                    enabled = !isExporting
-                ) {
-                    if (isExporting) {
-                        com.opensplit.ui.components.InlineLoadingIndicator(modifier = Modifier.size(20.dp), color = MaterialTheme.colorScheme.onPrimary)
-                    } else {
-                        SymbolIcon(
-                            symbol = OpenSplitIcons.Export,
-                            contentDescription = null,
-                            modifier = Modifier.size(18.dp)
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text("Export Report", fontWeight = FontWeight.Bold)
                     }
+                },
+                enabled = !isExporting && exportSettlements.isNotEmpty(),
+                shapes = ButtonDefaults.shapesFor(height),
+                contentPadding = ButtonDefaults.contentPaddingFor(height),
+                modifier = Modifier.fillMaxWidth().heightIn(min = height)
+            ) {
+                if (isExporting) {
+                    com.opensplit.ui.components.InlineLoadingIndicator(modifier = Modifier.size(24.dp), color = MaterialTheme.colorScheme.onPrimary)
+                    Spacer(modifier = Modifier.width(ButtonDefaults.iconSpacingFor(height)))
+                    Text("Exporting…", style = ButtonDefaults.textStyleFor(height))
+                } else {
+                    SymbolIcon(OpenSplitIcons.Export, contentDescription = null, modifier = Modifier.size(ButtonDefaults.iconSizeFor(height)))
+                    Spacer(modifier = Modifier.width(ButtonDefaults.iconSpacingFor(height)))
+                    Text(
+                        if (exportSettlements.isEmpty()) "Nothing to export" else "Export ${selectedFormat.name}",
+                        style = ButtonDefaults.textStyleFor(height)
+                    )
                 }
             }
         }
