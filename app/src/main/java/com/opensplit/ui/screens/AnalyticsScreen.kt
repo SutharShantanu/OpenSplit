@@ -20,6 +20,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.geometry.Offset
@@ -439,7 +440,7 @@ fun AnalyticsScreen(
                             }
                         }
 
-                        CashFlowLineChart(
+                        CashFlowBarChart(
                             values = chartData,
                             labels = chartLabels,
                             currency = analyticsState.currency
@@ -631,13 +632,13 @@ fun AnalyticsScreen(
                         modifier = Modifier.weight(1f),
                         icon = OpenSplitIcons.CategoryBills,
                         label = "Total tracked",
-                        value = "${analyticsState.currency}${String.format("%.2f", analyticsState.totalMoneyTracked)}"
+                        value = "${analyticsState.currency}${CurrencyFormatter.format(analyticsState.totalMoneyTracked, showSymbol = false)}"
                     )
                     AnalyticsStatCard(
                         modifier = Modifier.weight(1f),
                         icon = OpenSplitIcons.SplitEqual,
                         label = "Your share",
-                        value = "${analyticsState.currency}${String.format("%.2f", analyticsState.yourShareTotal)}"
+                        value = "${analyticsState.currency}${CurrencyFormatter.format(analyticsState.yourShareTotal, showSymbol = false)}"
                     )
                 }
 
@@ -741,8 +742,12 @@ fun AnalyticsScreen(
 }
 }
 
+/**
+ * Spending per week (or month) as labelled bars. Bars, not a smoothed line: each value is a
+ * separate bucket, and a curve would suggest spending between them.
+ */
 @Composable
-fun CashFlowLineChart(
+fun CashFlowBarChart(
     values: List<Double>,
     labels: List<String>,
     currency: String
@@ -757,112 +762,60 @@ fun CashFlowLineChart(
         }
         return
     }
-    val primaryColor = MaterialTheme.colorScheme.primary
-    val gridColor = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f)
-    val maxVal = remember(values) { maxOf(1.0, values.maxOrNull() ?: 1.0) }
-
-    val chartDescription = labels.zip(values).joinToString(", ") { (l, v) -> "$l $currency${"%.0f".format(v)}" }
-    Column(modifier = Modifier.fillMaxWidth()) {
-        Canvas(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(170.dp)
-                .semantics { contentDescription = "Spending over time: $chartDescription" }
-        ) {
-            val width = size.width
-            val height = size.height
-            val points = values.mapIndexed { index, value ->
-                val x = if (values.size > 1) {
-                    index * (width / (values.size - 1))
-                } else {
-                    width / 2
-                }
-                val y = height - (value / maxVal * (height * 0.7f) + height * 0.12f).toFloat()
-                Offset(x, y)
-            }
-
-            // 1. Draw horizontal dashed grid lines
-            for (i in 1..3) {
-                val gridY = height * (i / 4f)
-                drawLine(
-                    color = gridColor,
-                    start = Offset(0f, gridY),
-                    end = Offset(width, gridY),
-                    strokeWidth = 1.dp.toPx(),
-                    pathEffect = PathEffect.dashPathEffect(floatArrayOf(8f, 8f), 0f)
-                )
-            }
-
-            if (points.size >= 2) {
-                // 2. Smooth Cubic Path
-                val path = Path().apply {
-                    moveTo(points.first().x, points.first().y)
-                    for (i in 0 until points.size - 1) {
-                        val p0 = points[i]
-                        val p1 = points[i + 1]
-                        val controlPoint1 = Offset(p0.x + (p1.x - p0.x) / 2f, p0.y)
-                        val controlPoint2 = Offset(p0.x + (p1.x - p0.x) / 2f, p1.y)
-                        cubicTo(controlPoint1.x, controlPoint1.y, controlPoint2.x, controlPoint2.y, p1.x, p1.y)
-                    }
-                }
-
-                val fillPath = Path().apply {
-                    addPath(path)
-                    lineTo(points.last().x, height)
-                    lineTo(points.first().x, height)
-                    close()
-                }
-
-                // Draw Gradient Fill
-                drawPath(
-                    path = fillPath,
-                    brush = Brush.verticalGradient(
-                        colors = listOf(primaryColor.copy(alpha = 0.35f), primaryColor.copy(alpha = 0.0f)),
-                        startY = 0f,
-                        endY = height
+    val maxVal = values.maxOrNull()?.coerceAtLeast(1.0) ?: 1.0
+    val description = labels.zip(values).joinToString(", ") { (l, v) -> "$l $currency${"%,.0f".format(v)}" }
+    val c = MaterialTheme.colorScheme
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(190.dp)
+            .clearAndSetSemantics { contentDescription = "Spending per period: $description" },
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
+        verticalAlignment = Alignment.Bottom
+    ) {
+        values.forEachIndexed { i, v ->
+            Column(
+                modifier = Modifier.weight(1f).fillMaxHeight(),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Bottom
+            ) {
+                if (v > 0.0) {
+                    Text(
+                        currency + compactAmount(v),
+                        style = MaterialTheme.typography.labelSmall.copy(fontFamily = com.opensplit.ui.theme.MoneyFontFamily),
+                        color = c.onSurfaceVariant,
+                        maxLines = 1
                     )
-                )
-
-                // Draw Line Stroke
-                drawPath(
-                    path = path,
-                    color = primaryColor,
-                    style = Stroke(width = 3.dp.toPx(), cap = StrokeCap.Round, join = StrokeJoin.Round)
-                )
-
-                // Draw Data Points
-                points.forEach { pt ->
-                    drawCircle(
-                        color = Color.White,
-                        radius = 4.5.dp.toPx(),
-                        center = pt
-                    )
-                    drawCircle(
-                        color = primaryColor,
-                        radius = 4.5.dp.toPx(),
-                        center = pt,
-                        style = Stroke(width = 2.5.dp.toPx())
-                    )
+                    Spacer(modifier = Modifier.height(4.dp))
                 }
-            }
-        }
-
-        Spacer(modifier = Modifier.height(8.dp))
-
-        // X-axis labels
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween
-        ) {
-            labels.forEach { label ->
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .fillMaxHeight((0.7f * (v / maxVal)).toFloat())
+                        .heightIn(min = 4.dp)
+                        .clip(RoundedCornerShape(topStart = 8.dp, topEnd = 8.dp, bottomStart = 2.dp, bottomEnd = 2.dp))
+                        .background(if (v == maxVal) c.primary else if (v > 0.0) c.primary.copy(alpha = 0.5f) else c.surfaceContainerHighest)
+                )
+                Spacer(modifier = Modifier.height(6.dp))
                 Text(
-                    text = label,
+                    labels.getOrElse(i) { "" },
                     style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    fontWeight = FontWeight.Medium
+                    color = c.onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = androidx.compose.ui.text.style.TextOverflow.Clip
                 )
             }
         }
+    }
+}
+
+/** Short amount for chart labels: 950, 4.2k, 51k, 1.3M. */
+internal fun compactAmount(v: Double): String {
+    fun trim(x: Double) = if (x >= 10) "%.0f".format(x) else "%.1f".format(x).removeSuffix(".0")
+    return when {
+        v >= 1_000_000 -> trim(v / 1_000_000) + "M"
+        v >= 1_000 -> trim(v / 1_000) + "k"
+        else -> "%.0f".format(v)
     }
 }
 
