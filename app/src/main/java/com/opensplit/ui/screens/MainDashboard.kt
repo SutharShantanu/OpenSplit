@@ -245,12 +245,14 @@ fun MainDashboard(
         } else content()
     }
 
-    // M3 Expressive large flexible top bar: big title at rest, collapses as the tab's list scrolls.
+    // Title and actions share one row (a two-row bar left a blank strip beside the buttons); the
+    // pinned scroll behavior tints the bar once the tab's list scrolls under it.
     val dashboardHeader: @Composable (DashboardTab, androidx.compose.material3.TopAppBarScrollBehavior) -> Unit = { tab, scroll ->
-        androidx.compose.material3.LargeFlexibleTopAppBar(
+        TopAppBar(
+            expandedHeight = 88.dp,
             windowInsets = androidx.compose.foundation.layout.WindowInsets(0, 0, 0, 0),
             scrollBehavior = scroll,
-            title = { Text(tab.label, color = MaterialTheme.colorScheme.primary) },
+            title = { Text(tab.label, style = MaterialTheme.typography.headlineLarge, color = MaterialTheme.colorScheme.primary) },
             colors = TopAppBarDefaults.topAppBarColors(
                 containerColor = androidx.compose.ui.graphics.Color.Transparent,
                 scrolledContainerColor = MaterialTheme.colorScheme.background
@@ -359,8 +361,8 @@ fun MainDashboard(
                         translationY = pullState.distanceFraction.coerceIn(0f, 1f) * pullOffsetPx
                     }
                 ) { tab ->
-                    // One scroll behavior per tab, so each page's header collapses with its own list.
-                    val headerScroll = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
+                    // One scroll behavior per tab, so each page's header reacts to its own list.
+                    val headerScroll = TopAppBarDefaults.pinnedScrollBehavior()
                     androidx.compose.foundation.layout.Column(
                         Modifier.fillMaxSize().then(
                             if (tab != DashboardTab.SETTINGS) Modifier.nestedScroll(headerScroll.nestedScrollConnection) else Modifier

@@ -83,15 +83,15 @@ fun GroupDetailScreen(
     val groupSubtitle = (uiState as? ScreenState.Success)?.data?.let { d ->
         "${d.members.size} ${if (d.members.size == 1) "member" else "members"} · ${d.group.currency}"
     }
-    // M3 Expressive flexible top bar: large title + subtitle at rest, collapses as the list scrolls.
-    val topBarScroll = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
+    // Title + subtitle beside the back button and actions on one row; tints once the list scrolls.
+    val topBarScroll = TopAppBarDefaults.pinnedScrollBehavior()
 
     Scaffold(
         modifier = Modifier.nestedScroll(topBarScroll.nestedScrollConnection),
         topBar = {
-            androidx.compose.material3.MediumFlexibleTopAppBar(
-                title = { Text(groupName, maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis) },
-                subtitle = groupSubtitle?.let { { Text(it, maxLines = 1) } },
+            TopAppBar(
+                title = { Text(groupName, style = MaterialTheme.typography.titleLarge, maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis) },
+                subtitle = { groupSubtitle?.let { Text(it, maxLines = 1) } },
                 scrollBehavior = topBarScroll,
                 navigationIcon = {
                     com.opensplit.ui.components.RoundBackButton(onClick = onNavigateBack)
