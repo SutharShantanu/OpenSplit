@@ -12,6 +12,9 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.selection.toggleable
+import androidx.compose.ui.semantics.Role
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -41,6 +44,12 @@ import com.opensplit.ui.theme.Symbol
 fun AppearanceSettingsSubScreen(
     theme: String,
     onThemeChange: (String) -> Unit,
+    font: String,
+    onFontChange: (String) -> Unit,
+    dynamicColor: Boolean,
+    onDynamicColorChange: (Boolean) -> Unit,
+    reduceMotion: Boolean,
+    onReduceMotionChange: (Boolean) -> Unit,
     onBack: () -> Unit
 ) {
     val configuration = LocalConfiguration.current
@@ -81,11 +90,94 @@ fun AppearanceSettingsSubScreen(
                         onThemeChange = onThemeChange
                     )
                 }
+                item { FontSelectionCard(font = font, onFontChange = onFontChange) }
+                item {
+                    SettingsGroupCard(title = "Colour & motion", icon = OpenSplitIcons.AutoAwesome) {
+                        Column(modifier = Modifier.padding(vertical = 8.dp)) {
+                            SettingsSwitchRow(
+                                title = "Wallpaper colours",
+                                subtitle = "Match your wallpaper. Off uses the OpenSplit green palette.",
+                                checked = dynamicColor,
+                                onCheckedChange = onDynamicColorChange
+                            )
+                            SettingsSwitchRow(
+                                title = "Reduce motion",
+                                subtitle = "Skip transitions and animations. Also on when system animations are off.",
+                                checked = reduceMotion,
+                                onCheckedChange = onReduceMotionChange
+                            )
+                        }
+                    }
+                }
             }
         }
     }
 }
 
+
+private val FontOptions = listOf(
+    Triple("default", "OpenSplit (Google Sans Flex)", com.opensplit.ui.theme.AppFontFamily),
+    Triple("system", "System (Roboto)", androidx.compose.ui.text.font.FontFamily.Default),
+    Triple("serif", "Serif", androidx.compose.ui.text.font.FontFamily.Serif),
+    Triple("mono", "Mono (JetBrains Mono)", com.opensplit.ui.theme.MonoFontFamily)
+)
+
+/** Base font picker; each option previews itself. Amounts stay mono regardless. */
+@Composable
+private fun FontSelectionCard(font: String, onFontChange: (String) -> Unit) {
+    val selected = FontOptions.firstOrNull { it.first == font }?.first ?: "default"
+    SettingsGroupCard(title = "Font", icon = OpenSplitIcons.Palette) {
+        Column(modifier = Modifier.padding(vertical = 8.dp)) {
+            Text(
+                text = "Amounts always use a fixed-width font so digits line up.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)
+            )
+            FontOptions.forEach { (id, label, family) ->
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .selectable(selected = selected == id, role = Role.RadioButton, onClick = { onFontChange(id) })
+                        .heightIn(min = 56.dp)
+                        .padding(horizontal = 16.dp, vertical = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    RadioButton(selected = selected == id, onClick = null)
+                    Spacer(modifier = Modifier.width(12.dp))
+                    Column {
+                        Text(label, style = MaterialTheme.typography.bodyLarge.copy(fontFamily = family))
+                        Text(
+                            "Aa Bb Cc · 1,234.50",
+                            style = MaterialTheme.typography.bodySmall.copy(fontFamily = family),
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+/** A full-row switch: the whole row toggles, and TalkBack reads it as one switch. */
+@Composable
+private fun SettingsSwitchRow(title: String, subtitle: String, checked: Boolean, onCheckedChange: (Boolean) -> Unit) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .toggleable(value = checked, role = Role.Switch, onValueChange = onCheckedChange)
+            .heightIn(min = 56.dp)
+            .padding(horizontal = 16.dp, vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Column(modifier = Modifier.weight(1f)) {
+            Text(title, style = MaterialTheme.typography.bodyLarge)
+            Text(subtitle, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+        Spacer(modifier = Modifier.width(12.dp))
+        Switch(checked = checked, onCheckedChange = null)
+    }
+}
 
 /* =========================================================================================
  * 2. THEME MODE SELECTOR (SYSTEM, LIGHT, DARK)
@@ -125,7 +217,7 @@ private fun ThemeModeSelectionCard(
                     Surface(
                         modifier = Modifier
                             .weight(1f)
-                            .clip(RoundedCornerShape(16.dp))
+                            .clip(androidx.compose.material3.MaterialTheme.shapes.medium)
                             .clickable { onThemeChange(mode) },
                         shape = MaterialTheme.shapes.medium,
                         color = if (isSelected) {

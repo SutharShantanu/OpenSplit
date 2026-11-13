@@ -37,8 +37,18 @@ val AppFontFamily = FontFamily(weights.map { flex(it) })
 /** Slightly wider cut for big screen titles and hero numbers with Pixel roundness. */
 val DisplayFontFamily = FontFamily(weights.map { flex(it, width = 112f) })
 
-/** Amounts use the display family. */
-val MoneyFontFamily = DisplayFontFamily
+@OptIn(androidx.compose.ui.text.ExperimentalTextApi::class)
+private fun mono(weight: FontWeight) = Font(
+    R.font.jetbrains_mono,
+    weight = weight,
+    variationSettings = FontVariation.Settings(FontVariation.weight(weight.weight))
+)
+
+/** JetBrains Mono (OFL, third_party/jetbrains-mono): variable weight, fixed-width digits. */
+val MonoFontFamily = FontFamily(weights.map { mono(it) })
+
+/** Amounts always use the mono family so digits line up, whatever base font the user picks. */
+val MoneyFontFamily = MonoFontFamily
 
 /**
  * Pixel-style expanded display typography for hero numbers, balance headers, and dashboard titles.
@@ -105,3 +115,23 @@ val Typography = Typography(
     labelMedium = style(AppFontFamily, FontWeight.SemiBold, 12, 16, 0.4),
     labelSmall = style(AppFontFamily, FontWeight.SemiBold, 11, 16, 0.4)
 )
+
+/** [Typography] with [font] ("default", "system", "serif" or "mono") as the base family. */
+fun openSplitTypography(font: String): androidx.compose.material3.Typography {
+    val family = when (font) {
+        "system" -> FontFamily.Default
+        "serif" -> FontFamily.Serif
+        "mono" -> MonoFontFamily
+        else -> return Typography
+    }
+    fun TextStyle.f() = copy(fontFamily = family)
+    return with(Typography) {
+        copy(
+            displayLarge = displayLarge.f(), displayMedium = displayMedium.f(), displaySmall = displaySmall.f(),
+            headlineLarge = headlineLarge.f(), headlineMedium = headlineMedium.f(), headlineSmall = headlineSmall.f(),
+            titleLarge = titleLarge.f(), titleMedium = titleMedium.f(), titleSmall = titleSmall.f(),
+            bodyLarge = bodyLarge.f(), bodyMedium = bodyMedium.f(), bodySmall = bodySmall.f(),
+            labelLarge = labelLarge.f(), labelMedium = labelMedium.f(), labelSmall = labelSmall.f()
+        )
+    }
+}

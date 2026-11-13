@@ -48,8 +48,7 @@ fun CrashReportDialog() {
             Surface(shape = MaterialTheme.shapes.small, color = MaterialTheme.colorScheme.surfaceContainerHigh) {
                 Text(
                     text,
-                    fontFamily = FontFamily.Monospace,
-                    fontSize = 11.sp,
+                    style = MaterialTheme.typography.labelSmall.copy(fontFamily = FontFamily.Monospace),
                     modifier = Modifier
                         .heightIn(max = 280.dp)
                         .verticalScroll(rememberScrollState())

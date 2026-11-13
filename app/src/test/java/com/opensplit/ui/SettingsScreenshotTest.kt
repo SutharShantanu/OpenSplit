@@ -116,6 +116,12 @@ class SettingsScreenshotTest {
                     AppearanceSettingsSubScreen(
                         theme = if (dark) "dark" else "light",
                         onThemeChange = {},
+                        font = "default",
+                        onFontChange = {},
+                        dynamicColor = true,
+                        onDynamicColorChange = {},
+                        reduceMotion = false,
+                        onReduceMotionChange = {},
                         onBack = {}
                     )
                 }

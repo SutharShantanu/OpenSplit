@@ -48,6 +48,14 @@ interface UserPreferencesRepository {
     val dynamicColorFlow: Flow<Boolean>
     suspend fun setDynamicColor(enabled: Boolean)
 
+    /** Base font: "default" (Google Sans Flex), "system", "serif" or "mono". Amounts always use mono. */
+    val fontFlow: Flow<String>
+    suspend fun setFont(font: String)
+
+    /** User asked for minimal motion. The theme also reduces motion when system animations are off. */
+    val reduceMotionFlow: Flow<Boolean>
+    suspend fun setReduceMotion(enabled: Boolean)
+
 
     val providerApiKeysFlow: Flow<Map<String, String>>
     suspend fun setProviderApiKey(providerId: String, key: String)

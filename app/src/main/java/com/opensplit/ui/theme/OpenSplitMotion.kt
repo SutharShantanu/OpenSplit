@@ -1,6 +1,8 @@
 package com.opensplit.ui.theme
 
 import androidx.compose.animation.ContentTransform
+import androidx.compose.animation.EnterTransition
+import androidx.compose.animation.ExitTransition
 import androidx.compose.animation.core.CubicBezierEasing
 import androidx.compose.animation.core.FastOutLinearInEasing
 import androidx.compose.animation.core.FastOutSlowInEasing
@@ -36,10 +38,18 @@ object OpenSplitMotion {
     const val DurationMs = 400
 
     /**
+     * Set by OpenSplitTheme. Transitions are built outside composition (NavHost and
+     * AnimatedContent spec lambdas), so they read this instead of a CompositionLocal.
+     */
+    @Volatile var reduced = false
+
+    private val none: ContentTransform get() = EnterTransition.None togetherWith ExitTransition.None
+
+    /**
      * **Fade through** — for switching between peers with no spatial relationship, such as
      * bottom-navigation destinations or filter tabs.
      */
-    fun fadeThrough(): ContentTransform =
+    fun fadeThrough(): ContentTransform = if (reduced) none else
         (
             fadeIn(
                 animationSpec = tween(
@@ -64,6 +74,7 @@ object OpenSplitMotion {
      * Incorporates layered horizontal translation and subtle scale zoom.
      */
     fun sharedAxisX(forward: Boolean = true): ContentTransform {
+        if (reduced) return none
         val enterOffsetMultiplier = if (forward) 0.40f else -0.20f
         val exitOffsetMultiplier = if (forward) -0.20f else 0.40f
         val enterScale = if (forward) 0.94f else 0.96f

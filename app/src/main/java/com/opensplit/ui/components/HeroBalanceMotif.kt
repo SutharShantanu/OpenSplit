@@ -148,7 +148,6 @@ fun HeroBalanceCard(
             Text(
                 text = cardTitle.uppercase(),
                 style = MaterialTheme.typography.labelMedium.copy(
-                    fontSize = 12.sp,
                     fontWeight = FontWeight.SemiBold,
                     letterSpacing = 1.sp,
                     color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f)
@@ -160,8 +159,7 @@ fun HeroBalanceCard(
             // Large Hero Amount
             com.opensplit.ui.components.AnimatedNumberText(
                 text = "$symbol$formattedNumber",
-                style = MaterialTheme.typography.displayMedium.copy(
-                    fontSize = 38.sp,
+                style = MaterialTheme.typography.displaySmall.copy(
                     fontWeight = FontWeight.Bold,
                     fontFamily = MoneyFontFamily
                 ),
@@ -175,7 +173,7 @@ fun HeroBalanceCard(
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .clip(RoundedCornerShape(8.dp))
+                        .clip(androidx.compose.material3.MaterialTheme.shapes.extraSmall)
                         .clickable(enabled = onOwedToYouClick != null) { onOwedToYouClick?.invoke() },
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
@@ -212,7 +210,7 @@ fun HeroBalanceCard(
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .clip(RoundedCornerShape(8.dp))
+                        .clip(androidx.compose.material3.MaterialTheme.shapes.extraSmall)
                         .clickable(enabled = onYouOweClick != null) { onYouOweClick?.invoke() },
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically

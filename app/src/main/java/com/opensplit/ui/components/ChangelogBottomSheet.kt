@@ -71,7 +71,7 @@ fun ChangelogBottomSheet(
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
-        shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
+        shape = com.opensplit.ui.theme.OpenSplitTokens.BottomSheetShape,
         containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
     ) {
         Column(

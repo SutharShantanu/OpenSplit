@@ -615,7 +615,7 @@ fun SettlementHistoryScreen(
                                         ) {
                                             // Method Badge
                                             Surface(
-                                                shape = RoundedCornerShape(6.dp),
+                                                shape = androidx.compose.material3.MaterialTheme.shapes.extraSmall,
                                                 color = MaterialTheme.colorScheme.surfaceContainerHighest
                                             ) {
                                                 Text(
@@ -822,7 +822,7 @@ fun SettlementReportBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
         containerColor = MaterialTheme.colorScheme.surface,
-        shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp)
+        shape = com.opensplit.ui.theme.OpenSplitTokens.BottomSheetShape
     ) {
         Column(
             modifier = Modifier

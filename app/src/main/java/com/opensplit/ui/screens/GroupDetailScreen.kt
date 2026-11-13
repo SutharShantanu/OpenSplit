@@ -442,7 +442,7 @@ fun GroupDetailScreen(
                                                 Row(
                                                     modifier = Modifier
                                                         .fillMaxWidth()
-                                                        .clip(RoundedCornerShape(8.dp))
+                                                        .clip(androidx.compose.material3.MaterialTheme.shapes.extraSmall)
                                                         .clickable { onNavigateToSettleUp(s.fromUid, s.toUid, s.amount) }
                                                         .padding(vertical = 6.dp, horizontal = 4.dp),
                                                     verticalAlignment = Alignment.CenterVertically

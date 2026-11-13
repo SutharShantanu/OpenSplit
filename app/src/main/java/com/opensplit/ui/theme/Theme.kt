@@ -25,6 +25,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
@@ -149,18 +150,21 @@ val OpenSplitShapes = androidx.compose.material3.Shapes(
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 fun OpenSplitTheme(
   darkTheme: Boolean = isSystemInDarkTheme(),
+  font: String = "default",
+  reduceMotion: Boolean = false,
+  dynamicColor: Boolean = true,
   content: @Composable () -> Unit,
 ) {
   val context = LocalContext.current
   // The system palette when it has hue. A monochrome system style (e.g. Nothing OS) makes it
   // grey whatever the wallpaper is, so build the scheme from the wallpaper's own colours instead.
-  val dynamic = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+  val dynamic = if (dynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
     if (darkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
   } else null
   val wallpaper = rememberWallpaperColors()
   val colorScheme = when {
     dynamic != null && isColourful(dynamic.primary) -> dynamic
-    wallpaper != null -> remember(wallpaper, darkTheme) {
+    dynamicColor && wallpaper != null -> remember(wallpaper, darkTheme) {
       val primary = wallpaper.primaryColor.toArgb()
       val secondary = wallpaper.secondaryColor?.toArgb() ?: primary
       val tertiary = wallpaper.tertiaryColor?.toArgb() ?: secondary
@@ -175,13 +179,43 @@ fun OpenSplitTheme(
       navigationColor = colorScheme.background
   )
 
+  // System "Remove animations" sets the animator scale to 0; honour it like the in-app toggle.
+  val reduce = reduceMotion || remember(context) {
+    android.provider.Settings.Global.getFloat(
+      context.contentResolver, android.provider.Settings.Global.ANIMATOR_DURATION_SCALE, 1f
+    ) == 0f
+  }
+  SideEffect { OpenSplitMotion.reduced = reduce }
+
   MaterialExpressiveTheme(
     colorScheme = colorScheme,
-    motionScheme = MotionScheme.expressive(),
-    typography = Typography,
-    shapes = OpenSplitShapes,
-    content = content
-  )
+    motionScheme = if (reduce) ReducedMotionScheme else MotionScheme.expressive(),
+    typography = remember(font) { openSplitTypography(font) },
+    shapes = OpenSplitShapes
+  ) {
+    androidx.compose.runtime.CompositionLocalProvider(LocalReduceMotion provides reduce, content = content)
+  }
+}
+
+/** Positive state (connected, strong). Not a Material role, so picked per light/dark for contrast. */
+val ColorScheme.success: Color
+  get() = if (surface.luminance() > 0.5f) Color(0xFF1B6C3A) else Color(0xFF7DDB9A)
+
+/** Caution state (medium strength, near a limit), picked per light/dark for contrast. */
+val ColorScheme.warning: Color
+  get() = if (surface.luminance() > 0.5f) Color(0xFF8A5A00) else Color(0xFFFFC56B)
+
+/** True when motion should be minimal (user setting, or system animations turned off). */
+val LocalReduceMotion = androidx.compose.runtime.staticCompositionLocalOf { false }
+
+/** Every Material component animation snaps to its end state. */
+private object ReducedMotionScheme : MotionScheme {
+  override fun <T> defaultSpatialSpec(): androidx.compose.animation.core.FiniteAnimationSpec<T> = androidx.compose.animation.core.snap()
+  override fun <T> fastSpatialSpec(): androidx.compose.animation.core.FiniteAnimationSpec<T> = androidx.compose.animation.core.snap()
+  override fun <T> slowSpatialSpec(): androidx.compose.animation.core.FiniteAnimationSpec<T> = androidx.compose.animation.core.snap()
+  override fun <T> defaultEffectsSpec(): androidx.compose.animation.core.FiniteAnimationSpec<T> = androidx.compose.animation.core.snap()
+  override fun <T> fastEffectsSpec(): androidx.compose.animation.core.FiniteAnimationSpec<T> = androidx.compose.animation.core.snap()
+  override fun <T> slowEffectsSpec(): androidx.compose.animation.core.FiniteAnimationSpec<T> = androidx.compose.animation.core.snap()
 }
 
 /** The home wallpaper's colours, updated when the wallpaper changes. Null before API 27. */

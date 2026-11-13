@@ -107,7 +107,7 @@ fun QrScannerView(onScanned: (String) -> Unit, modifier: Modifier = Modifier) {
             scanner.close(); executor.shutdown()
         }
     }
-    Box(modifier = modifier.clip(RoundedCornerShape(24.dp))) {
+    Box(modifier = modifier.clip(androidx.compose.material3.MaterialTheme.shapes.large)) {
         AndroidView(
             factory = { ctx ->
                 PreviewView(ctx).apply {
@@ -139,7 +139,7 @@ fun QrScannerView(onScanned: (String) -> Unit, modifier: Modifier = Modifier) {
         // Viewfinder frame so the user knows where to aim.
         Box(
             modifier = Modifier.align(Alignment.Center).size(200.dp)
-                .border(3.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.85f), RoundedCornerShape(20.dp))
+                .border(3.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.85f), androidx.compose.material3.MaterialTheme.shapes.medium)
         )
         androidx.compose.foundation.layout.Row(
             horizontalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(12.dp),

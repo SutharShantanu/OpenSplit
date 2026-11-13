@@ -173,6 +173,21 @@ class UserPreferencesRepositoryImpl(private val context: Context) : UserPreferen
         }
     }
 
+    private val FONT_KEY = stringPreferencesKey("font")
+    private val REDUCE_MOTION_KEY = booleanPreferencesKey("reduce_motion")
+
+    override val fontFlow: Flow<String> = context.dataStore.data.map { it[FONT_KEY] ?: "default" }
+
+    override suspend fun setFont(font: String) {
+        context.dataStore.edit { it[FONT_KEY] = font }
+    }
+
+    override val reduceMotionFlow: Flow<Boolean> = context.dataStore.data.map { it[REDUCE_MOTION_KEY] ?: false }
+
+    override suspend fun setReduceMotion(enabled: Boolean) {
+        context.dataStore.edit { it[REDUCE_MOTION_KEY] = enabled }
+    }
+
     /**
      * API keys live in EncryptedSharedPreferences (AES-256, hardware-backed master key), not in
      * the plain DataStore. Keys written by older builds are migrated on first read and wiped.

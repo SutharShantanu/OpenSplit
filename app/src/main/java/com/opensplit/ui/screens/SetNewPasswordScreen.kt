@@ -2,6 +2,8 @@
 
 package com.opensplit.ui.screens
 
+import com.opensplit.ui.theme.success
+import com.opensplit.ui.theme.warning
 import com.opensplit.ui.theme.Symbol
 import com.opensplit.ui.components.SymbolIcon
 import com.opensplit.ui.components.AppLoadingIndicator
@@ -158,8 +160,8 @@ fun SetNewPasswordScreen(
                     if (newPassword.isNotEmpty()) {
                         val (barColor, fraction) = when (strength) {
                             PasswordStrength.WEAK -> MaterialTheme.colorScheme.error to 1f / 3f
-                            PasswordStrength.MEDIUM -> Color(0xFFE6A400) to 2f / 3f
-                            PasswordStrength.STRONG -> Color(0xFF2E7D32) to 1f
+                            PasswordStrength.MEDIUM -> androidx.compose.material3.MaterialTheme.colorScheme.warning to 2f / 3f
+                            PasswordStrength.STRONG -> androidx.compose.material3.MaterialTheme.colorScheme.success to 1f
                         }
                         Column {
                             androidx.compose.material3.LinearWavyProgressIndicator(

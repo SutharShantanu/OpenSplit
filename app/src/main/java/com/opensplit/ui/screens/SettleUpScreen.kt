@@ -228,7 +228,7 @@ fun SettleUpScreen(
                             Column(
                                 horizontalAlignment = Alignment.CenterHorizontally,
                                 modifier = Modifier
-                                    .clip(RoundedCornerShape(12.dp))
+                                    .clip(androidx.compose.material3.MaterialTheme.shapes.small)
                                     .clickable { memberPickerTarget = "from" }
                                     .padding(8.dp)
                             ) {
@@ -295,7 +295,7 @@ fun SettleUpScreen(
                             Column(
                                 horizontalAlignment = Alignment.CenterHorizontally,
                                 modifier = Modifier
-                                    .clip(RoundedCornerShape(12.dp))
+                                    .clip(androidx.compose.material3.MaterialTheme.shapes.small)
                                     .clickable { memberPickerTarget = "to" }
                                     .padding(8.dp)
                             ) {
@@ -518,7 +518,7 @@ fun SettleUpScreen(
                                 color = if (isSelected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .clip(RoundedCornerShape(12.dp))
+                                    .clip(androidx.compose.material3.MaterialTheme.shapes.small)
                                     .clickable {
                                         if (isFrom) {
                                             fromUid = m.uid

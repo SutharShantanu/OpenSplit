@@ -135,7 +135,7 @@ fun ExportBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
         containerColor = MaterialTheme.colorScheme.surface,
-        shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp)
+        shape = com.opensplit.ui.theme.OpenSplitTokens.BottomSheetShape
     ) {
         Column(
             modifier = Modifier

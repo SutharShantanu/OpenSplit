@@ -2,6 +2,8 @@
 
 package com.opensplit.ui.screens
 
+import com.opensplit.ui.theme.success
+import com.opensplit.ui.theme.warning
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.opensplit.ui.theme.Symbol
 import com.opensplit.data.ai.AI_PROVIDERS_CATALOG
@@ -185,9 +187,19 @@ fun AccountScreen(
                         )
                     }
                     AccountCategory.THEME -> {
+                        val prefs = viewModel.userPreferencesRepository
+                        val font by prefs.fontFlow.collectAsStateWithLifecycle(initialValue = "default")
+                        val reduceMotion by prefs.reduceMotionFlow.collectAsStateWithLifecycle(initialValue = false)
+                        val prefScope = androidx.compose.runtime.rememberCoroutineScope()
                         AppearanceSettingsSubScreen(
                             theme = theme,
                             onThemeChange = { viewModel.setTheme(it) },
+                            font = font,
+                            onFontChange = { f -> prefScope.launch { prefs.setFont(f) } },
+                            dynamicColor = dynamicColor,
+                            onDynamicColorChange = { viewModel.setDynamicColor(it) },
+                            reduceMotion = reduceMotion,
+                            onReduceMotionChange = { r -> prefScope.launch { prefs.setReduceMotion(r) } },
                             onBack = { selectedCategory = null }
                         )
                     }
@@ -580,7 +592,7 @@ fun AccountOverviewScreen(
                             }
                             Surface(
                                 shape = CircleShape,
-                                color = Color(0xFF22C55E),
+                                color = androidx.compose.material3.MaterialTheme.colorScheme.success,
                                 border = BorderStroke(2.dp, MaterialTheme.colorScheme.surfaceContainerHigh),
                                 modifier = Modifier
                                     .size(13.dp)
@@ -784,7 +796,7 @@ fun AccountOverviewScreen(
                                                     modifier = Modifier
                                                         .size(6.dp)
                                                         .clip(CircleShape)
-                                                        .background(if (serverReachable == true) Color(0xFF10B981) else MaterialTheme.colorScheme.error)
+                                                        .background(if (serverReachable == true) androidx.compose.material3.MaterialTheme.colorScheme.success else MaterialTheme.colorScheme.error)
                                                 )
                                                 Spacer(modifier = Modifier.width(5.dp))
                                             } else if (cat == AccountCategory.SYNC && isSyncingNow) {
@@ -801,7 +813,7 @@ fun AccountOverviewScreen(
                                                 fontWeight = FontWeight.Medium,
                                                 color = when {
                                                     cat != AccountCategory.SYNC || isSyncingNow || serverReachable == null -> MaterialTheme.colorScheme.onSurfaceVariant
-                                                    serverReachable == true -> Color(0xFF059669)
+                                                    serverReachable == true -> androidx.compose.material3.MaterialTheme.colorScheme.success
                                                     else -> MaterialTheme.colorScheme.error
                                                 }
                                             )
@@ -1014,7 +1026,7 @@ private fun CloudSyncBottomSheet(
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                         val statusColor = when (reachable) {
-                            true -> Color(0xFF10B981)
+                            true -> androidx.compose.material3.MaterialTheme.colorScheme.success
                             false -> MaterialTheme.colorScheme.error
                             null -> MaterialTheme.colorScheme.onSurfaceVariant
                         }

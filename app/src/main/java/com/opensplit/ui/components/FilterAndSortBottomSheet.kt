@@ -41,7 +41,7 @@ fun FilterAndSortBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
         containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
-        shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
+        shape = com.opensplit.ui.theme.OpenSplitTokens.BottomSheetShape,
         dragHandle = { BottomSheetDefaults.DragHandle() }
     ) {
         Column(

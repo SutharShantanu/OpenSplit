@@ -24,6 +24,14 @@ fun ShimmerBox(
     modifier: Modifier = Modifier,
     shapeDp: Dp = OpenSplitTokens.ShapeMedium
 ) {
+    if (com.opensplit.ui.theme.LocalReduceMotion.current) {
+        Box(
+            modifier = modifier
+                .clip(RoundedCornerShape(shapeDp))
+                .background(MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.4f))
+        )
+        return
+    }
     val transition = rememberInfiniteTransition(label = "shimmerTransition")
     val translateAnim by transition.animateFloat(
         initialValue = 0f,
