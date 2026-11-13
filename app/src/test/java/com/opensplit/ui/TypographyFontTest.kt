@@ -27,4 +27,11 @@ class TypographyFontTest {
             }
         }
     }
+
+    @Test
+    fun everyPickerChoiceMapsToItsOwnFamily() {
+        com.opensplit.ui.theme.FontChoices.filter { it.first != "default" }.forEach { (key, _, family) ->
+            assertSame(key, family, openSplitTypography(key).bodyLarge.fontFamily)
+        }
+    }
 }

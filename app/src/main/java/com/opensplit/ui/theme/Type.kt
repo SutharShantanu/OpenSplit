@@ -117,13 +117,41 @@ val Typography = Typography(
 )
 
 /** [Typography] with [font] ("default", "system", "serif" or "mono") as the base family. */
-fun openSplitTypography(font: String): androidx.compose.material3.Typography {
-    val family = when (font) {
-        "system" -> FontFamily.Default
-        "serif" -> FontFamily.Serif
-        "mono" -> MonoFontFamily
-        else -> return Typography
+/**
+ * Optional fonts, one per style, fetched from Google Fonts through Play services the first time
+ * they are picked (cached by the system after that, so the APK carries none of them). Until the
+ * download finishes, text shows in the system font.
+ */
+private val googleFonts = androidx.compose.ui.text.googlefonts.GoogleFont.Provider(
+    providerAuthority = "com.google.android.gms.fonts",
+    providerPackage = "com.google.android.gms",
+    certificates = R.array.com_google_android_gms_fonts_certs
+)
+
+private fun googleFamily(name: String) = FontFamily(
+    listOf(FontWeight.Normal, FontWeight.Medium, FontWeight.SemiBold, FontWeight.Bold).map {
+        androidx.compose.ui.text.googlefonts.Font(androidx.compose.ui.text.googlefonts.GoogleFont(name), googleFonts, it)
     }
+)
+
+/** Key, label, family for every base font the user can pick (Settings › Appearance › Font). */
+val FontChoices: List<Triple<String, String, FontFamily>> by lazy {
+    listOf(
+        Triple("default", "OpenSplit (Google Sans Flex)", AppFontFamily),
+        Triple("system", "System (Roboto)", FontFamily.Default),
+        Triple("source_sans", "Professional (Source Sans 3)", googleFamily("Source Sans 3")),
+        Triple("nunito", "Friendly (Nunito)", googleFamily("Nunito")),
+        Triple("poppins", "Geometric (Poppins)", googleFamily("Poppins")),
+        Triple("inter", "Minimal (Inter)", googleFamily("Inter")),
+        Triple("montserrat", "Display (Montserrat)", googleFamily("Montserrat")),
+        Triple("serif", "Serif", FontFamily.Serif),
+        Triple("mono", "Mono (JetBrains Mono)", MonoFontFamily)
+    )
+}
+
+fun openSplitTypography(font: String): androidx.compose.material3.Typography {
+    if (font == "default") return Typography
+    val family = FontChoices.firstOrNull { it.first == font }?.third ?: return Typography
     fun TextStyle.f() = copy(fontFamily = family)
     return with(Typography) {
         copy(

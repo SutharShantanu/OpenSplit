@@ -139,6 +139,7 @@ dependencies {
   implementation(libs.androidx.credentials)
   implementation(libs.androidx.credentials.play.services.auth)
   implementation(libs.androidx.work.runtime.ktx)
+  implementation(libs.androidx.compose.ui.text.google.fonts)
   implementation(libs.androidx.glance.appwidget)
   implementation(libs.androidx.glance.material3)
   implementation(libs.haze)

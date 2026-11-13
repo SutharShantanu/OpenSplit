@@ -134,18 +134,10 @@ fun AppearanceSettingsSubScreen(
     }
 }
 
-
-private val FontOptions = listOf(
-    Triple("default", "OpenSplit (Google Sans Flex)", com.opensplit.ui.theme.AppFontFamily),
-    Triple("system", "System (Roboto)", androidx.compose.ui.text.font.FontFamily.Default),
-    Triple("serif", "Serif", androidx.compose.ui.text.font.FontFamily.Serif),
-    Triple("mono", "Mono (JetBrains Mono)", com.opensplit.ui.theme.MonoFontFamily)
-)
-
 /** Base font picker; each option previews itself. Amounts stay mono regardless. */
 @Composable
 private fun FontSelectionCard(font: String, onFontChange: (String) -> Unit) {
-    val selected = FontOptions.firstOrNull { it.first == font }?.first ?: "default"
+    val selected = com.opensplit.ui.theme.FontChoices.firstOrNull { it.first == font }?.first ?: "default"
     SettingsGroupCard(title = "Font", icon = OpenSplitIcons.Palette) {
         Column(modifier = Modifier.padding(vertical = 8.dp)) {
             Text(
@@ -154,7 +146,7 @@ private fun FontSelectionCard(font: String, onFontChange: (String) -> Unit) {
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)
             )
-            FontOptions.forEach { (id, label, family) ->
+            com.opensplit.ui.theme.FontChoices.forEach { (id, label, family) ->
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
