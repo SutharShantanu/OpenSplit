@@ -131,18 +131,25 @@ fun MainDashboard(
     var detailGroupId by rememberSaveable { mutableStateOf<String?>(null) }
     var detailFriendId by rememberSaveable { mutableStateOf<String?>(null) }
 
-    fun addExpense() = when (allGroups.size) {
-        0 -> snackbar.showMessage("Create a group first")
-        1 -> rootNavController.navigate("add_expense/${allGroups.first().id}")
-        else -> showAddExpensePicker = true
+    // Query added to the add-expense route, e.g. a detected payment's amount; kept for the group picker.
+    var addExpenseQuery by remember { mutableStateOf("") }
+    fun addExpense(query: String = "") {
+        addExpenseQuery = query
+        when (allGroups.size) {
+            0 -> snackbar.showMessage("Create a group first")
+            1 -> rootNavController.navigate("add_expense/${allGroups.first().id}$query")
+            else -> showAddExpensePicker = true
+        }
     }
 
     // Settling needs someone else in the group: open the only such group, pick between several, or say there is none.
-    val settleUp: () -> Unit = {
+    var settleQuery by remember { mutableStateOf("") }
+    fun settleUp(query: String = "") {
+        settleQuery = query
         val settleable = allGroups.filter { it.memberIds.size > 1 }
         when (settleable.size) {
             0 -> snackbar.showMessage("Nobody to settle with yet. Add people to a group first.")
-            1 -> rootNavController.navigate("settle_up/${settleable.first().id}")
+            1 -> rootNavController.navigate("settle_up/${settleable.first().id}$query")
             else -> showSettleUpPicker = true
         }
     }
@@ -170,7 +177,22 @@ fun MainDashboard(
                     selectedTab = DashboardTab.ACTIVITY
                     onWidgetActionConsumed()
                 }
-                else -> if (pendingWidgetAction.startsWith(com.opensplit.service.NotificationHelper.ACTION_OPEN_GROUP_PREFIX)) {
+                com.opensplit.service.PaymentDetector.ACTION_REVIEW -> {
+                    rootNavController.navigate("payment_detection")
+                    onWidgetActionConsumed()
+                }
+                else -> if (pendingWidgetAction.startsWith(com.opensplit.service.PaymentDetector.ACTION_EXPENSE_PREFIX) ||
+                    pendingWidgetAction.startsWith(com.opensplit.service.PaymentDetector.ACTION_SETTLE_PREFIX)
+                ) {
+                    // A detected payment: open the form with its amount filled in.
+                    val expense = pendingWidgetAction.startsWith(com.opensplit.service.PaymentDetector.ACTION_EXPENSE_PREFIX)
+                    val id = pendingWidgetAction.substringAfter(':').toLongOrNull()
+                    val p = id?.let { appContainer.detectedPayments.get(it) }
+                    if (p == null) snackbar.showMessage("That payment is no longer in the list")
+                    else if (expense) addExpense("?amount=${p.amount}&paymentId=${p.id}" + (p.counterparty?.let { "&desc=" + android.net.Uri.encode(it) } ?: ""))
+                    else settleUp("?amount=${p.amount}&paymentId=${p.id}")
+                    onWidgetActionConsumed()
+                } else if (pendingWidgetAction.startsWith(com.opensplit.service.NotificationHelper.ACTION_OPEN_GROUP_PREFIX)) {
                     // Tapped a notification about a group.
                     rootNavController.navigate("group_detail/" + pendingWidgetAction.removePrefix(com.opensplit.service.NotificationHelper.ACTION_OPEN_GROUP_PREFIX))
                     onWidgetActionConsumed()
@@ -436,7 +458,7 @@ fun MainDashboard(
             onNavigateToFriend = { rootNavController.navigate("person_balance/$it") },
             onAddExpense = { addExpense() },
             onCreateGroup = { showCreateGroup = true },
-            onSettleUp = settleUp,
+            onSettleUp = { settleUp() },
             onInviteFriend = { mainViewModel.ensureFriendLink(); showQrSheet = true }
         )
     }
@@ -448,7 +470,7 @@ fun MainDashboard(
             onDismiss = { showAddExpensePicker = false },
             onSelectGroup = {
                 showAddExpensePicker = false
-                rootNavController.navigate("add_expense/$it")
+                rootNavController.navigate("add_expense/$it$addExpenseQuery")
             }
         )
     }
@@ -460,7 +482,7 @@ fun MainDashboard(
             onDismiss = { showSettleUpPicker = false },
             onSelectGroup = {
                 showSettleUpPicker = false
-                rootNavController.navigate("settle_up/$it")
+                rootNavController.navigate("settle_up/$it$settleQuery")
             }
         )
     }

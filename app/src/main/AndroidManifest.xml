@@ -115,7 +115,22 @@
             </intent-filter>
         </service>
 
-        <!-- Android 17 Material 3 Expressive Home Screen Widgets -->
+        <!-- Payment detection: reads only allowlisted UPI/bank app notifications once the user
+             grants notification access. Parsed fields are kept on-device; text is never stored. -->
+        <service
+            android:name=".service.PaymentNotificationListener"
+            android:exported="false"
+            android:label="@string/payment_detection_label"
+            android:permission="android.permission.BIND_NOTIFICATION_LISTENER_SERVICE">
+            <intent-filter>
+                <action android:name="android.service.notification.NotificationListenerService" />
+            </intent-filter>
+        </service>
+        <receiver
+            android:name=".service.PaymentActionReceiver"
+            android:exported="false" />
+
+        <!-- Home-screen widgets -->
         <receiver
             android:name=".widget.OpenSplitBalanceWidgetProvider"
             android:label="@string/widget_balance_name"

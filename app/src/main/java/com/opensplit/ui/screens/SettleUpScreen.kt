@@ -53,7 +53,8 @@ fun SettleUpScreen(
     suggestedFromUid: String? = null,
     suggestedToUid: String? = null,
     suggestedAmount: Double? = null,
-    onNavigateBack: () -> Unit
+    onNavigateBack: () -> Unit,
+    onSaved: () -> Unit = {}
 ) {
     val context = LocalContext.current
     val members by viewModel.members.collectAsStateWithLifecycle()
@@ -155,6 +156,7 @@ fun SettleUpScreen(
                     isRecording = false
                     busy.hide()
                     recordedSettlementAmount = rawAmount
+                    onSaved()
                     isSuccessScreenShown = true
                 }
             )

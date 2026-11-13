@@ -98,6 +98,10 @@ enum class AccountCategory(
         title = "AI Assistant",
         icon = OpenSplitIcons.AutoAwesome
     ),
+    PAYMENT_DETECTION(
+        title = "Payment detection",
+        icon = OpenSplitIcons.Payments
+    ),
     DATA_BACKUP(
         title = "Backup & Export",
         icon = OpenSplitIcons.CloudDownload
@@ -247,6 +251,12 @@ fun AccountScreen(
                                 onTestKey = { providerId, key, endpoint, model, cb -> viewModel.testAiKey(providerId, key, endpoint, model, cb) },
                                 onBack = { selectedCategory = null }
                             )
+                        }
+                        AccountCategory.PAYMENT_DETECTION -> {
+                            androidx.compose.runtime.LaunchedEffect(Unit) {
+                                selectedCategory = null
+                                rootNavController.navigate("payment_detection")
+                            }
                         }
                         AccountCategory.NOTIFICATIONS -> {
                             // One persisted notification screen for the whole app (also reachable from the primer).
@@ -513,7 +523,8 @@ fun AccountOverviewScreen(
                     CategoryGroup(
                         sectionTitle = "Intelligence",
                         categories = listOf(
-                            AccountCategory.AI_PROVIDERS
+                            AccountCategory.AI_PROVIDERS,
+                            AccountCategory.PAYMENT_DETECTION
                         )
                     ),
                     CategoryGroup(
@@ -738,6 +749,7 @@ fun AccountOverviewScreen(
                                         if (!hasKey) "Off" else aiProvider.replaceFirstChar { it.uppercase() }
                                     }
                                     AccountCategory.NOTIFICATIONS -> "On"
+                                    AccountCategory.PAYMENT_DETECTION -> if (com.opensplit.service.PaymentDetector.hasAccess(androidx.compose.ui.platform.LocalContext.current)) "On" else "Off"
                                     AccountCategory.DATA_BACKUP -> data.allExpenses.size.let { "$it ${if (it == 1) "item" else "items"}" }
                                     AccountCategory.SECURITY -> "Protected"
                                     AccountCategory.BUG_REPORT -> "Email"

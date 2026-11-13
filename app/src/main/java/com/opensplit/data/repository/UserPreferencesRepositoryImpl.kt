@@ -176,6 +176,9 @@ class UserPreferencesRepositoryImpl(private val context: Context) : UserPreferen
     private val FONT_KEY = stringPreferencesKey("font")
     private val REDUCE_MOTION_KEY = booleanPreferencesKey("reduce_motion")
     private val HAPTICS_KEY = booleanPreferencesKey("haptics")
+    private val PAYMENT_DETECTION_KEY = booleanPreferencesKey("payment_detection")
+    private val DETECT_CREDITS_KEY = booleanPreferencesKey("detect_credits")
+    private val DETECT_REFUNDS_KEY = booleanPreferencesKey("detect_refunds")
 
     override val fontFlow: Flow<String> = context.dataStore.data.map { it[FONT_KEY] ?: "default" }
 
@@ -194,6 +197,13 @@ class UserPreferencesRepositoryImpl(private val context: Context) : UserPreferen
     override suspend fun setHaptics(enabled: Boolean) {
         context.dataStore.edit { it[HAPTICS_KEY] = enabled }
     }
+
+    override val paymentDetectionFlow: Flow<Boolean> = context.dataStore.data.map { it[PAYMENT_DETECTION_KEY] ?: true }
+    override suspend fun setPaymentDetection(enabled: Boolean) { context.dataStore.edit { it[PAYMENT_DETECTION_KEY] = enabled } }
+    override val detectCreditsFlow: Flow<Boolean> = context.dataStore.data.map { it[DETECT_CREDITS_KEY] ?: true }
+    override suspend fun setDetectCredits(enabled: Boolean) { context.dataStore.edit { it[DETECT_CREDITS_KEY] = enabled } }
+    override val detectRefundsFlow: Flow<Boolean> = context.dataStore.data.map { it[DETECT_REFUNDS_KEY] ?: false }
+    override suspend fun setDetectRefunds(enabled: Boolean) { context.dataStore.edit { it[DETECT_REFUNDS_KEY] = enabled } }
 
     /**
      * API keys live in EncryptedSharedPreferences (AES-256, hardware-backed master key), not in

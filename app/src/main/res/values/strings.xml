@@ -3,6 +3,7 @@
     <string name="default_web_client_id">873815654150-eotijb7o03qe28gp1g5jpmjm2rmjj6b4.apps.googleusercontent.com</string>
 
     <!-- M3 Expressive Widgets -->
+    <string name="payment_detection_label">OpenSplit payment detection</string>
     <string name="widget_balance_name">OpenSplit Net Balance</string>
     <string name="widget_balance_description">Track your net balance, what you owe or are owed, and log expenses quickly.</string>
     <string name="widget_quick_actions_name">OpenSplit Quick Actions</string>

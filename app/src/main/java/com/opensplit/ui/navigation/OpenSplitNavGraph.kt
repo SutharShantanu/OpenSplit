@@ -120,6 +120,9 @@ fun MainNavHost(
 ) {
     val hasCompletedPrimer by appContainer.userPreferencesRepository.hasCompletedPermissionPrimer.collectAsStateWithLifecycle(initialValue = true)
     val startDest = if (!hasCompletedPrimer) "permission_primer" else "home"
+    // Actions raised inside the app (e.g. "Add expense" on a detected payment), run by the dashboard
+    // the same way as widget and notification actions.
+    var inAppAction by remember { mutableStateOf<String?>(null) }
 
     // M3 shared-axis (X): pushing a destination slides content forward, popping mirrors it,
     // so the back gesture reads as reversing the same motion. Defined once here so every
@@ -147,8 +150,8 @@ fun MainNavHost(
             com.opensplit.ui.screens.MainDashboard(
                 appContainer = appContainer,
                 rootNavController = navController,
-                pendingWidgetAction = pendingWidgetAction,
-                onWidgetActionConsumed = onWidgetActionConsumed
+                pendingWidgetAction = pendingWidgetAction ?: inAppAction,
+                onWidgetActionConsumed = { onWidgetActionConsumed(); inAppAction = null }
             )
         }
 
@@ -239,19 +242,30 @@ fun MainNavHost(
             )
         }
 
-        dialog("add_expense/{groupId}", dialogProperties = androidx.compose.ui.window.DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = false)) { backStackEntry ->
+        dialog(
+            "add_expense/{groupId}?amount={amount}&desc={desc}&paymentId={paymentId}",
+            arguments = listOf("amount", "desc", "paymentId").map {
+                androidx.navigation.navArgument(it) { type = androidx.navigation.NavType.StringType; nullable = true; defaultValue = null }
+            },
+            dialogProperties = androidx.compose.ui.window.DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = false)
+        ) { backStackEntry ->
             val groupId = backStackEntry.arguments?.getString("groupId") ?: return@dialog
+            // Set when the form was opened from a detected payment.
+            val paymentId = backStackEntry.arguments?.getString("paymentId")?.toLongOrNull()
             val groupDetailViewModel: com.opensplit.ui.viewmodel.GroupDetailViewModel = androidx.lifecycle.viewmodel.compose.viewModel(
                 factory = com.opensplit.ui.viewmodel.GroupDetailViewModelFactory(groupId, appContainer)
             )
             com.opensplit.ui.screens.AddExpenseScreen(
                 viewModel = groupDetailViewModel,
-                onNavigateBack = { navController.popBackStack() }
+                onNavigateBack = { navController.popBackStack() },
+                prefillAmount = backStackEntry.arguments?.getString("amount")?.toDoubleOrNull(),
+                prefillDescription = backStackEntry.arguments?.getString("desc"),
+                onSaved = { paymentId?.let { appContainer.detectedPayments.setStatus(it, com.opensplit.data.payment.DetectedPayment.Status.ADDED) } }
             )
         }
 
         composable(
-            route = "settle_up/{groupId}?fromUid={fromUid}&toUid={toUid}&amount={amount}",
+            route = "settle_up/{groupId}?fromUid={fromUid}&toUid={toUid}&amount={amount}&paymentId={paymentId}",
             arguments = listOf(
                 androidx.navigation.navArgument("fromUid") {
                     type = androidx.navigation.NavType.StringType
@@ -264,6 +278,11 @@ fun MainNavHost(
                     defaultValue = null
                 },
                 androidx.navigation.navArgument("amount") {
+                    type = androidx.navigation.NavType.StringType
+                    nullable = true
+                    defaultValue = null
+                },
+                androidx.navigation.navArgument("paymentId") {
                     type = androidx.navigation.NavType.StringType
                     nullable = true
                     defaultValue = null
@@ -287,7 +306,12 @@ fun MainNavHost(
                 suggestedFromUid = fromUid,
                 suggestedToUid = toUid,
                 suggestedAmount = amount,
-                onNavigateBack = { navController.popBackStack() }
+                onNavigateBack = { navController.popBackStack() },
+                onSaved = {
+                    backStackEntry.arguments?.getString("paymentId")?.toLongOrNull()?.let {
+                        appContainer.detectedPayments.setStatus(it, com.opensplit.data.payment.DetectedPayment.Status.ADDED)
+                    }
+                }
             )
         }
 
@@ -324,6 +348,15 @@ fun MainNavHost(
         composable("recently_deleted") {
             com.opensplit.ui.screens.RecentlyDeletedScreen(
                 appContainer = appContainer,
+                onNavigateBack = { navController.popBackStack() }
+            )
+        }
+
+        composable("payment_detection") {
+            com.opensplit.ui.screens.PaymentDetectionScreen(
+                prefs = appContainer.userPreferencesRepository,
+                store = appContainer.detectedPayments,
+                onOpenAction = { inAppAction = it; navController.popBackStack("home", inclusive = false) },
                 onNavigateBack = { navController.popBackStack() }
             )
         }

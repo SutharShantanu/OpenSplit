@@ -60,6 +60,16 @@ interface UserPreferencesRepository {
     val hapticsFlow: Flow<Boolean>
     suspend fun setHaptics(enabled: Boolean)
 
+    /** Payment detection from bank/UPI app notifications (needs notification access too). */
+    val paymentDetectionFlow: Flow<Boolean>
+    suspend fun setPaymentDetection(enabled: Boolean)
+    /** Also detect money received; default on. */
+    val detectCreditsFlow: Flow<Boolean>
+    suspend fun setDetectCredits(enabled: Boolean)
+    /** Also detect refunds; default off. */
+    val detectRefundsFlow: Flow<Boolean>
+    suspend fun setDetectRefunds(enabled: Boolean)
+
 
     val providerApiKeysFlow: Flow<Map<String, String>>
     suspend fun setProviderApiKey(providerId: String, key: String)

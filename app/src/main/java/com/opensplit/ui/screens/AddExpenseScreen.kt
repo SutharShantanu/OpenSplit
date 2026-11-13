@@ -73,7 +73,10 @@ import com.google.firebase.Timestamp
 fun AddExpenseScreen(
     viewModel: GroupDetailViewModel,
     onNavigateBack: () -> Unit,
-    editingExpense: Expense? = null
+    editingExpense: Expense? = null,
+    prefillAmount: Double? = null,
+    prefillDescription: String? = null,
+    onSaved: () -> Unit = {}
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val context = LocalContext.current
@@ -102,10 +105,10 @@ fun AddExpenseScreen(
 
             val isEditing = editingExpense != null
 
-            var description by remember { mutableStateOf(editingExpense?.description ?: "") }
+            var description by remember { mutableStateOf(editingExpense?.description ?: prefillDescription ?: "") }
             var isDescriptionEditing by remember { mutableStateOf(false) }
             val descriptionFocusRequester = remember { FocusRequester() }
-            var amountText by remember { mutableStateOf(editingExpense?.amount?.takeIf { it > 0 }?.let { if (it % 1.0 == 0.0) it.toLong().toString() else "%.2f".format(java.util.Locale.US, it) } ?: "") }
+            var amountText by remember { mutableStateOf((editingExpense?.amount ?: prefillAmount)?.takeIf { it > 0 }?.let { if (it % 1.0 == 0.0) it.toLong().toString() else "%.2f".format(java.util.Locale.US, it) } ?: "") }
             var category by remember { mutableStateOf(editingExpense?.category ?: "Food") }
             // True once the user picks a category by hand; suggestions then stop overriding it.
             var categoryTouched by remember { mutableStateOf(isEditing) }
@@ -1227,6 +1230,7 @@ fun AddExpenseScreen(
                                 haptics.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.Confirm)
                                 isSaving = false
                                 busy.hide()
+                                onSaved()
                                 onNavigateBack()
                                 // After the sheet is gone, so the host underneath is visible.
                                 snackbar.showMessage(if (isEditing) "Expense updated" else "Expense saved")

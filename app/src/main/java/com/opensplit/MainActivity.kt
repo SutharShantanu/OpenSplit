@@ -95,6 +95,14 @@ class MainActivity : ComponentActivity() {
                         appContainer.appUpdater.checkWhatsNew()
                         appContainer.appUpdater.checkOnLaunch()
                     }
+                    // A payment detected while the app is open shows here instead of as a notification.
+                    LaunchedEffect(Unit) {
+                        appContainer.detectedPayments.detected.collect { p ->
+                            snackbarController.showUndo(com.opensplit.service.PaymentDetector.summary(p), actionLabel = "Add expense") {
+                                pendingWidgetAction = com.opensplit.service.PaymentDetector.ACTION_EXPENSE_PREFIX + p.id
+                            }
+                        }
+                    }
                     Surface(
                         modifier = Modifier.fillMaxSize(),
                         color = MaterialTheme.colorScheme.background
@@ -132,6 +140,16 @@ class MainActivity : ComponentActivity() {
                 }
             }
         }
+    }
+
+    override fun onStart() {
+        super.onStart()
+        com.opensplit.service.AppVisibility.foreground = true
+    }
+
+    override fun onStop() {
+        com.opensplit.service.AppVisibility.foreground = false
+        super.onStop()
     }
 
     override fun onNewIntent(intent: Intent) {

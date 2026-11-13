@@ -27,6 +27,7 @@ object NotificationHelper {
     const val CHANNEL_FRIENDS = "opensplit_friends"
     const val CHANNEL_REMINDERS = "opensplit_reminders"
     const val CHANNEL_RECURRING = "opensplit_recurring"
+    const val CHANNEL_PAYMENT_DETECTION = "opensplit_payment_detection"
 
     /** Tap action that opens a group; read by MainDashboard like the widget actions. */
     const val ACTION_OPEN_GROUP_PREFIX = "group:"
@@ -57,7 +58,9 @@ object NotificationHelper {
                 channel(CHANNEL_REMINDERS, "Settle-up reminders", NotificationManager.IMPORTANCE_HIGH,
                     "Reminders for balances you owe, and nudges from friends."),
                 channel(CHANNEL_RECURRING, "Recurring bills", NotificationManager.IMPORTANCE_DEFAULT,
-                    "A recurring bill (rent, WiFi, subscriptions) was posted.")
+                    "A recurring bill (rent, WiFi, subscriptions) was posted."),
+                channel(CHANNEL_PAYMENT_DETECTION, "Detected payments", NotificationManager.IMPORTANCE_HIGH,
+                    "A UPI or bank payment was spotted, ready to add as an expense or settlement.")
             )
         )
     }

@@ -52,6 +52,10 @@ class AppContainer(val applicationContext: Context) {
         com.opensplit.data.repository.InviteLinkRepositoryImpl(firestore, activityRepository)
     }
 
+    val detectedPayments: com.opensplit.data.payment.DetectedPaymentStore by lazy {
+        com.opensplit.data.payment.DetectedPaymentStore(java.io.File(applicationContext.noBackupFilesDir, "detected_payments.json"))
+    }
+
     val aiService: com.opensplit.data.ai.AiService by lazy {
         com.opensplit.data.ai.AiService(userPreferencesRepository)
     }
