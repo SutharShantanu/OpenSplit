@@ -76,6 +76,7 @@ fun CreateGroupDialog(
     var avatarKey by remember { mutableStateOf<String?>(null) }
     var avatarPickedByHand by remember { mutableStateOf(false) }
     var avatarSuggested by remember { mutableStateOf(false) }
+    var avatarSource by remember { mutableStateOf("On-device") }
     var showAvatars by remember { mutableStateOf(false) }
     var currency by remember { mutableStateOf(defaultCurrency) }
     var currencyMenu by remember { mutableStateOf(false) }
@@ -91,9 +92,9 @@ fun CreateGroupDialog(
         if (avatarPickedByHand) return@LaunchedEffect
         val trimmed = name.trim()
         if (trimmed.isBlank()) { if (type == null) { avatarKey = null; avatarSuggested = false }; return@LaunchedEffect }
-        AiHeuristics.avatarKeyFor(trimmed)?.let { avatarKey = it; avatarSuggested = true }
+        AiHeuristics.avatarKeyFor(trimmed)?.let { avatarKey = it; avatarSuggested = true; avatarSource = "On-device" }
         delay(700)
-        if (name.trim() == trimmed) aiService.suggestAvatarKey(trimmed, GroupAvatarPresets.all.map { it.key })?.let { avatarKey = it; avatarSuggested = true }
+        if (name.trim() == trimmed) aiService.suggestAvatarKey(trimmed, GroupAvatarPresets.all.map { it.key })?.let { avatarKey = it; avatarSuggested = true; avatarSource = aiService.lastSourceLabel() }
     }
 
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)) {
@@ -140,7 +141,7 @@ fun CreateGroupDialog(
                     label = { Text("Group name") },
                     placeholder = { Text("Goa trip, Flat 4B…") },
                     singleLine = true,
-                    supportingText = if (avatarSuggested && !avatarPickedByHand) ({ Row { AiBadge(label = "Avatar suggested") } }) else null,
+                    supportingText = if (avatarSuggested && !avatarPickedByHand) ({ Row { AiBadge(label = "Avatar suggested · $avatarSource") } }) else null,
                     keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Words, imeAction = ImeAction.Done),
                     modifier = Modifier.weight(1f).focusRequester(focus)
                 )

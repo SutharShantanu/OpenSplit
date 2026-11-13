@@ -99,23 +99,23 @@ class AnalyticsViewModel(private val appContainer: AppContainer) : ViewModel() {
 
     fun setPeriodType(type: AnalyticsPeriodType) {
         _selectedPeriodType.value = type
-        _insightsState.value = InsightsState.Idle
+        resetInsights()
     }
 
     fun setMonth(month: Int) {
         _selectedMonth.value = month.coerceIn(0, 11)
-        _insightsState.value = InsightsState.Idle
+        resetInsights()
     }
 
     fun setYear(year: Int) {
         _selectedYear.value = year
-        _insightsState.value = InsightsState.Idle
+        resetInsights()
     }
 
     fun setMonthAndYear(month: Int, year: Int) {
         _selectedMonth.value = month.coerceIn(0, 11)
         _selectedYear.value = year
-        _insightsState.value = InsightsState.Idle
+        resetInsights()
     }
 
     fun previousPeriod() {
@@ -133,7 +133,7 @@ class AnalyticsViewModel(private val appContainer: AppContainer) : ViewModel() {
             }
             AnalyticsPeriodType.ALL_TIME -> Unit
         }
-        _insightsState.value = InsightsState.Idle
+        resetInsights()
     }
 
     fun nextPeriod() {
@@ -159,7 +159,7 @@ class AnalyticsViewModel(private val appContainer: AppContainer) : ViewModel() {
             }
             AnalyticsPeriodType.ALL_TIME -> Unit
         }
-        _insightsState.value = InsightsState.Idle
+        resetInsights()
     }
 
     @OptIn(ExperimentalCoroutinesApi::class, FlowPreview::class)
@@ -400,11 +400,24 @@ class AnalyticsViewModel(private val appContainer: AppContainer) : ViewModel() {
 
     fun selectGroupScope(groupId: String?) {
         _selectedGroupId.value = groupId
-        _insightsState.value = InsightsState.Idle
+        resetInsights()
+    }
+
+    /** Last AI insights per group and period, kept on disk so they still show offline. */
+    private val insightsCache = appContainer.applicationContext.getSharedPreferences("ai_insights", android.content.Context.MODE_PRIVATE)
+    private fun insightsKey() = "${_selectedGroupId.value ?: "all"}|${_selectedPeriodType.value}|${_selectedYear.value}|${_selectedMonth.value}"
+
+    /** Shows the saved insights for the selected group and period, or the "generate" prompt. */
+    private fun resetInsights() {
+        _insightsState.value = insightsCache.getString(insightsKey(), null)
+            ?.split('\n')?.filter { it.isNotBlank() }?.takeIf { it.isNotEmpty() }
+            ?.let { InsightsState.Ready(it) } ?: InsightsState.Idle
     }
 
     private val _insightsState = MutableStateFlow<InsightsState>(InsightsState.Idle)
     val insightsState: StateFlow<InsightsState> = _insightsState.asStateFlow()
+
+    init { resetInsights() }
 
     val aiAvailable: StateFlow<Boolean> = appContainer.aiService.availability(AiFeature.INSIGHTS)
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
@@ -417,6 +430,7 @@ class AnalyticsViewModel(private val appContainer: AppContainer) : ViewModel() {
         viewModelScope.launch {
             val summary = buildSummary(data)
             val result = appContainer.aiService.insights(summary)
+            if (result != null) insightsCache.edit().putString(insightsKey(), result.joinToString("\n")).apply()
             _insightsState.value = if (result != null) {
                 InsightsState.Ready(result)
             } else {

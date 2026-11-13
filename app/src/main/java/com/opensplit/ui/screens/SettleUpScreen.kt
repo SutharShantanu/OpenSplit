@@ -69,6 +69,10 @@ fun SettleUpScreen(
     var note by rememberSaveable { mutableStateOf("") }
     
     var method by rememberSaveable { mutableStateOf(SettlementMethod.UPI) }
+    var methodPickedByHand by rememberSaveable { mutableStateOf(false) }
+    val usualMethod by viewModel.usualMethod.collectAsStateWithLifecycle()
+    // Start on the method this person usually pays with, unless they already picked one.
+    LaunchedEffect(usualMethod) { usualMethod?.let { if (!methodPickedByHand) method = it } }
 
     var isSuccessScreenShown by remember { mutableStateOf(false) }
     var recordedSettlementAmount by remember { mutableStateOf(0.0) }
@@ -434,7 +438,7 @@ fun SettleUpScreen(
                             ).forEach { (m, label) ->
                                 FilterChip(
                                     selected = method == m,
-                                    onClick = { method = m },
+                                    onClick = { method = m; methodPickedByHand = true },
                                     label = { Text(label) },
                                     leadingIcon = if (method == m) {
                                         { SymbolIcon(OpenSplitIcons.Check, contentDescription = null, modifier = Modifier.size(16.dp)) }

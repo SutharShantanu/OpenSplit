@@ -110,6 +110,7 @@ fun AddExpenseScreen(
             // True once the user picks a category by hand; suggestions then stop overriding it.
             var categoryTouched by remember { mutableStateOf(isEditing) }
             var categoryFromAi by remember { mutableStateOf(false) }
+            var aiSource by remember { mutableStateOf("Cloud") }
             val aiService = LocalAiService.current
             val categorizeAvailable by aiService.availability(AiFeature.CATEGORIZE).collectAsStateWithLifecycle(initialValue = false)
             val aiUnlocked by aiService.unlocked.collectAsStateWithLifecycle(initialValue = true)
@@ -120,7 +121,7 @@ fun AddExpenseScreen(
                 if (local != "Other") { category = local; categoryFromAi = false }
                 if (categorizeAvailable && description.length >= 3) {
                     kotlinx.coroutines.delay(400)
-                    aiService.suggestCategory(description)?.let { category = it; categoryFromAi = true }
+                    aiService.suggestCategory(description)?.let { category = it; categoryFromAi = true; aiSource = aiService.lastSourceLabel() }
                 }
             }
             var paidBy by remember { mutableStateOf(editingExpense?.paidBy ?: members.firstOrNull()?.uid ?: "") }
@@ -740,7 +741,7 @@ fun AddExpenseScreen(
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold
                         )
-                        if (categoryFromAi && !categoryTouched) AiBadge(label = "AI suggested")
+                        if (categoryFromAi && !categoryTouched) AiBadge(label = "AI suggested · $aiSource")
                     }
                     Spacer(modifier = Modifier.height(OpenSplitTokens.SpaceXS))
                     CategoryChipRow(

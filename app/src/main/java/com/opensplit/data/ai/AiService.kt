@@ -90,6 +90,14 @@ class AiService(private val prefs: UserPreferencesRepository) {
 
     suspend fun isAvailable(feature: AiFeature): Boolean = availability(feature).first()
 
+    /**
+     * Where the most recent answer came from, for the badge next to a suggestion: "Local" for a
+     * custom endpoint on this device or network (e.g. Ollama), "Cloud" for everything else.
+     */
+    suspend fun lastSourceLabel(): String =
+        if (lastProviderUsed == "custom" && isLocalHost(runCatching { java.net.URI(prefs.customEndpointFlow.first()).host }.getOrNull()))
+            "Local" else "Cloud"
+
     /** Runs one request on the active provider. Null when unavailable or on any failure. */
     /** Message of the most recent provider failure, for inline UI status. */
     @Volatile var lastError: String? = null
@@ -272,6 +280,13 @@ class AiService(private val prefs: UserPreferencesRepository) {
             "Food", "Groceries", "Coffee", "Drinks", "Transport", "Bills", "Shopping", "Rent", "Health",
             "Fitness", "Travel", "Entertainment", "Subscriptions", "Education", "Gifts", "Pets", "Other"
         )
+
+        /** Loopback, private-network (RFC 1918) or mDNS host. */
+        fun isLocalHost(host: String?): Boolean {
+            val h = host?.lowercase() ?: return false
+            return h == "localhost" || h.endsWith(".local") || h.startsWith("127.") || h.startsWith("10.") ||
+                h.startsWith("192.168.") || Regex("""^172\.(1[6-9]|2\d|3[01])\.""").containsMatchIn(h)
+        }
 
         /** Models often wrap JSON in ``` fences or add prose; keep only the JSON payload. */
         fun stripFences(text: String): String {

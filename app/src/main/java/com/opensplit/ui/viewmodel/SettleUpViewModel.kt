@@ -15,6 +15,7 @@ import com.opensplit.domain.repository.UserRepository
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -31,6 +32,15 @@ class SettleUpViewModel(
     private val activityRepository: ActivityRepository
 ) : ViewModel() {
 
+    companion object {
+        /** Most-used method among [uid]'s past payments; ties go to the most recent. Null with no history. */
+        fun usualMethod(history: List<Settlement>, uid: String): SettlementMethod? =
+            history.filter { it.fromUid == uid }
+                .sortedByDescending { it.date }
+                .groupingBy { it.method }.eachCount()
+                .maxByOrNull { it.value }?.key
+    }
+
     private val _members = MutableStateFlow<List<User>>(emptyList())
     val members: StateFlow<List<User>> = _members.asStateFlow()
 
@@ -39,6 +49,10 @@ class SettleUpViewModel(
 
     private val _currency = MutableStateFlow<String>("INR")
     val currency: StateFlow<String> = _currency.asStateFlow()
+
+    /** The method this user paid with most often in this group, once there is any history. */
+    private val _usualMethod = MutableStateFlow<SettlementMethod?>(null)
+    val usualMethod: StateFlow<SettlementMethod?> = _usualMethod.asStateFlow()
 
     init {
         viewModelScope.launch {
@@ -54,6 +68,9 @@ class SettleUpViewModel(
                     }.awaitAll().filterNotNull()
                 }
                 _members.value = loadedMembers
+            }
+            if (uid != null) {
+                _usualMethod.value = usualMethod(settlementRepository.getSettlementsForGroup(groupId).first(), uid)
             }
         }
     }
