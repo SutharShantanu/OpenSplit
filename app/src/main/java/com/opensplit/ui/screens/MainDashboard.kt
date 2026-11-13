@@ -2,6 +2,7 @@
 
 package com.opensplit.ui.screens
 
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.opensplit.ui.theme.Symbol
@@ -244,18 +245,16 @@ fun MainDashboard(
         } else content()
     }
 
-    val dashboardHeader: @Composable (DashboardTab) -> Unit = { tab ->
-        TopAppBar(
-            expandedHeight = 88.dp,
+    // M3 Expressive large flexible top bar: big title at rest, collapses as the tab's list scrolls.
+    val dashboardHeader: @Composable (DashboardTab, androidx.compose.material3.TopAppBarScrollBehavior) -> Unit = { tab, scroll ->
+        androidx.compose.material3.LargeFlexibleTopAppBar(
             windowInsets = androidx.compose.foundation.layout.WindowInsets(0, 0, 0, 0),
-            title = {
-                Text(
-                    tab.label,
-                    style = MaterialTheme.typography.headlineLarge,
-                    color = MaterialTheme.colorScheme.primary
-                )
-            },
-            colors = TopAppBarDefaults.topAppBarColors(containerColor = androidx.compose.ui.graphics.Color.Transparent),
+            scrollBehavior = scroll,
+            title = { Text(tab.label, color = MaterialTheme.colorScheme.primary) },
+            colors = TopAppBarDefaults.topAppBarColors(
+                containerColor = androidx.compose.ui.graphics.Color.Transparent,
+                scrolledContainerColor = MaterialTheme.colorScheme.background
+            ),
             actions = {
                 val c = MaterialTheme.colorScheme
                 val search = com.opensplit.ui.components.MenuAction(OpenSplitIcons.Search, "Search") { showGlobalSearch = true }
@@ -360,8 +359,14 @@ fun MainDashboard(
                         translationY = pullState.distanceFraction.coerceIn(0f, 1f) * pullOffsetPx
                     }
                 ) { tab ->
-                    androidx.compose.foundation.layout.Column(Modifier.fillMaxSize()) {
-                    if (tab != DashboardTab.SETTINGS) dashboardHeader(tab)
+                    // One scroll behavior per tab, so each page's header collapses with its own list.
+                    val headerScroll = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
+                    androidx.compose.foundation.layout.Column(
+                        Modifier.fillMaxSize().then(
+                            if (tab != DashboardTab.SETTINGS) Modifier.nestedScroll(headerScroll.nestedScrollConnection) else Modifier
+                        )
+                    ) {
+                    if (tab != DashboardTab.SETTINGS) dashboardHeader(tab, headerScroll)
                     androidx.compose.foundation.layout.Box(Modifier.weight(1f)) {
                     when (tab) {
                         DashboardTab.GROUPS -> ListDetail(wide = wide, detailKey = detailGroupId,

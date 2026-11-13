@@ -2,6 +2,7 @@
 
 package com.opensplit.ui.screens
 
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.graphics.graphicsLayer
@@ -79,11 +80,19 @@ fun GroupDetailScreen(
     }
 
     val groupName = if (uiState is ScreenState.Success) (uiState as ScreenState.Success).data.group.name else "Group Details"
+    val groupSubtitle = (uiState as? ScreenState.Success)?.data?.let { d ->
+        "${d.members.size} ${if (d.members.size == 1) "member" else "members"} · ${d.group.currency}"
+    }
+    // M3 Expressive flexible top bar: large title + subtitle at rest, collapses as the list scrolls.
+    val topBarScroll = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
 
     Scaffold(
+        modifier = Modifier.nestedScroll(topBarScroll.nestedScrollConnection),
         topBar = {
-            TopAppBar(
-                title = { Text(groupName, style = MaterialTheme.typography.headlineSmall, maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis) },
+            androidx.compose.material3.MediumFlexibleTopAppBar(
+                title = { Text(groupName, maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis) },
+                subtitle = groupSubtitle?.let { { Text(it, maxLines = 1) } },
+                scrollBehavior = topBarScroll,
                 navigationIcon = {
                     com.opensplit.ui.components.RoundBackButton(onClick = onNavigateBack)
                 },
@@ -96,7 +105,8 @@ fun GroupDetailScreen(
                     Spacer(Modifier.width(8.dp))
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.75f)
+                    containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.75f),
+                    scrolledContainerColor = MaterialTheme.colorScheme.surfaceContainer.copy(alpha = 0.9f)
                 ),
                 modifier = Modifier.appHazeHeader(hazeState)
             )
