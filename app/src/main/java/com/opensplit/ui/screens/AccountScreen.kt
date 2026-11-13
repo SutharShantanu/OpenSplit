@@ -1099,13 +1099,9 @@ private fun CloudSyncBottomSheet(
                     }
 
                     if (isSyncing) {
-                        LinearProgressIndicator(
+                        androidx.compose.material3.LinearWavyProgressIndicator(
                             progress = { syncProgress },
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(4.dp)
-                                .clip(CircleShape),
-                            color = MaterialTheme.colorScheme.primary
+                            modifier = Modifier.fillMaxWidth()
                         )
                     }
                 }

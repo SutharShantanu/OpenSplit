@@ -18,6 +18,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material3.ExposedDropdownMenu
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.DropdownMenuItem
@@ -183,7 +184,7 @@ fun AiProvidersSubScreen(
                                 value = formProvider.name, onValueChange = {}, readOnly = true, singleLine = true,
                                 label = { Text("Service") },
                                 trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = providerMenu) },
-                                modifier = Modifier.fillMaxWidth().menuAnchor(androidx.compose.material3.MenuAnchorType.PrimaryNotEditable)
+                                modifier = Modifier.fillMaxWidth().menuAnchor(androidx.compose.material3.ExposedDropdownMenuAnchorType.PrimaryNotEditable)
                             )
                             ExposedDropdownMenu(expanded = providerMenu, onDismissRequest = { providerMenu = false }) {
                                 AI_PROVIDERS_CATALOG.forEach { p ->

@@ -170,13 +170,7 @@ fun DataBackupSubScreen(
 
                         androidx.compose.animation.AnimatedVisibility(visible = isClearing) {
                             Column(modifier = Modifier.fillMaxWidth().padding(top = 16.dp)) {
-                                LinearProgressIndicator(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .height(6.dp)
-                                        .clip(CircleShape),
-                                    color = MaterialTheme.colorScheme.primary
-                                )
+                                androidx.compose.material3.LinearWavyProgressIndicator(modifier = Modifier.fillMaxWidth())
                                 Spacer(modifier = Modifier.height(4.dp))
                                 Text(
                                     text = "Clearing cache...",

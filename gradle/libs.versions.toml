@@ -15,7 +15,7 @@ composeBom = "2024.09.00"
 # Pinned above the BOM. The M3 Expressive LoadingIndicator is only public on the
 # 1.5.0-alpha line (its opt-in annotation is still `internal` in stable 1.4.0), and the
 # app standardises on that indicator — see ui/components/AppLoadingIndicator.kt.
-material3 = "1.5.0-alpha25"
+material3 = "1.5.0-rc01"
 navigationCompose = "2.8.9"
 kotlinxCoroutinesTest = "1.10.2"
 core = "1.6.1"
