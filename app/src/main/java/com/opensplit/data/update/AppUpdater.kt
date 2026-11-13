@@ -89,7 +89,11 @@ class AppUpdater(
         // Just updated and showing "What's new": don't stack an update sheet on top.
         if (autoChecked || BuildConfig.VERSION_CODE <= 1 || _whatsNew.value != null) return
         autoChecked = true
-        check()
+        // "Later" on a release means: don't pop it up again on launch. Settings › About still finds it.
+        val result = check()
+        if (result is State.Available && result.release.tag == prefs.getString(KEY_SNOOZED_TAG, null)) {
+            _state.value = State.Idle
+        }
     }
 
     suspend fun check(): State = withContext(Dispatchers.IO) {
@@ -112,6 +116,7 @@ class AppUpdater(
     }
 
     fun dismiss() {
+        (_state.value as? State.Available)?.let { prefs.edit().putString(KEY_SNOOZED_TAG, it.release.tag).apply() }
         _state.value = State.Idle
     }
 
@@ -342,6 +347,7 @@ class AppUpdater(
         private const val TAG = "AppUpdater"
         private const val APK_MIME = "application/vnd.android.package-archive"
         private const val KEY_LAST_SEEN = "last_seen_version"
+        private const val KEY_SNOOZED_TAG = "snoozed_release_tag"
         const val REPO_API_URL = "https://api.github.com/repos/SutharShantanu/OpenSplit"
         const val RELEASES_URL = "$REPO_API_URL/releases"
 
