@@ -19,8 +19,44 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.style.TextAlign
+
+/**
+ * A number that counts up from zero when it first appears and rolls from the old value to the
+ * new one when it changes (about 0.7 s, fast then settling). It snaps with Reduce motion, and
+ * TalkBack always reads the final value. Pair with the mono money font so digits don't jitter.
+ */
+@Composable
+fun AnimatedAmountText(
+    value: Double,
+    format: (Double) -> String,
+    style: TextStyle,
+    modifier: Modifier = Modifier,
+    color: Color = Color.Unspecified,
+    textAlign: TextAlign? = null,
+    maxLines: Int = 1
+) {
+    val reduce = com.opensplit.ui.theme.LocalReduceMotion.current
+    val animated = remember { androidx.compose.animation.core.Animatable(if (reduce) value.toFloat() else 0f) }
+    LaunchedEffect(value, reduce) {
+        if (reduce) animated.snapTo(value.toFloat())
+        else animated.animateTo(value.toFloat(), androidx.compose.animation.core.tween(700, easing = com.opensplit.ui.theme.OpenSplitMotion.EmphasizedDecelerateEasing))
+    }
+    // Float steps are only for the roll; the resting text is the exact value.
+    val shown = if (animated.isRunning) animated.value.toDouble() else value
+    val final = format(value)
+    Text(
+        text = format(shown),
+        style = style,
+        color = color,
+        textAlign = textAlign,
+        maxLines = maxLines,
+        modifier = modifier.clearAndSetSemantics { contentDescription = final }
+    )
+}
 
 /**
  * Money or any headline number that changes: the old value slides up and fades while the new one

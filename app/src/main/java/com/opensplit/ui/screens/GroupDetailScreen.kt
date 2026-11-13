@@ -204,7 +204,7 @@ fun GroupDetailScreen(
                                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                                 )
                                                 Spacer(modifier = Modifier.height(4.dp))
-                                                com.opensplit.ui.components.AnimatedNumberText(text = "$currencySymbol${com.opensplit.util.CurrencyFormatter.format(totalSpending, showSymbol = false)}", style = MaterialTheme.typography.headlineLarge, color = MaterialTheme.colorScheme.onSurface)
+                                                com.opensplit.ui.components.AnimatedAmountText(value = totalSpending, format = { "$currencySymbol${com.opensplit.util.CurrencyFormatter.format(it, showSymbol = false)}" }, style = MaterialTheme.typography.headlineLarge, color = MaterialTheme.colorScheme.onSurface)
                                                 Spacer(modifier = Modifier.height(2.dp))
                                                 Text(
                                                     text = "This month",

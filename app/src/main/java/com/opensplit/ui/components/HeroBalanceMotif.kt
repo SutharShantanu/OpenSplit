@@ -129,7 +129,6 @@ fun HeroBalanceCard(
 
     val displayAmount = if (isSpendTotal) amount else abs(amount)
     val symbol = com.opensplit.util.CurrencyFormatter.getCurrencySymbol(currency)
-    val formattedNumber = com.opensplit.util.CurrencyFormatter.format(displayAmount, currencyCode = currency, showSymbol = false)
 
     Card(
         modifier = modifier.fillMaxWidth(),
@@ -157,8 +156,9 @@ fun HeroBalanceCard(
             Spacer(modifier = Modifier.height(8.dp))
 
             // Large Hero Amount
-            com.opensplit.ui.components.AnimatedNumberText(
-                text = "$symbol$formattedNumber",
+            com.opensplit.ui.components.AnimatedAmountText(
+                value = displayAmount,
+                format = { "$symbol${com.opensplit.util.CurrencyFormatter.format(it, currencyCode = currency, showSymbol = false)}" },
                 style = MaterialTheme.typography.displaySmall.copy(
                     fontWeight = FontWeight.Bold,
                     fontFamily = MoneyFontFamily

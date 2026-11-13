@@ -2,6 +2,7 @@
 
 package com.opensplit.ui.screens
 
+import kotlin.math.roundToInt
 import com.opensplit.ui.components.FilterChip
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.opensplit.ui.theme.Symbol
@@ -291,11 +292,10 @@ fun AnalyticsScreen(
                                 horizontalArrangement = Arrangement.spacedBy(10.dp)
                             ) {
                                 val currencySymbol = analyticsState.currency
-                                Text(
-                                    text = "$currencySymbol${CurrencyFormatter.format(analyticsState.monthlySpendTotal, showSymbol = false)}",
-                                    style = MaterialTheme.typography.displaySmall,
-                                    fontWeight = FontWeight.Bold,
-                                    fontFamily = com.opensplit.ui.theme.MoneyFontFamily,
+                                com.opensplit.ui.components.AnimatedAmountText(
+                                    value = analyticsState.monthlySpendTotal,
+                                    format = { "$currencySymbol${CurrencyFormatter.format(it, showSymbol = false)}" },
+                                    style = MaterialTheme.typography.displaySmall.copy(fontWeight = FontWeight.Bold, fontFamily = com.opensplit.ui.theme.MoneyFontFamily),
                                     color = MaterialTheme.colorScheme.onPrimaryContainer,
                                     maxLines = 1
                                 )
@@ -604,13 +604,15 @@ fun AnalyticsScreen(
                         modifier = Modifier.weight(1f),
                         icon = OpenSplitIcons.CategoryBills,
                         label = "Total tracked",
-                        value = "${analyticsState.currency}${CurrencyFormatter.format(analyticsState.totalMoneyTracked, showSymbol = false)}"
+                        value = analyticsState.totalMoneyTracked,
+                        format = { "${analyticsState.currency}${CurrencyFormatter.format(it, showSymbol = false)}" }
                     )
                     AnalyticsStatCard(
                         modifier = Modifier.weight(1f),
                         icon = OpenSplitIcons.SplitEqual,
                         label = "Your share",
-                        value = "${analyticsState.currency}${CurrencyFormatter.format(analyticsState.yourShareTotal, showSymbol = false)}"
+                        value = analyticsState.yourShareTotal,
+                        format = { "${analyticsState.currency}${CurrencyFormatter.format(it, showSymbol = false)}" }
                     )
                 }
 
@@ -622,13 +624,15 @@ fun AnalyticsScreen(
                         modifier = Modifier.weight(1f),
                         icon = OpenSplitIcons.Groups,
                         label = "Groups",
-                        value = analyticsState.groupCount.toString()
+                        value = analyticsState.groupCount.toDouble(),
+                        format = { it.roundToInt().toString() }
                     )
                     AnalyticsStatCard(
                         modifier = Modifier.weight(1f),
                         icon = OpenSplitIcons.Friends,
                         label = "People",
-                        value = analyticsState.peopleCount.toString()
+                        value = analyticsState.peopleCount.toDouble(),
+                        format = { it.roundToInt().toString() }
                     )
                 }
 
@@ -836,7 +840,8 @@ fun DonutChart(categories: List<CategorySpend>, modifier: Modifier = Modifier) {
 private fun AnalyticsStatCard(
     icon: Symbol,
     label: String,
-    value: String,
+    value: Double,
+    format: (Double) -> String,
     modifier: Modifier = Modifier
 ) {
     Card(
@@ -862,12 +867,10 @@ private fun AnalyticsStatCard(
                 )
             }
             Spacer(modifier = Modifier.height(OpenSplitTokens.SpaceXS))
-            Text(
-                text = value,
-                style = MaterialTheme.typography.titleLarge,
-                fontWeight = FontWeight.Bold,
-                fontFamily = com.opensplit.ui.theme.MoneyFontFamily,
-                maxLines = 1
+            com.opensplit.ui.components.AnimatedAmountText(
+                value = value,
+                format = format,
+                style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold, fontFamily = com.opensplit.ui.theme.MoneyFontFamily)
             )
         }
     }
@@ -1113,7 +1116,7 @@ private fun MonthSummaryCard(state: AnalyticsUiState, budgets: Map<String, Doubl
                         ) {
                             Column(modifier = Modifier.padding(14.dp)) {
                                 Text(label, style = MaterialTheme.typography.labelMedium, maxLines = 1)
-                                Text(money(value), style = MaterialTheme.typography.titleLarge.copy(fontFamily = com.opensplit.ui.theme.MoneyFontFamily), maxLines = 1)
+                                com.opensplit.ui.components.AnimatedAmountText(value = value, format = ::money, style = MaterialTheme.typography.titleLarge.copy(fontFamily = com.opensplit.ui.theme.MoneyFontFamily))
                             }
                         }
                     }
