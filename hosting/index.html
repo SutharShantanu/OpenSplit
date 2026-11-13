@@ -22,13 +22,27 @@
   </main>
   <script>
     // Invite links (/join/<token>, /friend/<token>) normally open the app directly via App Links.
-    // Landing here means the app isn't installed (or the link opened in a browser): on Android, try the
-    // app once and fall back to the latest GitHub release; elsewhere, go straight to the release page.
+    // Landing here means the app isn't installed (or the link opened in a browser). On Android, try
+    // the app once; if it isn't installed, download the latest APK directly (falls back to the
+    // release page). Elsewhere, show the release page.
     var RELEASE = "https://github.com/SutharShantanu/OpenSplit/releases/latest";
-    var intent = "intent://" + location.host + location.pathname + location.search +
-      "#Intent;scheme=https;package=open.split_07;S.browser_fallback_url=" + encodeURIComponent(RELEASE) + ";end";
-    document.getElementById("open").href = /Android/i.test(navigator.userAgent) ? intent : RELEASE;
-    location.replace(/Android/i.test(navigator.userAgent) ? intent : RELEASE);
+    var android = /Android/i.test(navigator.userAgent);
+    function go(fallback) {
+      var intent = "intent://" + location.host + location.pathname + location.search +
+        "#Intent;scheme=https;package=open.split_07;S.browser_fallback_url=" + encodeURIComponent(fallback) + ";end";
+      document.getElementById("open").href = android ? intent : fallback;
+      document.getElementById("get").href = fallback;
+      location.replace(android ? intent : fallback);
+    }
+    if (!android) { go(RELEASE); } else {
+      fetch("https://api.github.com/repos/SutharShantanu/OpenSplit/releases/latest")
+        .then(function (r) { return r.json(); })
+        .then(function (rel) {
+          var apk = (rel.assets || []).filter(function (a) { return /\.apk$/.test(a.name); })[0];
+          go(apk ? apk.browser_download_url : RELEASE);
+        })
+        .catch(function () { go(RELEASE); });
+    }
   </script>
 </body>
 </html>
