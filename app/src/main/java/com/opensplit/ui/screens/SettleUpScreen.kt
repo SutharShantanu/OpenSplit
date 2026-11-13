@@ -53,6 +53,7 @@ fun SettleUpScreen(
     suggestedFromUid: String? = null,
     suggestedToUid: String? = null,
     suggestedAmount: Double? = null,
+    suggestedMethod: SettlementMethod? = null,
     onNavigateBack: () -> Unit,
     onSaved: () -> Unit = {}
 ) {
@@ -69,8 +70,9 @@ fun SettleUpScreen(
     var amountText by rememberSaveable { mutableStateOf(suggestedAmount?.let { CurrencyFormatter.format(it, showSymbol = false) } ?: "") }
     var note by rememberSaveable { mutableStateOf("") }
     
-    var method by rememberSaveable { mutableStateOf(SettlementMethod.UPI) }
-    var methodPickedByHand by rememberSaveable { mutableStateOf(false) }
+    var method by rememberSaveable { mutableStateOf(suggestedMethod ?: SettlementMethod.UPI) }
+    // A method chosen before opening (e.g. the split button's menu) counts as picked.
+    var methodPickedByHand by rememberSaveable { mutableStateOf(suggestedMethod != null) }
     val usualMethod by viewModel.usualMethod.collectAsStateWithLifecycle()
     // Start on the method this person usually pays with, unless they already picked one.
     LaunchedEffect(usualMethod) { usualMethod?.let { if (!methodPickedByHand) method = it } }

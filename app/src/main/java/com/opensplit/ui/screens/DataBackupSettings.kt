@@ -216,11 +216,7 @@ fun DataBackupSubScreen(
                             modifier = Modifier.fillMaxWidth()
                         ) {
                             if (isClearing) {
-                                CircularProgressIndicator(
-                                    modifier = Modifier.size(16.dp),
-                                    strokeWidth = 2.dp,
-                                    color = MaterialTheme.colorScheme.primary
-                                )
+                                com.opensplit.ui.components.InlineLoadingIndicator(modifier = Modifier.size(16.dp), color = MaterialTheme.colorScheme.primary)
                                 Spacer(modifier = Modifier.width(8.dp))
                                 Text("Clearing...")
                             } else {

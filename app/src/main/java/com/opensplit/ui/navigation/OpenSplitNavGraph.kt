@@ -184,13 +184,14 @@ fun MainNavHost(
                 onNavigateBack = { navController.popBackStack() },
                 onNavigateToAddExpense = { navController.navigate("add_expense/$groupId") },
                 onNavigateToExpenseDetail = { gId, eId -> navController.navigate("expense_detail/$gId/$eId") },
-                onNavigateToSettleUp = { fUid, tUid, amt ->
+                onNavigateToSettleUp = { fUid, tUid, amt, method ->
                     val uri = buildString {
                         append("settle_up/$groupId")
                         val params = mutableListOf<String>()
                         if (!fUid.isNullOrEmpty()) params.add("fromUid=$fUid")
                         if (!tUid.isNullOrEmpty()) params.add("toUid=$tUid")
                         if (amt != null && amt > 0) params.add("amount=$amt")
+                        if (method != null) params.add("method=$method")
                         if (params.isNotEmpty()) append("?${params.joinToString("&")}")
                     }
                     navController.navigate(uri)
@@ -265,7 +266,7 @@ fun MainNavHost(
         }
 
         composable(
-            route = "settle_up/{groupId}?fromUid={fromUid}&toUid={toUid}&amount={amount}&paymentId={paymentId}",
+            route = "settle_up/{groupId}?fromUid={fromUid}&toUid={toUid}&amount={amount}&paymentId={paymentId}&method={method}",
             arguments = listOf(
                 androidx.navigation.navArgument("fromUid") {
                     type = androidx.navigation.NavType.StringType
@@ -283,6 +284,11 @@ fun MainNavHost(
                     defaultValue = null
                 },
                 androidx.navigation.navArgument("paymentId") {
+                    type = androidx.navigation.NavType.StringType
+                    nullable = true
+                    defaultValue = null
+                },
+                androidx.navigation.navArgument("method") {
                     type = androidx.navigation.NavType.StringType
                     nullable = true
                     defaultValue = null
@@ -306,6 +312,8 @@ fun MainNavHost(
                 suggestedFromUid = fromUid,
                 suggestedToUid = toUid,
                 suggestedAmount = amount,
+                suggestedMethod = backStackEntry.arguments?.getString("method")
+                    ?.let { m -> com.opensplit.domain.model.SettlementMethod.entries.firstOrNull { it.name == m } },
                 onNavigateBack = { navController.popBackStack() },
                 onSaved = {
                     backStackEntry.arguments?.getString("paymentId")?.toLongOrNull()?.let {

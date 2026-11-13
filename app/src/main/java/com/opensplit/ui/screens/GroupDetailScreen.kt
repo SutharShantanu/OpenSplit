@@ -2,6 +2,9 @@
 
 package com.opensplit.ui.screens
 
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.graphics.graphicsLayer
 import com.opensplit.ui.components.FilterChip
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.opensplit.ui.theme.Symbol
@@ -47,7 +50,7 @@ fun GroupDetailScreen(
     onNavigateBack: () -> Unit,
     onNavigateToAddExpense: () -> Unit,
     onNavigateToExpenseDetail: (String, String) -> Unit,
-    onNavigateToSettleUp: (fromUid: String?, toUid: String?, amount: Double?) -> Unit = { _, _, _ -> },
+    onNavigateToSettleUp: (fromUid: String?, toUid: String?, amount: Double?, method: String?) -> Unit = { _, _, _, _ -> },
     onNavigateToEditExpense: (String, String) -> Unit = { _, _ -> }
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
@@ -209,24 +212,43 @@ fun GroupDetailScreen(
                                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                                 )
                                             }
-                                            Button(
-                                                onClick = {
-                                                    if (data.members.size > 1) {
-                                                        val s = data.simplifiedSettlements.firstOrNull()
-                                                        onNavigateToSettleUp(s?.fromUid, s?.toUid, s?.amount)
-                                                    } else {
-                                                        snackbar.showMessage("Add another member to this group before settling up")
+                                            // M3 Expressive split button: settle, or pick how you'll pay from the menu.
+                                            val settle: (String?) -> Unit = { method ->
+                                                if (data.members.size > 1) {
+                                                    val s = data.simplifiedSettlements.firstOrNull()
+                                                    onNavigateToSettleUp(s?.fromUid, s?.toUid, s?.amount, method)
+                                                } else {
+                                                    snackbar.showMessage("Add another member to this group before settling up")
+                                                }
+                                            }
+                                            var settleMenu by remember { mutableStateOf(false) }
+                                            Box {
+                                                androidx.compose.material3.SplitButtonLayout(
+                                                    leadingButton = {
+                                                        androidx.compose.material3.SplitButtonDefaults.LeadingButton(onClick = { settle(null) }) {
+                                                            SymbolIcon(OpenSplitIcons.Settle, contentDescription = null, modifier = Modifier.size(18.dp))
+                                                            Spacer(modifier = Modifier.width(6.dp))
+                                                            Text("Settle Up", fontWeight = FontWeight.Bold)
+                                                        }
+                                                    },
+                                                    trailingButton = {
+                                                        androidx.compose.material3.SplitButtonDefaults.TrailingButton(
+                                                            checked = settleMenu,
+                                                            onCheckedChange = { settleMenu = it },
+                                                            modifier = Modifier.semantics { contentDescription = "Choose how to pay" }
+                                                        ) {
+                                                            SymbolIcon(
+                                                                OpenSplitIcons.Dropdown, contentDescription = null,
+                                                                modifier = Modifier.size(20.dp).graphicsLayer { rotationZ = if (settleMenu) 180f else 0f }
+                                                            )
+                                                        }
                                                     }
-                                                },
-                                                shape = CircleShape,
-                                                colors = ButtonDefaults.buttonColors(
-                                                    containerColor = MaterialTheme.colorScheme.primary,
-                                                    contentColor = MaterialTheme.colorScheme.onPrimary
                                                 )
-                                            ) {
-                                                SymbolIcon(OpenSplitIcons.Settle, contentDescription = null, modifier = Modifier.size(18.dp))
-                                                Spacer(modifier = Modifier.width(6.dp))
-                                                Text("Settle Up", fontWeight = FontWeight.Bold)
+                                                DropdownMenu(expanded = settleMenu, onDismissRequest = { settleMenu = false }) {
+                                                    listOf("UPI" to "Settle via UPI", "CASH" to "Settle in cash", "BANK_TRANSFER" to "Settle by bank transfer").forEach { (m, label) ->
+                                                        DropdownMenuItem(text = { Text(label) }, onClick = { settleMenu = false; settle(m) })
+                                                    }
+                                                }
                                             }
                                         }
                                     }
@@ -258,7 +280,7 @@ fun GroupDetailScreen(
                                                         style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant
                                                     )
                                                 }
-                                                TextButton(shapes = com.opensplit.ui.theme.appButtonShapes(), onClick = { onNavigateToSettleUp(top.fromUid, top.toUid, top.amount) }) { Text("Settle up") }
+                                                TextButton(shapes = com.opensplit.ui.theme.appButtonShapes(), onClick = { onNavigateToSettleUp(top.fromUid, top.toUid, top.amount, null) }) { Text("Settle up") }
                                             }
                                         }
                                     }
@@ -411,7 +433,7 @@ fun GroupDetailScreen(
                                     onClick = {
                                         if (data.members.size > 1) {
                                             val s = data.simplifiedSettlements.firstOrNull()
-                                            onNavigateToSettleUp(s?.fromUid, s?.toUid, s?.amount)
+                                            onNavigateToSettleUp(s?.fromUid, s?.toUid, s?.amount, null)
                                         } else {
                                             snackbar.showMessage("Add another member to this group before settling up")
                                         }
@@ -444,7 +466,7 @@ fun GroupDetailScreen(
                                                     modifier = Modifier
                                                         .fillMaxWidth()
                                                         .clip(androidx.compose.material3.MaterialTheme.shapes.extraSmall)
-                                                        .clickable { onNavigateToSettleUp(s.fromUid, s.toUid, s.amount) }
+                                                        .clickable { onNavigateToSettleUp(s.fromUid, s.toUid, s.amount, null) }
                                                         .padding(vertical = 6.dp, horizontal = 4.dp),
                                                     verticalAlignment = Alignment.CenterVertically
                                                 ) {

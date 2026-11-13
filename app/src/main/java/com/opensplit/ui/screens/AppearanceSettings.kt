@@ -209,84 +209,14 @@ private fun ThemeModeSelectionCard(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // 3-Way Mode Switcher Cards
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(10.dp)
-            ) {
-                listOf(
-                    Triple("system", "System", OpenSplitIcons.AutoAwesome),
-                    Triple("light", "Light", OpenSplitIcons.WbSunny),
-                    Triple("dark", "Dark", OpenSplitIcons.DarkMode)
-                ).forEach { (mode, label, icon) ->
-                    val isSelected = when (mode) {
-                        "system" -> theme == "system" || (theme != "light" && theme != "dark")
-                        "light" -> theme == "light"
-                        "dark" -> theme == "dark"
-                        else -> false
-                    }
-
-                    Surface(
-                        modifier = Modifier
-                            .weight(1f)
-                            .clip(androidx.compose.material3.MaterialTheme.shapes.medium)
-                            .selectable(selected = isSelected, role = Role.RadioButton, onClick = { onThemeChange(mode) }),
-                        shape = MaterialTheme.shapes.medium,
-                        color = if (isSelected) {
-                            MaterialTheme.colorScheme.primaryContainer
-                        } else {
-                            MaterialTheme.colorScheme.surfaceContainerLowest
-                        },
-                        border = if (isSelected) {
-                            BorderStroke(2.dp, MaterialTheme.colorScheme.primary)
-                        } else {
-                            BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
-                        }
-                    ) {
-                        Column(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(vertical = 14.dp, horizontal = 8.dp),
-                            horizontalAlignment = Alignment.CenterHorizontally
-                        ) {
-                            Surface(
-                                shape = CircleShape,
-                                color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant,
-                                modifier = Modifier.size(36.dp)
-                            ) {
-                                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                                    SymbolIcon(
-                                        symbol = icon,
-                                        contentDescription = null,
-                                        tint = if (isSelected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant,
-                                        modifier = Modifier.size(20.dp)
-                                    )
-                                }
-                            }
-
-                            Spacer(modifier = Modifier.height(10.dp))
-
-                            Text(
-                                text = label,
-                                style = MaterialTheme.typography.bodyMedium,
-                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.SemiBold,
-                                color = if (isSelected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurface,
-                                maxLines = 1
-                            )
-
-                            Spacer(modifier = Modifier.height(4.dp))
-
-                            RadioButton(
-                                selected = isSelected,
-                                onClick = null,
-                                colors = RadioButtonDefaults.colors(
-                                    selectedColor = MaterialTheme.colorScheme.primary
-                                )
-                            )
-                        }
-                    }
-                }
-            }
+            // Connected button group: one choice, shape morphs on selection.
+            val modes = listOf("system", "light", "dark")
+            com.opensplit.ui.components.ConnectedChoiceGroup(
+                options = listOf("System", "Light", "Dark"),
+                icons = listOf(OpenSplitIcons.AutoAwesome, OpenSplitIcons.WbSunny, OpenSplitIcons.DarkMode),
+                selectedIndex = modes.indexOf(theme).coerceAtLeast(0),
+                onSelect = { onThemeChange(modes[it]) }
+            )
         }
     }
 }

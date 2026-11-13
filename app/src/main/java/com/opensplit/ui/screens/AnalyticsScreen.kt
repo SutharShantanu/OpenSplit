@@ -164,33 +164,12 @@ fun AnalyticsScreen(
                     modifier = Modifier.fillMaxWidth(),
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    // Period type chips
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        AnalyticsPeriodType.entries.forEach { pType ->
-                            FilterChip(
-                                selected = analyticsState.periodType == pType,
-                                onClick = { viewModel.setPeriodType(pType) },
-                                label = {
-                                    Text(
-                                        text = pType.label,
-                                        fontWeight = if (analyticsState.periodType == pType) FontWeight.Bold else FontWeight.Normal
-                                    )
-                                },
-                                leadingIcon = if (analyticsState.periodType == pType) {
-                                    {
-                                        SymbolIcon(
-                                            symbol = OpenSplitIcons.Check,
-                                            contentDescription = null,
-                                            modifier = Modifier.size(16.dp)
-                                        )
-                                    }
-                                } else null
-                            )
-                        }
-                    }
+                    // Period type: connected button group (single choice)
+                    com.opensplit.ui.components.ConnectedChoiceGroup(
+                        options = AnalyticsPeriodType.entries.map { it.label },
+                        selectedIndex = analyticsState.periodType.ordinal,
+                        onSelect = { viewModel.setPeriodType(AnalyticsPeriodType.entries[it]) }
+                    )
 
                     // Historical Navigator (Only when not "All Time")
                     if (analyticsState.periodType != AnalyticsPeriodType.ALL_TIME) {
@@ -388,19 +367,12 @@ fun AnalyticsScreen(
                             )
 
                             if (analyticsState.periodType == AnalyticsPeriodType.MONTH) {
-                                Surface(
-                                    shape = CircleShape,
-                                    color = MaterialTheme.colorScheme.surfaceContainerHigh,
-                                    onClick = { chartMode = if (chartMode == "Weekly") "Monthly" else "Weekly" }
-                                ) {
-                                    Text(
-                                        text = chartMode,
-                                        style = MaterialTheme.typography.labelSmall,
-                                        fontWeight = FontWeight.Bold,
-                                        color = MaterialTheme.colorScheme.primary,
-                                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
-                                    )
-                                }
+                                com.opensplit.ui.components.ConnectedChoiceGroup(
+                                    options = listOf("Weekly", "Monthly"),
+                                    selectedIndex = if (chartMode == "Weekly") 0 else 1,
+                                    onSelect = { chartMode = if (it == 0) "Weekly" else "Monthly" },
+                                    modifier = Modifier.width(220.dp)
+                                )
                             } else if (analyticsState.periodType == AnalyticsPeriodType.YEAR) {
                                 Surface(
                                     shape = CircleShape,

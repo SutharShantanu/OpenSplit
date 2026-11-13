@@ -2,6 +2,7 @@
 
 package com.opensplit.ui.screens
 
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.opensplit.ui.theme.Symbol
 import com.opensplit.ui.components.SymbolIcon
@@ -206,15 +207,22 @@ fun MainDashboard(
     // Both FAB lambdas exist unconditionally; the `when` only picks one. Creating composable
     // lambdas inside `when` branches shifted the slot table when switching tabs, which made
     // Compose rebuild everything below (and skip the tab slide).
-    val groupsFab: @Composable () -> Unit = {
-        FloatingActionButton(
-            onClick = { addExpense() },
-            shape = androidx.compose.foundation.shape.CircleShape,
-            modifier = Modifier.size(72.dp),
-            containerColor = MaterialTheme.colorScheme.primaryContainer,
-            contentColor = MaterialTheme.colorScheme.onPrimaryContainer
-        ) { SymbolIcon(OpenSplitIcons.AddExpense, contentDescription = "Add expense") }
+    // M3 Expressive FAB menu: the create actions for money and groups in one place. It floats
+    // above the nav bar (not docked in it), so opening it never resizes the bar.
+    val groupsFabMenu: @Composable (Modifier) -> Unit = { menuModifier ->
+        com.opensplit.ui.components.ActionFabMenu(
+            modifier = menuModifier,
+            icon = OpenSplitIcons.AddExpense,
+            contentDescription = "Create",
+            actions = listOf(
+                com.opensplit.ui.components.FabAction("Add expense", OpenSplitIcons.AddExpense) { addExpense() },
+                com.opensplit.ui.components.FabAction("Settle up", OpenSplitIcons.Settle) { settleUp() },
+                com.opensplit.ui.components.FabAction("New group", OpenSplitIcons.GroupAdd) { showCreateGroup = true },
+                com.opensplit.ui.components.FabAction("Add friend", OpenSplitIcons.PersonAdd) { mainViewModel.ensureFriendLink(); showQrSheet = true }
+            )
+        )
     }
+    val groupsFab: @Composable () -> Unit = {}
     val peopleFab: @Composable () -> Unit = {
         FloatingActionButton(
             onClick = { mainViewModel.ensureFriendLink(); showQrSheet = true },
@@ -277,7 +285,7 @@ fun MainDashboard(
         ) {
             if (wide) {
                 // M3 Expressive wide navigation rail (collapsed): same items, expressive indicator and spacing.
-                androidx.compose.material3.WideNavigationRail(header = { fab?.let { Spacer(Modifier.height(8.dp)); it() } }) {
+                androidx.compose.material3.WideNavigationRail(header = { fab?.let { Spacer(Modifier.height(8.dp)); if (it === groupsFab) groupsFabMenu(Modifier) else it() } }) {
                     // Short landscape windows can't fit five destinations; let the rail scroll.
                     androidx.compose.foundation.layout.Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
                         DashboardTab.entries.forEach { tab ->
@@ -368,13 +376,14 @@ fun MainDashboard(
                                     onNavigateBack = { detailGroupId = null },
                                     onNavigateToAddExpense = { rootNavController.navigate("add_expense/$gId") },
                                     onNavigateToExpenseDetail = { g, e -> rootNavController.navigate("expense_detail/$g/$e") },
-                                    onNavigateToSettleUp = { fUid, tUid, amt ->
+                                    onNavigateToSettleUp = { fUid, tUid, amt, method ->
                                         val uri = buildString {
                                             append("settle_up/$gId")
                                             val params = mutableListOf<String>()
                                             if (!fUid.isNullOrEmpty()) params.add("fromUid=$fUid")
                                             if (!tUid.isNullOrEmpty()) params.add("toUid=$tUid")
                                             if (amt != null && amt > 0) params.add("amount=$amt")
+                                            if (method != null) params.add("method=$method")
                                             if (params.isNotEmpty()) append("?${params.joinToString("&")}")
                                         }
                                         rootNavController.navigate(uri)
@@ -443,9 +452,13 @@ fun MainDashboard(
                     badge = { icon -> tabItem(tab, icon) }
                 )
             },
-            action = fab,
+            action = fab.takeIf { it !== groupsFab },
             modifier = Modifier.align(androidx.compose.ui.Alignment.BottomCenter)
         )
+        if (fab === groupsFab) {
+            // Above the nav bar: its 12dp padding + 72dp height + 16dp gap.
+            groupsFabMenu(Modifier.align(androidx.compose.ui.Alignment.BottomEnd).navigationBarsPadding().padding(end = 16.dp, bottom = 100.dp))
+        }
     }
     }
 

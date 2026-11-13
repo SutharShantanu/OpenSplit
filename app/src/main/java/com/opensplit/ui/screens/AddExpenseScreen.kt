@@ -1012,7 +1012,13 @@ fun AddExpenseScreen(
                         splitTypes.forEachIndexed { index, title ->
                             androidx.compose.material3.ToggleButton(
                                 checked = selectedSplitIndex == index,
-                                onCheckedChange = { selectedSplitIndex = index }
+                                onCheckedChange = { selectedSplitIndex = index },
+                                // Connected group: round outer ends, square inner corners until selected.
+                                shapes = when (index) {
+                                    0 -> androidx.compose.material3.ButtonGroupDefaults.connectedLeadingButtonShapes()
+                                    splitTypes.lastIndex -> androidx.compose.material3.ButtonGroupDefaults.connectedTrailingButtonShapes()
+                                    else -> androidx.compose.material3.ButtonGroupDefaults.connectedMiddleButtonShapes()
+                                }
                             ) { Text(title) }
                         }
                     }

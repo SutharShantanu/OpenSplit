@@ -1096,11 +1096,7 @@ fun SettlementReportBottomSheet(
                     enabled = !isExporting
                 ) {
                     if (isExporting) {
-                        CircularProgressIndicator(
-                            modifier = Modifier.size(20.dp),
-                            strokeWidth = 2.dp,
-                            color = MaterialTheme.colorScheme.onPrimary
-                        )
+                        com.opensplit.ui.components.InlineLoadingIndicator(modifier = Modifier.size(20.dp), color = MaterialTheme.colorScheme.onPrimary)
                     } else {
                         SymbolIcon(
                             symbol = OpenSplitIcons.Export,

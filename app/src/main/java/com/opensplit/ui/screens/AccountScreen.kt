@@ -815,11 +815,7 @@ fun AccountOverviewScreen(
                                                 )
                                                 Spacer(modifier = Modifier.width(5.dp))
                                             } else if (cat == AccountCategory.SYNC && isSyncingNow) {
-                                                CircularProgressIndicator(
-                                                    modifier = Modifier.size(10.dp),
-                                                    strokeWidth = 1.5.dp,
-                                                    color = MaterialTheme.colorScheme.primary
-                                                )
+                                                com.opensplit.ui.components.InlineLoadingIndicator(modifier = Modifier.size(14.dp), color = MaterialTheme.colorScheme.primary)
                                                 Spacer(modifier = Modifier.width(5.dp))
                                             }
                                             Text(
@@ -1131,11 +1127,7 @@ private fun CloudSyncBottomSheet(
                     .height(48.dp)
             ) {
                 if (isSyncing) {
-                    CircularProgressIndicator(
-                        modifier = Modifier.size(18.dp),
-                        strokeWidth = 2.dp,
-                        color = MaterialTheme.colorScheme.primary
-                    )
+                    com.opensplit.ui.components.InlineLoadingIndicator(modifier = Modifier.size(18.dp), color = MaterialTheme.colorScheme.primary)
                     Spacer(modifier = Modifier.width(8.dp))
                     Text("Syncing with cloud...")
                 } else {
@@ -1242,12 +1234,9 @@ private fun DeviceStorageBottomSheet(
                         )
                     }
 
-                    LinearProgressIndicator(
+                    androidx.compose.material3.LinearWavyProgressIndicator(
                         progress = { storageRatio },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(8.dp)
-                            .clip(CircleShape),
+                        modifier = Modifier.fillMaxWidth(),
                         color = MaterialTheme.colorScheme.secondary,
                         trackColor = MaterialTheme.colorScheme.surfaceContainerHighest
                     )
@@ -1294,11 +1283,7 @@ private fun DeviceStorageBottomSheet(
                     .height(48.dp)
             ) {
                 if (isClearing) {
-                    CircularProgressIndicator(
-                        modifier = Modifier.size(18.dp),
-                        strokeWidth = 2.dp,
-                        color = MaterialTheme.colorScheme.primary
-                    )
+                    com.opensplit.ui.components.InlineLoadingIndicator(modifier = Modifier.size(18.dp), color = MaterialTheme.colorScheme.primary)
                     Spacer(modifier = Modifier.width(8.dp))
                     Text("Clearing cache...")
                 } else {

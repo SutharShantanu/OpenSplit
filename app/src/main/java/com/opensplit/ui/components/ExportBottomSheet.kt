@@ -404,11 +404,7 @@ fun ExportBottomSheet(
                     .height(52.dp)
             ) {
                 if (isExporting) {
-                    CircularProgressIndicator(
-                        modifier = Modifier.size(20.dp),
-                        strokeWidth = 2.dp,
-                        color = MaterialTheme.colorScheme.onSecondaryContainer
-                    )
+                    com.opensplit.ui.components.InlineLoadingIndicator(modifier = Modifier.size(20.dp), color = MaterialTheme.colorScheme.onSecondaryContainer)
                     Spacer(modifier = Modifier.width(10.dp))
                     Text("Exporting…")
                 } else {
