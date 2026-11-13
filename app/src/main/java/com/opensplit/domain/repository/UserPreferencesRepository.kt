@@ -56,6 +56,10 @@ interface UserPreferencesRepository {
     val reduceMotionFlow: Flow<Boolean>
     suspend fun setReduceMotion(enabled: Boolean)
 
+    /** Vibration on taps, swipes and confirmations. On by default. */
+    val hapticsFlow: Flow<Boolean>
+    suspend fun setHaptics(enabled: Boolean)
+
 
     val providerApiKeysFlow: Flow<Map<String, String>>
     suspend fun setProviderApiKey(providerId: String, key: String)

@@ -176,7 +176,7 @@ fun ActivityScreen(
                                     },
                                     leadingIcon = {
                                         if (uiState.selectedGroupId == null) {
-                                            SymbolIcon(OpenSplitIcons.Check, contentDescription = null)
+                                            SymbolIcon(OpenSplitIcons.Check, contentDescription = "Selected")
                                         }
                                     }
                                 )
@@ -189,7 +189,7 @@ fun ActivityScreen(
                                         },
                                         leadingIcon = {
                                             if (uiState.selectedGroupId == group.id) {
-                                                SymbolIcon(OpenSplitIcons.Check, contentDescription = null)
+                                                SymbolIcon(OpenSplitIcons.Check, contentDescription = "Selected")
                                             }
                                         }
                                     )
@@ -222,7 +222,7 @@ fun ActivityScreen(
                                             sortDropdownExpanded = false
                                         },
                                         leadingIcon = { SymbolIcon(order.icon(), contentDescription = null) },
-                                        trailingIcon = { if (uiState.sortOrder == order) SymbolIcon(OpenSplitIcons.Check, contentDescription = null) }
+                                        trailingIcon = { if (uiState.sortOrder == order) SymbolIcon(OpenSplitIcons.Check, contentDescription = "Selected") }
                                     )
                                 }
                             }
@@ -289,7 +289,7 @@ fun ActivityScreen(
                                             applyPreset(preset)
                                         },
                                         leadingIcon = { SymbolIcon(preset.icon(), contentDescription = null) },
-                                        trailingIcon = { if (datePreset == preset) SymbolIcon(OpenSplitIcons.Check, contentDescription = null) }
+                                        trailingIcon = { if (datePreset == preset) SymbolIcon(OpenSplitIcons.Check, contentDescription = "Selected") }
                                     )
                                 }
                             }
@@ -312,7 +312,7 @@ fun ActivityScreen(
                                         text = { Text(who.label) },
                                         onClick = { viewModel.setActorFilter(who); actorDropdownExpanded = false },
                                         leadingIcon = { SymbolIcon(who.icon(), contentDescription = null) },
-                                        trailingIcon = { if (uiState.actorFilter == who) SymbolIcon(OpenSplitIcons.Check, contentDescription = null) }
+                                        trailingIcon = { if (uiState.actorFilter == who) SymbolIcon(OpenSplitIcons.Check, contentDescription = "Selected") }
                                     )
                                 }
                             }

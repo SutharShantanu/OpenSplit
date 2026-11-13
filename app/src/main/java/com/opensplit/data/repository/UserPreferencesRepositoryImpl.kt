@@ -175,6 +175,7 @@ class UserPreferencesRepositoryImpl(private val context: Context) : UserPreferen
 
     private val FONT_KEY = stringPreferencesKey("font")
     private val REDUCE_MOTION_KEY = booleanPreferencesKey("reduce_motion")
+    private val HAPTICS_KEY = booleanPreferencesKey("haptics")
 
     override val fontFlow: Flow<String> = context.dataStore.data.map { it[FONT_KEY] ?: "default" }
 
@@ -186,6 +187,12 @@ class UserPreferencesRepositoryImpl(private val context: Context) : UserPreferen
 
     override suspend fun setReduceMotion(enabled: Boolean) {
         context.dataStore.edit { it[REDUCE_MOTION_KEY] = enabled }
+    }
+
+    override val hapticsFlow: Flow<Boolean> = context.dataStore.data.map { it[HAPTICS_KEY] ?: true }
+
+    override suspend fun setHaptics(enabled: Boolean) {
+        context.dataStore.edit { it[HAPTICS_KEY] = enabled }
     }
 
     /**

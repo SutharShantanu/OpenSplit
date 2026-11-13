@@ -153,6 +153,7 @@ fun OpenSplitTheme(
   font: String = "default",
   reduceMotion: Boolean = false,
   dynamicColor: Boolean = true,
+  haptics: Boolean = true,
   content: @Composable () -> Unit,
 ) {
   val context = LocalContext.current
@@ -193,8 +194,18 @@ fun OpenSplitTheme(
     typography = remember(font) { openSplitTypography(font) },
     shapes = OpenSplitShapes
   ) {
-    androidx.compose.runtime.CompositionLocalProvider(LocalReduceMotion provides reduce, content = content)
+    // Every haptic in the app goes through LocalHapticFeedback, so swapping it switches them all off.
+    val systemHaptics = androidx.compose.ui.platform.LocalHapticFeedback.current
+    androidx.compose.runtime.CompositionLocalProvider(
+      LocalReduceMotion provides reduce,
+      androidx.compose.ui.platform.LocalHapticFeedback provides if (haptics) systemHaptics else NoHaptics,
+      content = content
+    )
   }
+}
+
+private object NoHaptics : androidx.compose.ui.hapticfeedback.HapticFeedback {
+  override fun performHapticFeedback(hapticFeedbackType: androidx.compose.ui.hapticfeedback.HapticFeedbackType) = Unit
 }
 
 /** Positive state (connected, strong). Not a Material role, so picked per light/dark for contrast. */

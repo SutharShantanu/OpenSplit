@@ -350,7 +350,7 @@ fun BalanceBreakdownSheet(
                                                     onNavigateToSettleUp(group.id)
                                                 },
                                                 contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp),
-                                                modifier = Modifier.height(30.dp)
+                                                modifier = Modifier.heightIn(min = 30.dp)
                                             ) {
                                                 Text("Settle Up", style = MaterialTheme.typography.labelSmall)
                                             }
@@ -453,7 +453,7 @@ fun BalanceBreakdownSheet(
                                                 onNavigateToPersonBalance?.invoke(user.uid)
                                             },
                                             contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp),
-                                            modifier = Modifier.height(30.dp)
+                                            modifier = Modifier.heightIn(min = 30.dp)
                                         ) {
                                             Text(if (!isOwedToYou) "Settle Up" else "View", style = MaterialTheme.typography.labelSmall)
                                         }

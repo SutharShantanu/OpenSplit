@@ -190,6 +190,7 @@ fun AccountScreen(
                         val prefs = viewModel.userPreferencesRepository
                         val font by prefs.fontFlow.collectAsStateWithLifecycle(initialValue = "default")
                         val reduceMotion by prefs.reduceMotionFlow.collectAsStateWithLifecycle(initialValue = false)
+                        val haptics by prefs.hapticsFlow.collectAsStateWithLifecycle(initialValue = true)
                         val prefScope = androidx.compose.runtime.rememberCoroutineScope()
                         AppearanceSettingsSubScreen(
                             theme = theme,
@@ -200,6 +201,8 @@ fun AccountScreen(
                             onDynamicColorChange = { viewModel.setDynamicColor(it) },
                             reduceMotion = reduceMotion,
                             onReduceMotionChange = { r -> prefScope.launch { prefs.setReduceMotion(r) } },
+                            haptics = haptics,
+                            onHapticsChange = { h -> prefScope.launch { prefs.setHaptics(h) } },
                             onBack = { selectedCategory = null }
                         )
                     }
@@ -665,7 +668,7 @@ fun AccountOverviewScreen(
                             onClick = { showEditNameDialog = true },
                             shape = MaterialTheme.shapes.extraSmall,
                             contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
-                            modifier = Modifier.height(34.dp)
+                            modifier = Modifier.heightIn(min = 34.dp)
                         ) {
                             Text("Edit", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.SemiBold)
                         }

@@ -219,7 +219,7 @@ fun AnalyticsScreen(
                                 Surface(
                                     shape = CircleShape,
                                     color = MaterialTheme.colorScheme.surfaceContainerHighest,
-                                    modifier = Modifier.clickable { showPeriodPickerDialog = true }
+                                    onClick = { showPeriodPickerDialog = true }
                                 ) {
                                     Row(
                                         modifier = Modifier.padding(horizontal = 14.dp, vertical = 6.dp),
@@ -390,9 +390,7 @@ fun AnalyticsScreen(
                                 Surface(
                                     shape = CircleShape,
                                     color = MaterialTheme.colorScheme.surfaceContainerHigh,
-                                    modifier = Modifier.clickable {
-                                        chartMode = if (chartMode == "Weekly") "Monthly" else "Weekly"
-                                    }
+                                    onClick = { chartMode = if (chartMode == "Weekly") "Monthly" else "Weekly" }
                                 ) {
                                     Text(
                                         text = chartMode,
@@ -570,7 +568,8 @@ fun AnalyticsScreen(
                                 Row {
                                     Text(cat, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
                                     Text(
-                                        "${analyticsState.currency}${"%,.0f".format(spent)} / ${analyticsState.currency}${"%,.0f".format(limit)}",
+                                        "${analyticsState.currency}${"%,.0f".format(spent)} / ${analyticsState.currency}${"%,.0f".format(limit)}" +
+                                            if (spent > limit) " · over" else "",
                                         style = MaterialTheme.typography.bodySmall.copy(fontFamily = com.opensplit.ui.theme.MoneyFontFamily),
                                         color = if (spent > limit) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant
                                     )

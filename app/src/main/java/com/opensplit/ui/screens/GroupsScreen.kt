@@ -1096,6 +1096,7 @@ private fun GroupBalanceChip(balance: Double, currency: String) {
             fontWeight = FontWeight.SemiBold,
             color = fg,
             maxLines = 1,
+            overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
             modifier = Modifier.padding(horizontal = 10.dp, vertical = 3.dp)
         )
     }

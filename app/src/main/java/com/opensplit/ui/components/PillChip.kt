@@ -14,6 +14,8 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -86,10 +88,11 @@ fun PillTabs(
     androidx.compose.material3.Surface(
         shape = androidx.compose.foundation.shape.CircleShape,
         color = c.surfaceContainerHigh,
-        modifier = modifier.fillMaxWidth().height(56.dp)
+        modifier = modifier.fillMaxWidth().heightIn(min = 56.dp)
     ) {
+        // Intrinsic height: every pill matches the tallest, which grows when a label wraps at large font sizes.
         Row(
-            modifier = Modifier.padding(4.dp),
+            modifier = Modifier.height(IntrinsicSize.Min).padding(4.dp),
             horizontalArrangement = Arrangement.spacedBy(4.dp)
         ) {
             labels.forEachIndexed { i, label ->
@@ -112,7 +115,10 @@ fun PillTabs(
                         androidx.compose.material3.Text(
                             label,
                             style = MaterialTheme.typography.labelLarge,
-                            maxLines = 1
+                            maxLines = 2,
+                            overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+                            textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                            modifier = Modifier.padding(horizontal = 4.dp, vertical = 8.dp)
                         )
                     }
                 }

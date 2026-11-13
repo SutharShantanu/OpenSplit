@@ -69,8 +69,9 @@ class MainActivity : ComponentActivity() {
             val font by prefs.fontFlow.collectAsStateWithLifecycle(initialValue = "default")
             val reduceMotion by prefs.reduceMotionFlow.collectAsStateWithLifecycle(initialValue = false)
             val dynamicColor by prefs.dynamicColorFlow.collectAsStateWithLifecycle(initialValue = true)
+            val haptics by prefs.hapticsFlow.collectAsStateWithLifecycle(initialValue = true)
 
-            OpenSplitTheme(darkTheme = isDark, font = font, reduceMotion = reduceMotion, dynamicColor = dynamicColor) {
+            OpenSplitTheme(darkTheme = isDark, font = font, reduceMotion = reduceMotion, dynamicColor = dynamicColor, haptics = haptics) {
                 // One snackbar host for the whole app, overlaid above every screen so any
                 // composable can confirm an action via LocalSnackbarController.
                 val snackbarHostState = remember { SnackbarHostState() }

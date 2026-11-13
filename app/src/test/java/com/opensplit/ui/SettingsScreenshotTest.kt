@@ -122,6 +122,8 @@ class SettingsScreenshotTest {
                         onDynamicColorChange = {},
                         reduceMotion = false,
                         onReduceMotionChange = {},
+                        haptics = true,
+                        onHapticsChange = {},
                         onBack = {}
                     )
                 }

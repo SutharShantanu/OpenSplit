@@ -103,7 +103,7 @@ fun GroupDetailScreen(
                     ExtendedFloatingActionButton(
                         expanded = isExpanded,
                         onClick = onNavigateToAddExpense,
-                        icon = { SymbolIcon(OpenSplitIcons.AddExpense, contentDescription = null) },
+                        icon = { SymbolIcon(OpenSplitIcons.AddExpense, contentDescription = if (isExpanded) null else "Add expense") },
                         text = { Text("Add Expense") },
                         containerColor = MaterialTheme.colorScheme.primaryContainer,
                         contentColor = MaterialTheme.colorScheme.onPrimaryContainer
@@ -193,7 +193,8 @@ fun GroupDetailScreen(
                                             horizontalArrangement = Arrangement.SpaceBetween,
                                             verticalAlignment = Alignment.CenterVertically
                                         ) {
-                                            Column {
+                                            // Weighted so the button keeps its width and the text wraps at large font sizes.
+                                            Column(modifier = Modifier.weight(1f)) {
                                                 Text(
                                                     text = "Group Total Spending",
                                                     style = MaterialTheme.typography.titleMedium,

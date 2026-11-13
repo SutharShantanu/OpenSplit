@@ -121,7 +121,7 @@ fun ExpenseDetailScreen(
                                         contentAlignment = Alignment.Center
                                     ) {
                                         SymbolIcon(
-                                            symbol = OpenSplitIcons.CategoryFood,
+                                            symbol = com.opensplit.ui.components.getCategoryIcon(exp.category),
                                             contentDescription = null,
                                             tint = MaterialTheme.colorScheme.onSecondaryContainer,
                                             modifier = Modifier.size(28.dp)
@@ -198,7 +198,7 @@ fun ExpenseDetailScreen(
                                     Row(
                                         modifier = Modifier
                                             .fillMaxWidth()
-                                            .height(48.dp),
+                                            .heightIn(min = 48.dp),
                                         verticalAlignment = Alignment.CenterVertically,
                                         horizontalArrangement = Arrangement.SpaceBetween
                                     ) {
@@ -235,7 +235,7 @@ fun ExpenseDetailScreen(
                                         Row(
                                             modifier = Modifier
                                                 .fillMaxWidth()
-                                                .height(44.dp),
+                                                .heightIn(min = 48.dp),
                                             verticalAlignment = Alignment.CenterVertically,
                                             horizontalArrangement = Arrangement.SpaceBetween
                                         ) {

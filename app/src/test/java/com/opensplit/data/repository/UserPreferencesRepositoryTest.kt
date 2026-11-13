@@ -36,6 +36,14 @@ class UserPreferencesRepositoryTest {
     }
 
     @Test
+    fun hapticsOnByDefaultAndCanBeTurnedOff() = runBlocking {
+        assertEquals(true, repository.hapticsFlow.first())
+        repository.setHaptics(false)
+        assertEquals(false, repository.hapticsFlow.first())
+        repository.setHaptics(true)
+    }
+
+    @Test
     fun testPermissionPrimerPreferenceWriteAndRead() = runBlocking {
         repository.setHasCompletedPermissionPrimer(true)
         val completed = repository.hasCompletedPermissionPrimer.first()

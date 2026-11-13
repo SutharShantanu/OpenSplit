@@ -875,7 +875,7 @@ fun SettlementReportBottomSheet(
                         Surface(
                             modifier = Modifier
                                 .weight(1f)
-                                .height(46.dp)
+                                .heightIn(min = 48.dp)
                                 .clickable { selectedBasis = basis },
                             shape = MaterialTheme.shapes.small,
                             color = if (isSelected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceContainerHigh,

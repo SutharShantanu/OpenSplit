@@ -50,6 +50,8 @@ fun AppearanceSettingsSubScreen(
     onDynamicColorChange: (Boolean) -> Unit,
     reduceMotion: Boolean,
     onReduceMotionChange: (Boolean) -> Unit,
+    haptics: Boolean,
+    onHapticsChange: (Boolean) -> Unit,
     onBack: () -> Unit
 ) {
     val configuration = LocalConfiguration.current
@@ -92,13 +94,31 @@ fun AppearanceSettingsSubScreen(
                 }
                 item { FontSelectionCard(font = font, onFontChange = onFontChange) }
                 item {
-                    SettingsGroupCard(title = "Colour & motion", icon = OpenSplitIcons.AutoAwesome) {
+                    SettingsGroupCard(title = "Colour", icon = OpenSplitIcons.AutoAwesome) {
                         Column(modifier = Modifier.padding(vertical = 8.dp)) {
                             SettingsSwitchRow(
                                 title = "Wallpaper colours",
                                 subtitle = "Match your wallpaper. Off uses the OpenSplit green palette.",
                                 checked = dynamicColor,
                                 onCheckedChange = onDynamicColorChange
+                            )
+                        }
+                    }
+                }
+                item {
+                    SettingsGroupCard(title = "Accessibility", icon = OpenSplitIcons.Account) {
+                        Column(modifier = Modifier.padding(vertical = 8.dp)) {
+                            Text(
+                                text = "Text size follows your phone's font size setting.",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)
+                            )
+                            SettingsSwitchRow(
+                                title = "Haptic feedback",
+                                subtitle = "Vibrate on tab changes, swipes and confirmations.",
+                                checked = haptics,
+                                onCheckedChange = onHapticsChange
                             )
                             SettingsSwitchRow(
                                 title = "Reduce motion",
@@ -218,7 +238,7 @@ private fun ThemeModeSelectionCard(
                         modifier = Modifier
                             .weight(1f)
                             .clip(androidx.compose.material3.MaterialTheme.shapes.medium)
-                            .clickable { onThemeChange(mode) },
+                            .selectable(selected = isSelected, role = Role.RadioButton, onClick = { onThemeChange(mode) }),
                         shape = MaterialTheme.shapes.medium,
                         color = if (isSelected) {
                             MaterialTheme.colorScheme.primaryContainer
@@ -266,11 +286,10 @@ private fun ThemeModeSelectionCard(
 
                             RadioButton(
                                 selected = isSelected,
-                                onClick = { onThemeChange(mode) },
+                                onClick = null,
                                 colors = RadioButtonDefaults.colors(
                                     selectedColor = MaterialTheme.colorScheme.primary
-                                ),
-                                modifier = Modifier.size(24.dp)
+                                )
                             )
                         }
                     }
