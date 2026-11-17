@@ -1,16 +1,16 @@
-@file:OptIn(androidx.compose.material3.ExperimentalMaterial3ExpressiveApi::class)
-
 package com.opensplit.ui.components
 
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import com.opensplit.ui.theme.OpenSplitIcons
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AppSearchBar(
     query: String,
@@ -19,12 +19,10 @@ fun AppSearchBar(
     modifier: Modifier = Modifier,
     isLoading: Boolean = false
 ) {
-    SearchBarDefaults.InputField(
-        query = query,
-        onQueryChange = onQueryChange,
-        onSearch = { },
-        expanded = false,
-        onExpandedChange = { },
+    OutlinedTextField(
+        value = query,
+        onValueChange = onQueryChange,
+        modifier = modifier.fillMaxWidth(),
         placeholder = { Text(placeholderText) },
         leadingIcon = {
             SymbolIcon(OpenSplitIcons.Search, contentDescription = "Search")
@@ -38,6 +36,15 @@ fun AppSearchBar(
                 }
             }
         },
-        modifier = modifier.fillMaxWidth()
+        singleLine = true,
+        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+        keyboardActions = KeyboardActions(onSearch = {}),
+        shape = MaterialTheme.shapes.extraLarge,
+        colors = OutlinedTextFieldDefaults.colors(
+            unfocusedContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+            focusedContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+            unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant,
+            focusedBorderColor = MaterialTheme.colorScheme.primary
+        )
     )
 }
