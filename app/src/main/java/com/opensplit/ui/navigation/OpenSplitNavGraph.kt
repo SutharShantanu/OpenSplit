@@ -123,6 +123,7 @@ fun MainNavHost(
     // Actions raised inside the app (e.g. "Add expense" on a detected payment), run by the dashboard
     // the same way as widget and notification actions.
     var inAppAction by remember { mutableStateOf<String?>(null) }
+    val reduceMotion = com.opensplit.ui.theme.LocalReduceMotion.current
 
     // M3 shared-axis (X): pushing a destination slides content forward, popping mirrors it,
     // so the back gesture reads as reversing the same motion. Defined once here so every
@@ -130,10 +131,10 @@ fun MainNavHost(
     NavHost(
         navController = navController,
         startDestination = startDest,
-        enterTransition = { OpenSplitMotion.sharedAxisX(forward = true).targetContentEnter },
-        exitTransition = { OpenSplitMotion.sharedAxisX(forward = true).initialContentExit },
-        popEnterTransition = { OpenSplitMotion.sharedAxisX(forward = false).targetContentEnter },
-        popExitTransition = { OpenSplitMotion.sharedAxisX(forward = false).initialContentExit }
+        enterTransition = { OpenSplitMotion.sharedAxisX(forward = true, reduced = reduceMotion).targetContentEnter },
+        exitTransition = { OpenSplitMotion.sharedAxisX(forward = true, reduced = reduceMotion).initialContentExit },
+        popEnterTransition = { OpenSplitMotion.sharedAxisX(forward = false, reduced = reduceMotion).targetContentEnter },
+        popExitTransition = { OpenSplitMotion.sharedAxisX(forward = false, reduced = reduceMotion).initialContentExit }
     ) {
         composable("permission_primer") {
             val vm = remember { com.opensplit.ui.viewmodel.PermissionPrimerViewModel(appContainer.userPreferencesRepository) }
@@ -196,7 +197,10 @@ fun MainNavHost(
                     }
                     navController.navigate(uri)
                 },
-                onNavigateToEditExpense = { gId, eId -> navController.navigate("edit_expense/$gId/$eId") }
+                onNavigateToEditExpense = { gId, eId -> navController.navigate("edit_expense/$gId/$eId") },
+                onOpenLink = { kind, token ->
+                    if (kind == "join") navController.navigate("join/$token")
+                }
             )
         }
         composable("expense_detail/{groupId}/{expenseId}") { backStackEntry ->

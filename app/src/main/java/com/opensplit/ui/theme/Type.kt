@@ -37,6 +37,9 @@ val AppFontFamily = FontFamily(weights.map { flex(it) })
 /** Slightly wider cut for big screen titles and hero numbers with Pixel roundness. */
 val DisplayFontFamily = FontFamily(weights.map { flex(it, width = 112f) })
 
+/** Wider optical variation cut for display-scale titles and numbers without geometric distortion. */
+val DisplayWideFontFamily = FontFamily(weights.map { flex(it, width = 125f) })
+
 @OptIn(androidx.compose.ui.text.ExperimentalTextApi::class)
 private fun mono(weight: FontWeight) = Font(
     R.font.jetbrains_mono,
@@ -52,23 +55,21 @@ val MoneyFontFamily = MonoFontFamily
 
 /**
  * Pixel-style expanded display typography for hero numbers, balance headers, and dashboard titles.
- * Uses horizontal geometric scaling (scaleX = 1.25f - 1.35f) and negative letter spacing.
+ * Uses native variable font optical width axes instead of synthetic geometric distortion.
  */
 val ExpTitleTypography = Typography(
     displayLarge = TextStyle(
-        fontFamily = DisplayFontFamily,
+        fontFamily = DisplayWideFontFamily,
         fontWeight = FontWeight.Bold,
         fontSize = 54.sp,
-        textGeometricTransform = androidx.compose.ui.text.style.TextGeometricTransform(scaleX = 1.3f),
         letterSpacing = (-0.02).em,
         lineHeight = 58.sp,
         platformStyle = androidx.compose.ui.text.PlatformTextStyle(includeFontPadding = false)
     ),
     displayMedium = TextStyle(
-        fontFamily = DisplayFontFamily,
+        fontFamily = DisplayWideFontFamily,
         fontWeight = FontWeight.Bold,
         fontSize = 42.sp,
-        textGeometricTransform = androidx.compose.ui.text.style.TextGeometricTransform(scaleX = 1.25f),
         letterSpacing = (-0.02).em,
         lineHeight = 46.sp,
         platformStyle = androidx.compose.ui.text.PlatformTextStyle(includeFontPadding = false)
@@ -77,7 +78,6 @@ val ExpTitleTypography = Typography(
         fontFamily = DisplayFontFamily,
         fontWeight = FontWeight.SemiBold,
         fontSize = 24.sp,
-        textGeometricTransform = androidx.compose.ui.text.style.TextGeometricTransform(scaleX = 1.15f),
         letterSpacing = (-0.01).em,
         lineHeight = 30.sp,
         platformStyle = androidx.compose.ui.text.PlatformTextStyle(includeFontPadding = false)

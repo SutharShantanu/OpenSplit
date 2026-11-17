@@ -44,6 +44,8 @@ import com.opensplit.ui.components.responsiveContentWidth
 import com.opensplit.ui.theme.MoneyFontFamily
 import com.opensplit.ui.theme.OpenSplitIcons
 import com.opensplit.ui.theme.OpenSplitTokens
+import com.opensplit.ui.theme.financialPositive
+import com.opensplit.ui.theme.financialPositiveContainer
 import com.opensplit.util.CurrencyFormatter
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
@@ -369,16 +371,17 @@ fun SettlementHistoryScreen(
                                 verticalAlignment = Alignment.CenterVertically,
                                 horizontalArrangement = Arrangement.spacedBy(8.dp)
                             ) {
+                                val posColor = MaterialTheme.colorScheme.financialPositive
                                 Surface(
                                     shape = CircleShape,
-                                    color = OpenSplitTokens.OwedPositive.copy(alpha = 0.15f),
+                                    color = MaterialTheme.colorScheme.financialPositiveContainer,
                                     modifier = Modifier.size(28.dp)
                                 ) {
                                     Box(contentAlignment = Alignment.Center) {
                                         SymbolIcon(
                                             symbol = OpenSplitIcons.ArrowDownward,
                                             contentDescription = null,
-                                            tint = OpenSplitTokens.OwedPositive,
+                                            tint = posColor,
                                             modifier = Modifier.size(16.dp)
                                         )
                                     }
@@ -393,7 +396,7 @@ fun SettlementHistoryScreen(
                                         text = "+${CurrencyFormatter.format(totalReceived, primaryCurrency, showSymbol = true)}",
                                         style = MaterialTheme.typography.titleSmall.copy(fontFamily = MoneyFontFamily),
                                         fontWeight = FontWeight.Bold,
-                                        color = OpenSplitTokens.OwedPositive
+                                        color = posColor
                                     )
                                 }
                             }
@@ -583,7 +586,7 @@ fun SettlementHistoryScreen(
                                         // Direction Pill Overlay
                                         Surface(
                                             shape = CircleShape,
-                                            color = if (isPaidByMe) MaterialTheme.colorScheme.error else OpenSplitTokens.OwedPositive,
+                                            color = if (isPaidByMe) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.financialPositive,
                                             modifier = Modifier.size(18.dp)
                                         ) {
                                             Box(contentAlignment = Alignment.Center) {
@@ -653,7 +656,7 @@ fun SettlementHistoryScreen(
                                     text = (if (isPaidByMe) "- " else "+ ") + CurrencyFormatter.format(settlement.amount, settlement.currency, showSymbol = true),
                                     style = MaterialTheme.typography.titleMedium.copy(fontFamily = MoneyFontFamily),
                                     fontWeight = FontWeight.Bold,
-                                    color = if (isPaidByMe) MaterialTheme.colorScheme.error else OpenSplitTokens.OwedPositive
+                                    color = if (isPaidByMe) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.financialPositive
                                 )
                             }
                         }
@@ -707,7 +710,7 @@ fun SettlementHistoryScreen(
                         text = (if (isPaidByMe) "- " else "+ ") + CurrencyFormatter.format(item.amount, item.currency, showSymbol = true),
                         style = MaterialTheme.typography.headlineMedium.copy(fontFamily = MoneyFontFamily),
                         fontWeight = FontWeight.Bold,
-                        color = if (isPaidByMe) MaterialTheme.colorScheme.error else OpenSplitTokens.OwedPositive
+                        color = if (isPaidByMe) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.financialPositive
                     )
 
                     HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))

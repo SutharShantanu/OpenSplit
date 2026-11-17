@@ -33,6 +33,9 @@ import com.opensplit.ui.components.ExpressiveScrollBar
 import androidx.compose.foundation.lazy.rememberLazyListState
 import com.opensplit.ui.components.StateLayout
 import com.opensplit.ui.components.responsiveContentWidth
+import com.opensplit.ui.theme.financialPositive
+import com.opensplit.ui.theme.financialNegative
+import com.opensplit.ui.theme.financialNeutral
 import com.opensplit.ui.theme.OpenSplitIcons
 import com.opensplit.ui.theme.OpenSplitTokens
 import com.opensplit.ui.viewmodel.MainViewModel
@@ -210,7 +213,7 @@ fun FriendsScreen(
                                 text = formattedNet,
                                 style = MaterialTheme.typography.displayMedium,
                                 fontWeight = FontWeight.Bold,
-                                color = if (netTotal > 0.01) OpenSplitTokens.OwedPositive else if (netTotal < -0.01) OpenSplitTokens.OwedNegative else MaterialTheme.colorScheme.primary
+                                color = if (netTotal > 0.01) MaterialTheme.colorScheme.financialPositive else if (netTotal < -0.01) MaterialTheme.colorScheme.financialNegative else MaterialTheme.colorScheme.primary
                             )
                             Spacer(modifier = Modifier.height(2.dp))
                             Text(
@@ -265,9 +268,9 @@ fun FriendsScreen(
                                 val hasOwed = lines.any { it.second > 0.01 }
                                 val hasOwe = lines.any { it.second < -0.01 }
                                 val color = when {
-                                    hasOwed && !hasOwe -> OpenSplitTokens.OwedPositive
-                                    hasOwe && !hasOwed -> OpenSplitTokens.OwedNegative
-                                    else -> OpenSplitTokens.OwedNeutral
+                                    hasOwed && !hasOwe -> MaterialTheme.colorScheme.financialPositive
+                                    hasOwe && !hasOwed -> MaterialTheme.colorScheme.financialNegative
+                                    else -> MaterialTheme.colorScheme.financialNeutral
                                 }
                                 val text = if (lines.isEmpty()) {
                                     "Settled up"

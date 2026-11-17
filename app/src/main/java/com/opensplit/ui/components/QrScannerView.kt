@@ -111,6 +111,7 @@ fun QrScannerView(onScanned: (String) -> Unit, modifier: Modifier = Modifier) {
         AndroidView(
             factory = { ctx ->
                 PreviewView(ctx).apply {
+                    implementationMode = PreviewView.ImplementationMode.COMPATIBLE
                     scaleType = PreviewView.ScaleType.FILL_CENTER
                     val providerFuture = ProcessCameraProvider.getInstance(ctx)
                     providerFuture.addListener({

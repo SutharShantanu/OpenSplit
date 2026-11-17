@@ -1087,8 +1087,8 @@ fun AddExpenseScreen(
                                         OutlinedButton(shapes = com.opensplit.ui.theme.appButtonShapes(), 
                                             onClick = { if (currentShares > 1) shares[m.uid] = currentShares - 1 },
                                             contentPadding = PaddingValues(0.dp),
-                                            modifier = Modifier.size(36.dp)
-                                        ) { Text("-") }
+                                            modifier = Modifier.size(48.dp)
+                                        ) { Text("-", style = MaterialTheme.typography.titleMedium) }
                                         Text(
                                             text = "$currentShares share(s)",
                                             modifier = Modifier.padding(horizontal = OpenSplitTokens.SpaceSM),
@@ -1097,8 +1097,8 @@ fun AddExpenseScreen(
                                         OutlinedButton(shapes = com.opensplit.ui.theme.appButtonShapes(), 
                                             onClick = { shares[m.uid] = currentShares + 1 },
                                             contentPadding = PaddingValues(0.dp),
-                                            modifier = Modifier.size(36.dp)
-                                        ) { Text("+") }
+                                            modifier = Modifier.size(48.dp)
+                                        ) { Text("+", style = MaterialTheme.typography.titleMedium) }
                                     }
                                 }
                             }
@@ -1259,9 +1259,15 @@ fun AddExpenseScreen(
                         Text(if (isEditing) "Update Expense" else "Save Expense", fontWeight = FontWeight.Bold)
                     }
                 }
-                saveError?.let {
+                saveError?.let { err ->
+                    val friendly = when {
+                        err.contains("PERMISSION_DENIED", ignoreCase = true) -> "You don't have permission to save to this group."
+                        err.contains("UNAVAILABLE", ignoreCase = true) -> "Network offline. Changes will sync when connected."
+                        err.contains("NOT_FOUND", ignoreCase = true) -> "Group or expense was not found."
+                        else -> err.substringAfter(": ").take(100).ifEmpty { err.take(100) }
+                    }
                     Text(
-                        text = "Couldn't save: $it",
+                        text = "Couldn't save: $friendly",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.error,
                         textAlign = TextAlign.Center,

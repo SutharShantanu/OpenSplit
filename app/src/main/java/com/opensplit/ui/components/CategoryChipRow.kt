@@ -17,6 +17,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.luminance
+import androidx.compose.ui.graphics.toArgb
+import androidx.core.graphics.ColorUtils
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.opensplit.ui.theme.OpenSplitIcons
@@ -68,6 +71,20 @@ fun getCategoryIcon(category: String): Symbol {
     }
 }
 
+@Composable
+fun rememberCategoryColors(category: String): Pair<Color, Color> {
+    val isDark = MaterialTheme.colorScheme.surface.luminance() < 0.5f
+    val base = if (category == "All") MaterialTheme.colorScheme.primary else getCategoryColor(category)
+    return remember(category, isDark, base) {
+        if (isDark) {
+            val lightened = ColorUtils.blendARGB(base.toArgb(), android.graphics.Color.WHITE, 0.35f)
+            base.copy(alpha = 0.28f) to Color(lightened)
+        } else {
+            base.copy(alpha = 0.16f) to base
+        }
+    }
+}
+
 val ALL_CATEGORIES = listOf(
     "All", "Food", "Groceries", "Coffee", "Drinks", "Transport", "Bills", "Shopping",
     "Rent", "Health", "Fitness", "Travel", "Entertainment", "Subscriptions",
@@ -94,7 +111,7 @@ fun CategoryChipRow(
         categories.forEach { category ->
             val isSelected = category.equals(selectedCategory, ignoreCase = true)
             val icon = if (category == "All") OpenSplitIcons.Filter else getCategoryIcon(category)
-            val color = if (category == "All") MaterialTheme.colorScheme.primary else getCategoryColor(category)
+            val (categoryContainer, categoryOnContainer) = rememberCategoryColors(category)
 
             FilterChip(
                 selected = isSelected,
@@ -105,14 +122,14 @@ fun CategoryChipRow(
                         symbol = icon,
                         contentDescription = null,
                         modifier = Modifier.size(18.dp),
-                        tint = color
+                        tint = if (isSelected) categoryOnContainer else MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 },
                 colors = FilterChipDefaults.filterChipColors(
                     containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
-                    selectedContainerColor = color.copy(alpha = 0.22f),
+                    selectedContainerColor = categoryContainer,
                     selectedLabelColor = MaterialTheme.colorScheme.onSurface,
-                    selectedLeadingIconColor = color
+                    selectedLeadingIconColor = categoryOnContainer
                 )
             )
         }

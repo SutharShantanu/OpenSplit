@@ -199,6 +199,22 @@ private object NoHaptics : androidx.compose.ui.hapticfeedback.HapticFeedback {
 val ColorScheme.success: Color
   get() = if (surface.luminance() > 0.5f) Color(0xFF1B6C3A) else Color(0xFF7DDB9A)
 
+/** Dynamic financial semantic colors meeting WCAG 2.2 AA contrast (>= 4.5:1) in both light and dark themes. */
+val ColorScheme.financialPositive: Color
+  get() = if (surface.luminance() > 0.5f) Color(0xFF1B6C3A) else Color(0xFF85DF9B)
+
+val ColorScheme.financialNegative: Color
+  get() = if (surface.luminance() > 0.5f) Color(0xFFBA1A1A) else Color(0xFFFFB4AB)
+
+val ColorScheme.financialNeutral: Color
+  get() = if (surface.luminance() > 0.5f) Color(0xFF494551) else Color(0xFFC7C5D0)
+
+val ColorScheme.financialPositiveContainer: Color
+  get() = if (surface.luminance() > 0.5f) Color(0xFFE8F5E9) else Color(0xFF1E3824)
+
+val ColorScheme.financialNegativeContainer: Color
+  get() = if (surface.luminance() > 0.5f) Color(0xFFFFEBEE) else Color(0xFF3E1C1C)
+
 /** Caution state (medium strength, near a limit), picked per light/dark for contrast. */
 val ColorScheme.warning: Color
   get() = if (surface.luminance() > 0.5f) Color(0xFF8A5A00) else Color(0xFFFFC56B)

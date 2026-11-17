@@ -13,6 +13,10 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.WindowInsetsSides
+import androidx.compose.foundation.layout.safeDrawing
+import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.size
@@ -234,8 +238,7 @@ fun MainDashboard(
         ) { SymbolIcon(OpenSplitIcons.PersonAdd, contentDescription = "Add friend") }
     }
     val fab: (@Composable () -> Unit)? = when (selectedTab) {
-        DashboardTab.GROUPS -> groupsFab.takeIf { allGroups.any { !it.isDirect } }
-        DashboardTab.PEOPLE -> peopleFab.takeIf { hasFriends }
+        DashboardTab.GROUPS, DashboardTab.PEOPLE, DashboardTab.INSIGHTS -> groupsFab
         else -> null
     }
 
@@ -288,7 +291,11 @@ fun MainDashboard(
             modifier = Modifier
                 .fillMaxSize()
                 .background(MaterialTheme.colorScheme.background)
-                .windowInsetsPadding(androidx.compose.material3.ScaffoldDefaults.contentWindowInsets)
+                .windowInsetsPadding(
+                    WindowInsets.safeDrawing.only(
+                        WindowInsetsSides.Horizontal + WindowInsetsSides.Top
+                    )
+                )
         ) {
             if (wide) {
                 // M3 Expressive wide navigation rail (collapsed): same items, expressive indicator and spacing.
@@ -401,7 +408,10 @@ fun MainDashboard(
                                         }
                                         rootNavController.navigate(uri)
                                     },
-                                    onNavigateToEditExpense = { g, e -> rootNavController.navigate("edit_expense/$g/$e") }
+                                    onNavigateToEditExpense = { g, e -> rootNavController.navigate("edit_expense/$g/$e") },
+                                    onOpenLink = { kind, token ->
+                                        if (kind == "join") rootNavController.navigate("join/$token")
+                                    }
                                 )
                             },
                             placeholder = "Pick a group to see its expenses, balances and members here."

@@ -38,6 +38,8 @@ import com.opensplit.domain.model.Group
 import com.opensplit.ui.components.AppSearchBar
 import com.opensplit.ui.components.CreateGroupDialog
 import com.opensplit.ui.components.StateLayout
+import com.opensplit.ui.theme.financialPositive
+import com.opensplit.ui.theme.financialPositiveContainer
 import com.opensplit.ui.components.responsiveContentWidth
 import com.opensplit.ui.components.responsiveDialogWidth
 import com.opensplit.ui.components.SwipeAction
@@ -1086,7 +1088,7 @@ private fun GroupBalanceChip(balance: Double, currency: String) {
     val amount = CurrencyFormatter.format(kotlin.math.abs(balance), currencyCode = currency, showSymbol = true)
     val (label, bg, fg) = when {
         balance < -0.01 -> Triple("You owe $amount", MaterialTheme.colorScheme.errorContainer, MaterialTheme.colorScheme.onErrorContainer)
-        balance > 0.01 -> Triple("You are owed $amount", OpenSplitTokens.OwedPositive.copy(alpha = 0.15f), OpenSplitTokens.OwedPositive)
+        balance > 0.01 -> Triple("You are owed $amount", MaterialTheme.colorScheme.financialPositiveContainer, MaterialTheme.colorScheme.financialPositive)
         else -> Triple("Settled", MaterialTheme.colorScheme.surfaceContainerHighest, MaterialTheme.colorScheme.onSurfaceVariant)
     }
     Surface(shape = OpenSplitTokens.PillShape, color = bg) {

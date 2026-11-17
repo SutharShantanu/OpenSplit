@@ -22,18 +22,27 @@ import androidx.compose.ui.unit.dp
 import com.opensplit.ui.theme.OpenSplitIcons
 import com.opensplit.ui.theme.OpenSplitTokens
 import com.opensplit.ui.theme.MoneyFontFamily
+import com.opensplit.ui.theme.financialPositive
+import com.opensplit.ui.theme.financialNegative
+import com.opensplit.ui.theme.financialNeutral
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.progressBarRangeInfo
+import androidx.compose.ui.semantics.ProgressBarRangeInfo
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import kotlin.math.abs
 
 @Composable
 fun getBalanceColor(amount: Double, isSpendTotal: Boolean = false): Color {
+    val scheme = MaterialTheme.colorScheme
     return if (isSpendTotal) {
-        MaterialTheme.colorScheme.primary
+        scheme.primary
     } else if (amount > 0.01) {
-        OpenSplitTokens.OwedPositive
+        scheme.financialPositive
     } else if (amount < -0.01) {
-        OpenSplitTokens.OwedNegative
+        scheme.financialNegative
     } else {
-        OpenSplitTokens.OwedNeutral
+        scheme.financialNeutral
     }
 }
 
@@ -70,7 +79,8 @@ fun AnimatedAmountText(
     }
 
     val textToDisplay = "$sign$formattedNumber"
-    var fontSizeMultiplier by androidx.compose.runtime.remember(textToDisplay) { androidx.compose.runtime.mutableStateOf(1.0f) }
+    val fontScale = androidx.compose.ui.platform.LocalDensity.current.fontScale
+    val allowWrap = fontScale >= 1.3f
 
     Row(
         verticalAlignment = Alignment.CenterVertically,
@@ -90,19 +100,14 @@ fun AnimatedAmountText(
         Text(
             text = textToDisplay,
             style = textStyle.copy(
-                fontSize = (textStyle.fontSize.value * fontSizeMultiplier).sp,
+                fontSize = if (allowWrap) (textStyle.fontSize.value * 0.9f).sp else textStyle.fontSize,
                 fontWeight = FontWeight.Bold,
                 fontFamily = MoneyFontFamily,
                 color = color
             ),
-            maxLines = 1,
-            softWrap = false,
-            overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
-            onTextLayout = { result ->
-                if ((result.hasVisualOverflow || result.didOverflowWidth) && fontSizeMultiplier > 0.5f) {
-                    fontSizeMultiplier *= 0.88f
-                }
-            }
+            maxLines = if (allowWrap) 2 else 1,
+            softWrap = allowWrap,
+            overflow = if (allowWrap) androidx.compose.ui.text.style.TextOverflow.Clip else androidx.compose.ui.text.style.TextOverflow.Ellipsis
         )
     }
 }
@@ -173,8 +178,13 @@ fun HeroBalanceCard(
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
+                        .defaultMinSize(minHeight = 48.dp)
                         .clip(androidx.compose.material3.MaterialTheme.shapes.extraSmall)
-                        .clickable(enabled = onOwedToYouClick != null) { onOwedToYouClick?.invoke() },
+                        .clickable(
+                            enabled = onOwedToYouClick != null,
+                            role = Role.Button
+                        ) { onOwedToYouClick?.invoke() }
+                        .padding(vertical = 4.dp),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
@@ -204,14 +214,19 @@ fun HeroBalanceCard(
                     )
                 }
 
-                Spacer(modifier = Modifier.height(10.dp))
+                Spacer(modifier = Modifier.height(6.dp))
 
                 // Row 2: You owe
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
+                        .defaultMinSize(minHeight = 48.dp)
                         .clip(androidx.compose.material3.MaterialTheme.shapes.extraSmall)
-                        .clickable(enabled = onYouOweClick != null) { onYouOweClick?.invoke() },
+                        .clickable(
+                            enabled = onYouOweClick != null,
+                            role = Role.Button
+                        ) { onYouOweClick?.invoke() }
+                        .padding(vertical = 4.dp),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
@@ -243,25 +258,24 @@ fun HeroBalanceCard(
 
                 Spacer(modifier = Modifier.height(14.dp))
 
-                // Ratio Progress Bar
+                // Ratio Progress Bar (M3 Expressive Wavy Indicator with accessible semantics)
                 val totalSum = (youAreOwed + youOwe).toFloat()
                 val owedRatio = if (totalSum > 0.001f) (youAreOwed.toFloat() / totalSum).coerceIn(0.04f, 0.96f) else 0.5f
 
-                Box(
+                @OptIn(ExperimentalMaterial3ExpressiveApi::class)
+                LinearWavyProgressIndicator(
+                    progress = { owedRatio },
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(8.dp)
-                        .clip(CircleShape)
-                        .background(MaterialTheme.colorScheme.tertiary)
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxHeight()
-                            .fillMaxWidth(fraction = owedRatio)
-                            .clip(CircleShape)
-                            .background(MaterialTheme.colorScheme.primary)
-                    )
-                }
+                        .semantics {
+                            progressBarRangeInfo = ProgressBarRangeInfo(
+                                current = owedRatio,
+                                range = 0f..1f
+                            )
+                        },
+                    color = MaterialTheme.colorScheme.primary,
+                    trackColor = MaterialTheme.colorScheme.tertiary
+                )
             } else if (!subtitle.isNullOrEmpty()) {
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(

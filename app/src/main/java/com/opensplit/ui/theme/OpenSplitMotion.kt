@@ -49,7 +49,7 @@ object OpenSplitMotion {
      * **Fade through** — for switching between peers with no spatial relationship, such as
      * bottom-navigation destinations or filter tabs.
      */
-    fun fadeThrough(): ContentTransform = if (reduced) none else
+    fun fadeThrough(reduced: Boolean = this.reduced): ContentTransform = if (reduced) none else
         (
             fadeIn(
                 animationSpec = tween(
@@ -73,7 +73,7 @@ object OpenSplitMotion {
      * **Shared axis (X)** — for hierarchical navigation with forward/backward flow.
      * Incorporates layered horizontal translation and subtle scale zoom.
      */
-    fun sharedAxisX(forward: Boolean = true): ContentTransform {
+    fun sharedAxisX(forward: Boolean = true, reduced: Boolean = this.reduced): ContentTransform {
         if (reduced) return none
         val enterOffsetMultiplier = if (forward) 0.40f else -0.20f
         val exitOffsetMultiplier = if (forward) -0.20f else 0.40f

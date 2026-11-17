@@ -34,6 +34,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.opensplit.ui.components.*
 import androidx.compose.animation.AnimatedContent
+import com.opensplit.ui.theme.financialPositive
+import com.opensplit.ui.theme.financialNegative
+import com.opensplit.ui.theme.financialNeutral
 import com.opensplit.ui.theme.OpenSplitIcons
 import com.opensplit.ui.theme.OpenSplitMotion
 import com.opensplit.ui.theme.OpenSplitTokens
@@ -52,7 +55,8 @@ fun GroupDetailScreen(
     onNavigateToAddExpense: () -> Unit,
     onNavigateToExpenseDetail: (String, String) -> Unit,
     onNavigateToSettleUp: (fromUid: String?, toUid: String?, amount: Double?, method: String?) -> Unit = { _, _, _, _ -> },
-    onNavigateToEditExpense: (String, String) -> Unit = { _, _ -> }
+    onNavigateToEditExpense: (String, String) -> Unit = { _, _ -> },
+    onOpenLink: ((kind: String, token: String) -> Unit)? = null
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val busy = com.opensplit.ui.components.LocalBusy.current
@@ -232,35 +236,18 @@ fun GroupDetailScreen(
                                                     snackbar.showMessage("Add another member to this group before settling up")
                                                 }
                                             }
-                                            var settleMenu by remember { mutableStateOf(false) }
-                                            Box {
-                                                androidx.compose.material3.SplitButtonLayout(
-                                                    leadingButton = {
-                                                        androidx.compose.material3.SplitButtonDefaults.LeadingButton(onClick = { settle(null) }) {
-                                                            SymbolIcon(OpenSplitIcons.Settle, contentDescription = null, modifier = Modifier.size(18.dp))
-                                                            Spacer(modifier = Modifier.width(6.dp))
-                                                            Text("Settle Up", fontWeight = FontWeight.Bold)
-                                                        }
-                                                    },
-                                                    trailingButton = {
-                                                        androidx.compose.material3.SplitButtonDefaults.TrailingButton(
-                                                            checked = settleMenu,
-                                                            onCheckedChange = { settleMenu = it },
-                                                            modifier = Modifier.semantics { contentDescription = "Choose how to pay" }
-                                                        ) {
-                                                            SymbolIcon(
-                                                                OpenSplitIcons.Dropdown, contentDescription = null,
-                                                                modifier = Modifier.size(20.dp).graphicsLayer { rotationZ = if (settleMenu) 180f else 0f }
-                                                            )
-                                                        }
-                                                    }
-                                                )
-                                                DropdownMenu(expanded = settleMenu, onDismissRequest = { settleMenu = false }) {
-                                                    listOf("UPI" to "Settle via UPI", "CASH" to "Settle in cash", "BANK_TRANSFER" to "Settle by bank transfer").forEach { (m, label) ->
-                                                        DropdownMenuItem(text = { Text(label) }, onClick = { settleMenu = false; settle(m) })
-                                                    }
-                                                }
-                                            }
+                                            com.opensplit.ui.components.ExpressiveSplitButton(
+                                                leadingText = "Settle Up",
+                                                leadingIcon = OpenSplitIcons.Settle,
+                                                onPrimaryClick = { settle(null) },
+                                                options = listOf(
+                                                    com.opensplit.ui.components.SplitOption("UPI", "Settle via UPI"),
+                                                    com.opensplit.ui.components.SplitOption("CASH", "Settle in cash"),
+                                                    com.opensplit.ui.components.SplitOption("BANK_TRANSFER", "Settle by bank transfer")
+                                                ),
+                                                onOptionSelected = { settle(it) },
+                                                trailingDescription = "Choose how to pay"
+                                            )
                                         }
                                     }
 
@@ -795,7 +782,8 @@ fun GroupDetailScreen(
                     busy.hide()
                     snackbar.showMessage(if (ok) "Invite link ready" else "Couldn't create link")
                 }
-            }
+            },
+            onOpenLink = onOpenLink
         )
     }
 
@@ -1036,7 +1024,7 @@ fun GroupDetailScreen(
 private fun MemberBalanceBar(user: com.opensplit.domain.model.User, balance: Double, maxAbs: Double, currency: String) {
     val owes = balance < -0.01
     val getsBack = balance > 0.01
-    val color = if (getsBack) OpenSplitTokens.OwedPositive else if (owes) OpenSplitTokens.OwedNegative else OpenSplitTokens.OwedNeutral
+    val color = if (getsBack) MaterialTheme.colorScheme.financialPositive else if (owes) MaterialTheme.colorScheme.financialNegative else MaterialTheme.colorScheme.financialNeutral
     val fraction by androidx.compose.animation.core.animateFloatAsState(
         (kotlin.math.abs(balance) / maxAbs).toFloat().coerceIn(0f, 1f), label = "balanceBar"
     )
