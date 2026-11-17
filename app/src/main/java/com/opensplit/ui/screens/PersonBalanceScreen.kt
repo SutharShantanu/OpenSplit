@@ -22,6 +22,8 @@ import com.opensplit.ui.components.StateLayout
 import com.opensplit.ui.components.UserAvatar
 import com.opensplit.ui.theme.OpenSplitIcons
 import com.opensplit.ui.theme.OpenSplitTokens
+import com.opensplit.ui.theme.financialPositive
+import com.opensplit.ui.theme.financialNegative
 import com.opensplit.ui.viewmodel.PersonBalanceViewModel
 import com.opensplit.util.CurrencyFormatter
 import java.text.SimpleDateFormat
@@ -117,8 +119,8 @@ fun PersonBalanceScreen(
                                 }
                             }
                             val statusFg = when {
-                                anyOwed && !anyOwe -> OpenSplitTokens.OwedPositive
-                                anyOwe && !anyOwed -> OpenSplitTokens.OwedNegative
+                                anyOwed && !anyOwe -> MaterialTheme.colorScheme.financialPositive
+                                anyOwe && !anyOwed -> MaterialTheme.colorScheme.financialNegative
                                 else -> MaterialTheme.colorScheme.onSurfaceVariant
                             }
                             val statusBg = statusFg.copy(alpha = 0.15f)

@@ -19,10 +19,12 @@ fun AppSearchBar(
     modifier: Modifier = Modifier,
     isLoading: Boolean = false
 ) {
-    OutlinedTextField(
-        value = query,
-        onValueChange = onQueryChange,
-        modifier = modifier.fillMaxWidth(),
+    SearchBarDefaults.InputField(
+        query = query,
+        onQueryChange = onQueryChange,
+        onSearch = { },
+        expanded = false,
+        onExpandedChange = { },
         placeholder = { Text(placeholderText) },
         leadingIcon = {
             SymbolIcon(OpenSplitIcons.Search, contentDescription = "Search")
@@ -36,13 +38,6 @@ fun AppSearchBar(
                 }
             }
         },
-        singleLine = true,
-        shape = MaterialTheme.shapes.extraLarge,
-        colors = OutlinedTextFieldDefaults.colors(
-            unfocusedContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
-            focusedContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
-            unfocusedBorderColor = androidx.compose.ui.graphics.Color.Transparent,
-            focusedBorderColor = MaterialTheme.colorScheme.primary
-        )
+        modifier = modifier.fillMaxWidth()
     )
 }

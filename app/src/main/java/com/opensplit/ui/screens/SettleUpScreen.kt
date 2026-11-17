@@ -265,8 +265,12 @@ fun SettleUpScreen(
                                 shape = CircleShape,
                                 color = MaterialTheme.colorScheme.secondaryContainer,
                                 modifier = Modifier
+                                    .defaultMinSize(minHeight = 48.dp)
                                     .clip(CircleShape)
-                                    .clickable {
+                                    .clickable(
+                                        role = androidx.compose.ui.semantics.Role.Button,
+                                        onClickLabel = "Swap Payer and Payee"
+                                    ) {
                                         val temp = fromUid
                                         fromUid = toUid
                                         toUid = temp
@@ -431,10 +435,16 @@ fun SettleUpScreen(
                         )
                         Spacer(modifier = Modifier.height(OpenSplitTokens.SpaceXS))
                         // Connected button group: one method, shape morphs on selection.
-                        val methods = listOf(SettlementMethod.UPI, SettlementMethod.CASH, SettlementMethod.BANK_TRANSFER, SettlementMethod.OTHER)
+                        val isUpiSupported = currency.equals("INR", ignoreCase = true)
+                        val methods = if (isUpiSupported) {
+                            listOf(SettlementMethod.UPI, SettlementMethod.CASH, SettlementMethod.BANK_TRANSFER, SettlementMethod.OTHER)
+                        } else {
+                            listOf(SettlementMethod.CASH, SettlementMethod.BANK_TRANSFER, SettlementMethod.OTHER)
+                        }
+                        val options = if (isUpiSupported) listOf("UPI", "Cash", "Bank", "Other") else listOf("Cash", "Bank", "Other")
                         com.opensplit.ui.components.ConnectedChoiceGroup(
-                            options = listOf("UPI", "Cash", "Bank", "Other"),
-                            selectedIndex = methods.indexOf(method).coerceAtLeast(0),
+                            options = options,
+                            selectedIndex = methods.indexOf(method).takeIf { it >= 0 } ?: 0,
                             onSelect = { method = methods[it]; methodPickedByHand = true }
                         )
                     }

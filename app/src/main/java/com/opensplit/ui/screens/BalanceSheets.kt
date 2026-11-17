@@ -28,6 +28,8 @@ import androidx.compose.ui.unit.sp
 import com.opensplit.ui.components.CreateGroupDialog
 import com.opensplit.ui.components.HeroBalanceCard
 import com.opensplit.ui.components.StateLayout
+import com.opensplit.ui.theme.financialPositive
+import com.opensplit.ui.theme.financialNegative
 import com.opensplit.ui.components.WalletIllustration
 import com.opensplit.ui.components.getBalanceColor
 import com.opensplit.ui.components.responsiveDialogWidth
@@ -171,20 +173,22 @@ fun BalanceBreakdownSheet(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(OpenSplitTokens.SpaceSM)
                 ) {
+                    val posColor = MaterialTheme.colorScheme.financialPositive
+                    val negColor = MaterialTheme.colorScheme.financialNegative
                     Box(
                         modifier = Modifier
                             .size(36.dp)
                             .clip(CircleShape)
                             .background(
-                                if (isOwedToYou) OpenSplitTokens.OwedPositive.copy(alpha = 0.15f)
-                                else OpenSplitTokens.OwedNegative.copy(alpha = 0.15f)
+                                if (isOwedToYou) posColor.copy(alpha = 0.15f)
+                                else negColor.copy(alpha = 0.15f)
                             ),
                         contentAlignment = Alignment.Center
                     ) {
                         SymbolIcon(
                             symbol = if (isOwedToYou) OpenSplitIcons.ArrowUpward else OpenSplitIcons.ArrowDownward,
                             contentDescription = null,
-                            tint = if (isOwedToYou) OpenSplitTokens.OwedPositive else OpenSplitTokens.OwedNegative
+                            tint = if (isOwedToYou) posColor else negColor
                         )
                     }
 
@@ -197,7 +201,7 @@ fun BalanceBreakdownSheet(
                         Text(
                             text = "Total: ${com.opensplit.util.CurrencyFormatter.format(totalAmount, primaryCurrency)}",
                             style = MaterialTheme.typography.bodySmall,
-                            color = if (isOwedToYou) OpenSplitTokens.OwedPositive else OpenSplitTokens.OwedNegative,
+                            color = if (isOwedToYou) posColor else negColor,
                             fontWeight = FontWeight.SemiBold
                         )
                     }
@@ -340,7 +344,7 @@ fun BalanceBreakdownSheet(
                                             text = if (isOwedToYou) "+$formattedBal" else "-$formattedBal",
                                             style = MaterialTheme.typography.titleSmall,
                                             fontWeight = FontWeight.Bold,
-                                            color = if (isOwedToYou) OpenSplitTokens.OwedPositive else OpenSplitTokens.OwedNegative
+                                            color = if (isOwedToYou) MaterialTheme.colorScheme.financialPositive else MaterialTheme.colorScheme.financialNegative
                                         )
                                         if (!isOwedToYou) {
                                             Spacer(modifier = Modifier.height(4.dp))
@@ -444,7 +448,7 @@ fun BalanceBreakdownSheet(
                                             text = if (isOwedToYou) "+$formattedAmt" else "-$formattedAmt",
                                             style = MaterialTheme.typography.titleSmall,
                                             fontWeight = FontWeight.Bold,
-                                            color = if (isOwedToYou) OpenSplitTokens.OwedPositive else OpenSplitTokens.OwedNegative
+                                            color = if (isOwedToYou) MaterialTheme.colorScheme.financialPositive else MaterialTheme.colorScheme.financialNegative
                                         )
                                         Spacer(modifier = Modifier.height(4.dp))
                                         FilledTonalButton(shapes = com.opensplit.ui.theme.appButtonShapes(), 

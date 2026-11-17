@@ -678,8 +678,8 @@ fun AccountOverviewScreen(
                         FilledTonalButton(
                             onClick = { showEditNameDialog = true },
                             shape = MaterialTheme.shapes.extraSmall,
-                            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
-                            modifier = Modifier.heightIn(min = 34.dp)
+                            contentPadding = PaddingValues(horizontal = 14.dp, vertical = 8.dp),
+                            modifier = Modifier.defaultMinSize(minWidth = 48.dp, minHeight = 48.dp)
                         ) {
                             Text("Edit", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.SemiBold)
                         }

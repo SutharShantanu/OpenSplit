@@ -35,6 +35,12 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.isTraversalGroup
+import androidx.compose.ui.semantics.traversalIndex
+import androidx.compose.ui.semantics.collectionInfo
+import androidx.compose.ui.semantics.collectionItemInfo
+import androidx.compose.ui.semantics.CollectionInfo
+import androidx.compose.ui.semantics.CollectionItemInfo
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.opensplit.ui.theme.Symbol
@@ -61,11 +67,16 @@ fun FloatingNavBar(
     Row(
         modifier = modifier
             .fillMaxWidth()
-            // Fades list content out before it reaches the bar, so text never collides with it.
+            .semantics {
+                isTraversalGroup = true
+                traversalIndex = -1f
+            }
+            // Localized subtle scrim at bottom so text never collides without washing out list content
             .background(
                 Brush.verticalGradient(
                     0f to Color.Transparent,
-                    0.45f to MaterialTheme.colorScheme.background
+                    0.65f to MaterialTheme.colorScheme.background.copy(alpha = 0.4f),
+                    1f to MaterialTheme.colorScheme.background.copy(alpha = 0.92f)
                 )
             )
             .navigationBarsPadding()
@@ -80,11 +91,17 @@ fun FloatingNavBar(
             modifier = Modifier.weight(1f).height(72.dp)
         ) {
             Row(
-                modifier = Modifier.padding(8.dp),
+                modifier = Modifier
+                    .padding(8.dp)
+                    .semantics {
+                        collectionInfo = CollectionInfo(rowCount = 1, columnCount = items.size)
+                    },
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(4.dp)
             ) {
-                items.forEach { item -> NavPill(item) }
+                items.forEachIndexed { index, item ->
+                    NavPill(item, index = index, totalCount = items.size)
+                }
             }
         }
         AnimatedVisibility(
@@ -96,7 +113,7 @@ fun FloatingNavBar(
 }
 
 @Composable
-private fun RowScope.NavPill(item: FloatingNavItem) {
+private fun RowScope.NavPill(item: FloatingNavItem, index: Int, totalCount: Int) {
     val haptic = androidx.compose.ui.platform.LocalHapticFeedback.current
     val container by animateColorAsState(
         if (item.selected) MaterialTheme.colorScheme.primary else Color.Transparent,
@@ -117,7 +134,13 @@ private fun RowScope.NavPill(item: FloatingNavItem) {
             .semantics {
                 role = Role.Tab
                 selected = item.selected
-                contentDescription = item.label
+                contentDescription = "${item.label}, ${index + 1} of $totalCount"
+                collectionItemInfo = CollectionItemInfo(
+                    rowIndex = 0,
+                    rowSpan = 1,
+                    columnIndex = index,
+                    columnSpan = 1
+                )
             }
     ) {
         Row(

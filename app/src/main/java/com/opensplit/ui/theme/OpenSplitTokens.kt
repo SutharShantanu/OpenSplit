@@ -6,8 +6,8 @@ import androidx.compose.ui.unit.dp
 
 object OpenSplitTokens {
 
-    // Color semantics — ME3 v2.0
-    val OwedPositive   = Color(0xFF1B5E20) // You are owed — positive green
+    // Color semantics — ME3 v2.0 (WCAG 2.2 AA compliant defaults)
+    val OwedPositive   = Color(0xFF1B6C3A) // You are owed — positive green
     val OwedNegative   = Color(0xFFBA1A1A) // You owe — negative red
     val OwedNeutral    = Color(0xFF494551) // Settled / zero
     val OnlineDot      = Color(0xFF4ADE80)

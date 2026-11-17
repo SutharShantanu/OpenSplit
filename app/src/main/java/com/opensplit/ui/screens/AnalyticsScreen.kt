@@ -799,7 +799,7 @@ internal fun compactAmount(v: Double): String {
 @Composable
 fun DonutChart(categories: List<CategorySpend>, modifier: Modifier = Modifier) {
     val trackColor = MaterialTheme.colorScheme.surfaceContainerHighest
-    val description = categories.take(4).joinToString(", ") { "${it.category} ${(it.percentage * 100).toInt()} percent" }
+    val description = categories.joinToString(", ") { "${it.category} ${(it.percentage * 100).toInt()}%" }
     Canvas(modifier = modifier.size(130.dp).semantics { contentDescription = "Spending by category: $description" }) {
         val strokeWidth = 20.dp.toPx()
         val arcSize = size.width - strokeWidth

@@ -46,23 +46,41 @@ data class MenuAction(val icon: Symbol, val label: String, val onClick: () -> Un
  */
 @Composable
 fun HeaderButtonGroup(actions: List<MenuAction>, modifier: Modifier = Modifier) {
-    androidx.compose.foundation.layout.Row(
+    androidx.compose.material3.ButtonGroup(
+        overflowIndicator = { menuState ->
+            androidx.compose.material3.ButtonGroupDefaults.OverflowIndicator(menuState)
+        },
         modifier = modifier.padding(horizontal = 4.dp),
         horizontalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(
             androidx.compose.material3.ButtonGroupDefaults.ConnectedSpaceBetween
         )
     ) {
         actions.forEachIndexed { i, action ->
-            fun corners(outer: androidx.compose.ui.unit.Dp, inner: androidx.compose.ui.unit.Dp) =
-                androidx.compose.foundation.shape.RoundedCornerShape(
-                    topStart = if (i == 0) outer else inner, bottomStart = if (i == 0) outer else inner,
-                    topEnd = if (i == actions.lastIndex) outer else inner, bottomEnd = if (i == actions.lastIndex) outer else inner
-                )
-            FilledTonalIconButton(
-                onClick = action.onClick,
-                shapes = androidx.compose.material3.IconButtonShapes(shape = corners(24.dp, 8.dp), pressedShape = corners(24.dp, 4.dp)),
-                modifier = Modifier.size(width = 52.dp, height = 48.dp)
-            ) { SymbolIcon(action.icon, contentDescription = action.label) }
+            customItem(
+                buttonGroupContent = {
+                    val shapes = when {
+                        actions.size == 1 -> com.opensplit.ui.theme.appIconButtonShapes()
+                        i == 0 -> androidx.compose.material3.IconButtonShapes(
+                            shape = androidx.compose.material3.ButtonGroupDefaults.connectedLeadingButtonShape,
+                            pressedShape = androidx.compose.material3.ButtonGroupDefaults.connectedLeadingButtonPressShape
+                        )
+                        i == actions.lastIndex -> androidx.compose.material3.IconButtonShapes(
+                            shape = androidx.compose.material3.ButtonGroupDefaults.connectedTrailingButtonShape,
+                            pressedShape = androidx.compose.material3.ButtonGroupDefaults.connectedTrailingButtonPressShape
+                        )
+                        else -> androidx.compose.material3.IconButtonShapes(
+                            shape = androidx.compose.material3.ButtonGroupDefaults.connectedMiddleButtonPressShape,
+                            pressedShape = androidx.compose.material3.ButtonGroupDefaults.connectedMiddleButtonPressShape
+                        )
+                    }
+                    FilledTonalIconButton(
+                        onClick = action.onClick,
+                        shapes = shapes,
+                        modifier = Modifier.size(width = 52.dp, height = 48.dp)
+                    ) { SymbolIcon(action.icon, contentDescription = action.label) }
+                },
+                menuContent = {}
+            )
         }
     }
 }
