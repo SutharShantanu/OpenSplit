@@ -104,10 +104,8 @@ jobs:
             if [ -n "${{ secrets.DEBUG_KEYSTORE_BASE64 }}" ]; then
               echo "${{ secrets.DEBUG_KEYSTORE_BASE64 }}" | base64 -d > debug.keystore
             else
-              keytool -genkeypair -v -keystore debug.keystore \
-                -storepass android -keypass android -alias androiddebugkey \
-                -keyalg RSA -keysize 2048 -validity 10000 \
-                -dname "CN=Android Debug,O=Android,C=US"
+              echo "::error::No signing keystore secret set; refusing to sign with a throwaway key."
+              exit 1
             fi
             echo "No RELEASE_KEYSTORE_BASE64 set — signing with debug keystore."
           fi
