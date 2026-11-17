@@ -57,16 +57,13 @@ jobs:
           # The debug signing config points at ${rootDir}/debug.keystore (git-ignored).
           # Use the stable keystore from the DEBUG_KEYSTORE_BASE64 secret so the APK's
           # SHA-1 matches the one registered in Firebase (Google Sign-In needs this).
-          # Without the secret a throwaway keystore is generated and sign-in won't work.
           if [ -n "${{ secrets.DEBUG_KEYSTORE_BASE64 }}" ]; then
             echo "${{ secrets.DEBUG_KEYSTORE_BASE64 }}" | base64 -d > debug.keystore
             echo "Using DEBUG_KEYSTORE_BASE64 secret."
           else
-            keytool -genkeypair -v -keystore debug.keystore \
-              -storepass android -keypass android -alias androiddebugkey \
-              -keyalg RSA -keysize 2048 -validity 10000 \
-              -dname "CN=Android Debug,O=Android,C=US"
-            echo "No DEBUG_KEYSTORE_BASE64 secret set — generated throwaway keystore (Google Sign-In disabled)."
+            # A throwaway key would publish an APK that cannot update over earlier installs.
+            echo "::error::DEBUG_KEYSTORE_BASE64 secret is missing; refusing to sign with a throwaway key."
+            exit 1
           fi
 
       - name: Unit tests
