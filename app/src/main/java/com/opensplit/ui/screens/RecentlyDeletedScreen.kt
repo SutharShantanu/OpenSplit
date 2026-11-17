@@ -81,6 +81,19 @@ class RecentlyDeletedViewModel(private val container: AppContainer) : ViewModel(
         viewModelScope.launch { onDone(container.expenseRepository.purgeExpense(expense.groupId, expense.id).isSuccess) }
     }
 
+    fun purgeAll(onDone: (Int) -> Unit) {
+        viewModelScope.launch {
+            val current = deleted.value
+            var count = 0
+            for (exp in current) {
+                if (container.expenseRepository.purgeExpense(exp.groupId, exp.id).isSuccess) {
+                    count++
+                }
+            }
+            onDone(count)
+        }
+    }
+
     class Factory(private val container: AppContainer) : ViewModelProvider.Factory {
         @Suppress("UNCHECKED_CAST")
         override fun <T : ViewModel> create(modelClass: Class<T>): T = RecentlyDeletedViewModel(container) as T
@@ -94,6 +107,7 @@ fun RecentlyDeletedScreen(appContainer: AppContainer, onNavigateBack: () -> Unit
     val deleted by viewModel.deleted.collectAsStateWithLifecycle()
     val snackbar = LocalSnackbarController.current
     var pendingPurge by remember { mutableStateOf<Expense?>(null) }
+    var showPurgeAllConfirm by remember { mutableStateOf(false) }
     val dateFmt = SimpleDateFormat("MMM d", Locale.getDefault())
 
     Scaffold(
@@ -101,6 +115,19 @@ fun RecentlyDeletedScreen(appContainer: AppContainer, onNavigateBack: () -> Unit
             TopAppBar(
                 title = { Text("Recently deleted", fontWeight = FontWeight.Bold) },
                 navigationIcon = { com.opensplit.ui.components.RoundBackButton(onClick = onNavigateBack) },
+                actions = {
+                    if (deleted.isNotEmpty()) {
+                        TextButton(
+                            shapes = com.opensplit.ui.theme.appButtonShapes(),
+                            onClick = { showPurgeAllConfirm = true },
+                            colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error)
+                        ) {
+                            SymbolIcon(OpenSplitIcons.DeleteForever, contentDescription = null, modifier = Modifier.size(18.dp))
+                            Spacer(Modifier.width(4.dp))
+                            Text("Empty trash")
+                        }
+                    }
+                },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.surface)
             )
         }
@@ -164,6 +191,32 @@ fun RecentlyDeletedScreen(appContainer: AppContainer, onNavigateBack: () -> Unit
             }
         }
     }
+    }
+
+    if (showPurgeAllConfirm) {
+        AlertDialog(
+            onDismissRequest = { showPurgeAllConfirm = false },
+            icon = { SymbolIcon(OpenSplitIcons.DeleteForever, contentDescription = null, tint = MaterialTheme.colorScheme.error) },
+            title = { Text("Empty trash?") },
+            text = { Text("All ${deleted.size} deleted expenses will be permanently removed. This cannot be undone.") },
+            confirmButton = {
+                Button(
+                    shapes = com.opensplit.ui.theme.appButtonShapes(),
+                    onClick = {
+                        showPurgeAllConfirm = false
+                        viewModel.purgeAll { count ->
+                            snackbar.showMessage("Permanently removed $count expense${if (count == 1) "" else "s"}")
+                        }
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
+                ) { Text("Empty trash") }
+            },
+            dismissButton = {
+                TextButton(shapes = com.opensplit.ui.theme.appButtonShapes(), onClick = { showPurgeAllConfirm = false }) {
+                    Text("Cancel")
+                }
+            }
+        )
     }
 
     pendingPurge?.let { exp ->

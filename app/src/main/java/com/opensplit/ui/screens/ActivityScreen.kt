@@ -142,7 +142,8 @@ fun ActivityScreen(
                         modifier = Modifier
                             .fillMaxWidth()
                             .horizontalScroll(rememberScrollState())
-                            .padding(bottom = OpenSplitTokens.SpaceXS),
+                            .padding(vertical = OpenSplitTokens.SpaceXS)
+                            .defaultMinSize(minHeight = 48.dp),
                         horizontalArrangement = Arrangement.spacedBy(OpenSplitTokens.SpaceSM),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
@@ -552,16 +553,29 @@ private fun ActivityRow(
                 }
             }
         },
-        trailingContent = if (isUnread) {
-            {
-                Box(
-                    modifier = Modifier
-                        .size(8.dp)
-                        .clip(CircleShape)
-                        .background(MaterialTheme.colorScheme.primary)
-                )
+        trailingContent = {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                if (isUnread) {
+                    Box(
+                        modifier = Modifier
+                            .size(8.dp)
+                            .clip(CircleShape)
+                            .background(MaterialTheme.colorScheme.primary)
+                    )
+                }
+                if (isClickable) {
+                    SymbolIcon(
+                        symbol = OpenSplitIcons.ChevronRight,
+                        contentDescription = "View details",
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
+                        modifier = Modifier.size(18.dp)
+                    )
+                }
             }
-        } else null
+        }
     )
 }
 

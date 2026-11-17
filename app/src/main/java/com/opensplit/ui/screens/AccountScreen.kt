@@ -126,7 +126,8 @@ fun AccountScreen(
     appContainer: AppContainer,
     rootNavController: NavController,
     viewModel: AccountViewModel,
-    showTopBar: Boolean = false
+    showTopBar: Boolean = false,
+    onSubScreenChanged: (Boolean) -> Unit = {}
 ) {
     val context = LocalContext.current
     val snackbar = LocalSnackbarController.current
@@ -151,6 +152,10 @@ fun AccountScreen(
 
     BackHandler(enabled = selectedCategory != null) {
         selectedCategory = null
+    }
+
+    LaunchedEffect(selectedCategory) {
+        onSubScreenChanged(selectedCategory != null)
     }
 
     var showSignOutDialog by remember { mutableStateOf(false) }

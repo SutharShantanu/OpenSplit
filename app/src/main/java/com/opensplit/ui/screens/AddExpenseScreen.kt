@@ -171,6 +171,8 @@ fun AddExpenseScreen(
             // Itemized list state
             var itemizedName by remember { mutableStateOf("") }
             var itemizedPrice by remember { mutableStateOf("") }
+            var itemizedTaxPercent by remember { mutableStateOf(0.0) }
+            var itemizedTipPercent by remember { mutableStateOf(0.0) }
             val itemizedList = remember { mutableStateListOf<ExpenseItem>().apply { editingExpense?.items?.let { addAll(it) } } }
             val selectedUidsForItem = remember { mutableStateListOf<String>() }
 
@@ -384,11 +386,6 @@ fun AddExpenseScreen(
             }
 
             val isFormValid = description.isNotBlank() && totalAmount > 0 && splitResult != null && selectedParticipants.isNotEmpty() && payersValid && !isSaving
-
-            // Stepwise reveal: each stage only appears once the previous stage has something usable.
-            val showAfterAmount = totalAmount > 0
-            val showAfterDescription = description.isNotBlank()
-            val showAfterSplitBetween = selectedParticipants.isNotEmpty()
 
             var aiNaturalInput by remember { mutableStateOf("") }
             var isParsingText by remember { mutableStateOf(false) }
@@ -661,7 +658,11 @@ fun AddExpenseScreen(
                                             else if (c == '.' && !dot && length > 0) { dot = true; append(c) }
                                         }
                                     }
-                                    amountText = cleaned.take(12)
+                                    val limited = cleaned.take(12)
+                                    if (limited != amountText) {
+                                        haptics.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.TextHandleMove)
+                                        amountText = limited
+                                    }
                                 },
                                 textStyle = moneyStyle,
                                 singleLine = true,
@@ -679,7 +680,7 @@ fun AddExpenseScreen(
                         }
                         Spacer(modifier = Modifier.height(OpenSplitTokens.SpaceXS))
                         Text(
-                            text = if (totalAmount > 0) com.opensplit.util.CurrencyFormatter.format(totalAmount, group.currency) else "Type the total; the rest appears as you go",
+                            text = if (totalAmount > 0) com.opensplit.util.CurrencyFormatter.format(totalAmount, group.currency) else "Enter total amount",
                             fontFamily = com.opensplit.ui.theme.MoneyFontFamily,
                             style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -687,55 +688,23 @@ fun AddExpenseScreen(
                     }
                 }
 
-                // Description: collapsed as a button, expands to an input box on click.
-                AnimatedVisibility(
-                    visible = showAfterAmount,
-                    enter = fadeIn() + expandVertically(),
-                    exit = fadeOut() + shrinkVertically()
-                ) {
-                    if (isDescriptionEditing) {
-                        OutlinedTextField(
-                            value = description,
-                            onValueChange = { description = it },
-                            label = { Text("Description") },
-                            placeholder = { Text("e.g. Dinner, Groceries, Flight") },
-                            singleLine = true,
-                            keyboardOptions = KeyboardOptions(
-                                capitalization = KeyboardCapitalization.Words,
-                                imeAction = ImeAction.Done
-                            ),
-                            keyboardActions = KeyboardActions(onDone = { isDescriptionEditing = false }),
-                            shape = MaterialTheme.shapes.medium,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .focusRequester(descriptionFocusRequester)
-                        )
-                    } else {
-                        OutlinedButton(shapes = com.opensplit.ui.theme.appButtonShapes(), 
-                            onClick = { isDescriptionEditing = true },
-                            modifier = Modifier.fillMaxWidth(),
-                            contentPadding = PaddingValues(horizontal = OpenSplitTokens.SpaceMD, vertical = OpenSplitTokens.SpaceMD)
-                        ) {
-                            SymbolIcon(OpenSplitIcons.EditExpense, contentDescription = null, modifier = Modifier.size(18.dp))
-                            Spacer(modifier = Modifier.width(OpenSplitTokens.SpaceSM))
-                            Text(
-                                text = description.ifBlank { "Add description" },
-                                modifier = Modifier.weight(1f),
-                                textAlign = TextAlign.Start,
-                                color = if (description.isBlank()) MaterialTheme.colorScheme.onSurfaceVariant else LocalContentColor.current
-                            )
-                        }
-                    }
-                }
-                LaunchedEffect(isDescriptionEditing) {
-                    if (isDescriptionEditing) descriptionFocusRequester.requestFocus()
-                }
+                // Description field (always accessible)
+                OutlinedTextField(
+                    value = description,
+                    onValueChange = { description = it },
+                    label = { Text("Description") },
+                    placeholder = { Text("e.g. Dinner, Groceries, Flight") },
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(
+                        capitalization = KeyboardCapitalization.Words,
+                        imeAction = ImeAction.Done
+                    ),
+                    shape = MaterialTheme.shapes.medium,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .focusRequester(descriptionFocusRequester)
+                )
 
-                AnimatedVisibility(
-                    visible = showAfterDescription,
-                    enter = fadeIn() + expandVertically(),
-                    exit = fadeOut() + shrinkVertically()
-                ) {
                 Column(verticalArrangement = Arrangement.spacedBy(OpenSplitTokens.SpaceMD)) {
                 // Category Selection
                 Column {
@@ -984,16 +953,8 @@ fun AddExpenseScreen(
                         )
                     }
                 }
-                } // end Category..Split-between stage Column
-                } // end AnimatedVisibility(showAfterDescription)
 
-                AnimatedVisibility(
-                    visible = showAfterDescription && showAfterSplitBetween,
-                    enter = fadeIn() + expandVertically(),
-                    exit = fadeOut() + shrinkVertically()
-                ) {
-                Column(verticalArrangement = Arrangement.spacedBy(OpenSplitTokens.SpaceMD)) {
-                // Split Mode Tabs / Chips
+                // Split Mode Tabs / Chips (Always visible)
                 Column {
                     Text(
                         text = "Split Mode",
@@ -1001,21 +962,33 @@ fun AddExpenseScreen(
                         fontWeight = FontWeight.Bold
                     )
                     Spacer(modifier = Modifier.height(OpenSplitTokens.SpaceXS))
-                    Row(
-                        modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
-                        horizontalArrangement = Arrangement.spacedBy(androidx.compose.material3.ButtonGroupDefaults.ConnectedSpaceBetween)
+                    @OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
+                    androidx.compose.foundation.layout.FlowRow(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(OpenSplitTokens.SpaceSM),
+                        verticalArrangement = Arrangement.spacedBy(OpenSplitTokens.SpaceXS)
                     ) {
                         splitTypes.forEachIndexed { index, title ->
-                            androidx.compose.material3.ToggleButton(
-                                checked = selectedSplitIndex == index,
-                                onCheckedChange = { selectedSplitIndex = index },
-                                // Connected group: round outer ends, square inner corners until selected.
-                                shapes = when (index) {
-                                    0 -> androidx.compose.material3.ButtonGroupDefaults.connectedLeadingButtonShapes()
-                                    splitTypes.lastIndex -> androidx.compose.material3.ButtonGroupDefaults.connectedTrailingButtonShapes()
-                                    else -> androidx.compose.material3.ButtonGroupDefaults.connectedMiddleButtonShapes()
-                                }
-                            ) { Text(title) }
+                            FilterChip(
+                                selected = selectedSplitIndex == index,
+                                onClick = {
+                                    haptics.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.TextHandleMove)
+                                    selectedSplitIndex = index
+                                },
+                                label = { Text(title) },
+                                leadingIcon = {
+                                    val icon = when (index) {
+                                        0 -> OpenSplitIcons.SplitEqual
+                                        1 -> OpenSplitIcons.SplitExact
+                                        2 -> OpenSplitIcons.SplitPercent
+                                        3 -> OpenSplitIcons.SplitShares
+                                        4 -> OpenSplitIcons.SplitItemized
+                                        else -> null
+                                    }
+                                    icon?.let { SymbolIcon(it, contentDescription = null, modifier = Modifier.size(16.dp)) }
+                                },
+                                shape = MaterialTheme.shapes.medium
+                            )
                         }
                     }
                 }
@@ -1030,6 +1003,12 @@ fun AddExpenseScreen(
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = MaterialTheme.colorScheme.primary,
                                 fontWeight = FontWeight.Medium
+                            )
+                        } else {
+                            Text(
+                                text = "Will be split equally among ${participantMembers.size} member${if (participantMembers.size == 1) "" else "s"}",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
                     }
@@ -1085,7 +1064,12 @@ fun AddExpenseScreen(
                                     Text(m.displayName, modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium)
                                     Row(verticalAlignment = Alignment.CenterVertically) {
                                         OutlinedButton(shapes = com.opensplit.ui.theme.appButtonShapes(), 
-                                            onClick = { if (currentShares > 1) shares[m.uid] = currentShares - 1 },
+                                            onClick = {
+                                                if (currentShares > 1) {
+                                                    haptics.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.TextHandleMove)
+                                                    shares[m.uid] = currentShares - 1
+                                                }
+                                            },
                                             contentPadding = PaddingValues(0.dp),
                                             modifier = Modifier.size(48.dp)
                                         ) { Text("-", style = MaterialTheme.typography.titleMedium) }
@@ -1095,7 +1079,10 @@ fun AddExpenseScreen(
                                             style = MaterialTheme.typography.bodyMedium
                                         )
                                         OutlinedButton(shapes = com.opensplit.ui.theme.appButtonShapes(), 
-                                            onClick = { shares[m.uid] = currentShares + 1 },
+                                            onClick = {
+                                                haptics.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.TextHandleMove)
+                                                shares[m.uid] = currentShares + 1
+                                            },
                                             contentPadding = PaddingValues(0.dp),
                                             modifier = Modifier.size(48.dp)
                                         ) { Text("+", style = MaterialTheme.typography.titleMedium) }
@@ -1180,14 +1167,115 @@ fun AddExpenseScreen(
                             }
 
                             if (itemizedList.isNotEmpty()) {
-                                HorizontalDivider()
+                                HorizontalDivider(modifier = Modifier.padding(vertical = OpenSplitTokens.SpaceXS))
                                 itemizedList.forEach { item ->
                                     Row(
                                         modifier = Modifier.fillMaxWidth(),
-                                        horizontalArrangement = Arrangement.SpaceBetween
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        verticalAlignment = Alignment.CenterVertically
                                     ) {
-                                        Text("${item.name} (${com.opensplit.util.CurrencyFormatter.format(item.price, group.currency)})")
-                                        Text("${item.assignedUids.size} people")
+                                        Column(modifier = Modifier.weight(1f)) {
+                                            Text(item.name, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
+                                            Text("${item.assignedUids.size} member${if (item.assignedUids.size == 1) "" else "s"}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                        }
+                                        Text(
+                                            text = com.opensplit.util.CurrencyFormatter.format(item.price, group.currency),
+                                            style = MaterialTheme.typography.bodyMedium.copy(fontFamily = com.opensplit.ui.theme.MoneyFontFamily),
+                                            fontWeight = FontWeight.Bold
+                                        )
+                                        IconButton(
+                                            shapes = com.opensplit.ui.theme.appIconButtonShapes(),
+                                            onClick = { itemizedList.remove(item) }
+                                        ) {
+                                            SymbolIcon(OpenSplitIcons.Close, contentDescription = "Remove item", tint = MaterialTheme.colorScheme.error, modifier = Modifier.size(18.dp))
+                                        }
+                                    }
+                                }
+
+                                val itemsSubtotal = remember(itemizedList.toList()) { itemizedList.sumOf { it.price } }
+                                val calculatedTotalWithTaxTip = remember(itemsSubtotal, itemizedTaxPercent, itemizedTipPercent) {
+                                    itemsSubtotal * (1.0 + (itemizedTaxPercent + itemizedTipPercent) / 100.0)
+                                }
+
+                                Card(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    shape = MaterialTheme.shapes.medium,
+                                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh)
+                                ) {
+                                    Column(
+                                        modifier = Modifier.padding(OpenSplitTokens.SpaceMD),
+                                        verticalArrangement = Arrangement.spacedBy(OpenSplitTokens.SpaceSM)
+                                    ) {
+                                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                                            Text("Items Subtotal", style = MaterialTheme.typography.bodyMedium)
+                                            Text(com.opensplit.util.CurrencyFormatter.format(itemsSubtotal, group.currency), fontWeight = FontWeight.SemiBold)
+                                        }
+
+                                        // Proportional Tax Selection
+                                        Column {
+                                            Text("Proportional Tax", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                            Spacer(Modifier.height(4.dp))
+                                            Row(horizontalArrangement = Arrangement.spacedBy(OpenSplitTokens.SpaceXS)) {
+                                                listOf(0.0, 5.0, 8.25, 12.0, 18.0).forEach { pct ->
+                                                    FilterChip(
+                                                        selected = itemizedTaxPercent == pct,
+                                                        onClick = {
+                                                            itemizedTaxPercent = pct
+                                                            val newTotal = itemsSubtotal * (1.0 + (pct + itemizedTipPercent) / 100.0)
+                                                            amountText = "%.2f".format(java.util.Locale.US, newTotal)
+                                                        },
+                                                        label = { Text(if (pct == 0.0) "None" else "${pct}%") }
+                                                    )
+                                                }
+                                            }
+                                        }
+
+                                        // Proportional Tip Selection
+                                        Column {
+                                            Text("Proportional Tip", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                            Spacer(Modifier.height(4.dp))
+                                            Row(horizontalArrangement = Arrangement.spacedBy(OpenSplitTokens.SpaceXS)) {
+                                                listOf(0.0, 10.0, 15.0, 18.0, 20.0).forEach { pct ->
+                                                    FilterChip(
+                                                        selected = itemizedTipPercent == pct,
+                                                        onClick = {
+                                                            itemizedTipPercent = pct
+                                                            val newTotal = itemsSubtotal * (1.0 + (itemizedTaxPercent + pct) / 100.0)
+                                                            amountText = "%.2f".format(java.util.Locale.US, newTotal)
+                                                        },
+                                                        label = { Text(if (pct == 0.0) "None" else "${pct.toInt()}%") }
+                                                    )
+                                                }
+                                            }
+                                        }
+
+                                        HorizontalDivider()
+
+                                        Row(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            horizontalArrangement = Arrangement.SpaceBetween,
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            Column {
+                                                Text("Total with Tax & Tip", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                                Text(
+                                                    text = com.opensplit.util.CurrencyFormatter.format(calculatedTotalWithTaxTip, group.currency),
+                                                    style = MaterialTheme.typography.titleMedium,
+                                                    color = MaterialTheme.colorScheme.primary,
+                                                    fontWeight = FontWeight.Bold
+                                                )
+                                            }
+                                            if (kotlin.math.abs(totalAmount - calculatedTotalWithTaxTip) > 0.01) {
+                                                OutlinedButton(
+                                                    shapes = com.opensplit.ui.theme.appButtonShapes(),
+                                                    onClick = {
+                                                        amountText = "%.2f".format(java.util.Locale.US, calculatedTotalWithTaxTip)
+                                                    }
+                                                ) {
+                                                    Text("Apply to Total")
+                                                }
+                                            }
+                                        }
                                     }
                                 }
                             }
@@ -1274,8 +1362,7 @@ fun AddExpenseScreen(
                         modifier = Modifier.fillMaxWidth().padding(top = OpenSplitTokens.SpaceSM)
                     )
                 }
-                } // end Split-mode/Save stage Column
-                } // end AnimatedVisibility(showAfterSplitBetween)
+                } // end Category..Split-mode/Save Column
                 } // end else (Manual Entry tab)
 
                 if (showDatePicker) {

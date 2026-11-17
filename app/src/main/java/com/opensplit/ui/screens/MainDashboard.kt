@@ -93,6 +93,7 @@ fun MainDashboard(
     onWidgetActionConsumed: () -> Unit = {}
 ) {
     var selectedTab by rememberSaveable { mutableStateOf(DashboardTab.GROUPS) }
+    var isSettingsSubScreenOpen by remember { mutableStateOf(false) }
     val snackbar = LocalSnackbarController.current
     val busy = com.opensplit.ui.components.LocalBusy.current
     val wide = useNavigationRail(LocalConfiguration.current.screenWidthDp)
@@ -452,7 +453,8 @@ fun MainDashboard(
                         DashboardTab.SETTINGS -> AccountScreen(
                             appContainer = appContainer,
                             rootNavController = rootNavController,
-                            viewModel = accountViewModel
+                            viewModel = accountViewModel,
+                            onSubScreenChanged = { isSettingsSubScreenOpen = it }
                         )
                     }
                     }
@@ -464,7 +466,13 @@ fun MainDashboard(
         }
 
     // Floats over the content; lists scroll behind it and keep FloatingNavBarClearance at the end.
-    if (!wide) {
+    val showBottomBar = !wide && !(selectedTab == DashboardTab.SETTINGS && isSettingsSubScreenOpen)
+    androidx.compose.animation.AnimatedVisibility(
+        visible = showBottomBar,
+        enter = androidx.compose.animation.fadeIn() + androidx.compose.animation.slideInVertically { it },
+        exit = androidx.compose.animation.fadeOut() + androidx.compose.animation.slideOutVertically { it },
+        modifier = Modifier.align(androidx.compose.ui.Alignment.BottomCenter)
+    ) {
         com.opensplit.ui.components.FloatingNavBar(
             items = DashboardTab.entries.map { tab ->
                 com.opensplit.ui.components.FloatingNavItem(
@@ -475,13 +483,12 @@ fun MainDashboard(
                     badge = { icon -> tabItem(tab, icon) }
                 )
             },
-            action = fab.takeIf { it !== groupsFab },
-            modifier = Modifier.align(androidx.compose.ui.Alignment.BottomCenter)
+            action = fab.takeIf { it !== groupsFab }
         )
-        if (fab === groupsFab) {
-            // Above the nav bar: its 12dp padding + 72dp height + 16dp gap.
-            groupsFabMenu(Modifier.align(androidx.compose.ui.Alignment.BottomEnd).navigationBarsPadding().padding(end = 16.dp, bottom = 100.dp))
-        }
+    }
+    if (!wide && showBottomBar && fab === groupsFab) {
+        // Above the nav bar: its 12dp padding + 72dp height + 16dp gap.
+        groupsFabMenu(Modifier.align(androidx.compose.ui.Alignment.BottomEnd).navigationBarsPadding().padding(end = 16.dp, bottom = 100.dp))
     }
     }
 

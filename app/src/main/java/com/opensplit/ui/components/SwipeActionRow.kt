@@ -69,6 +69,9 @@ fun SwipeActionRow(
     fun trayWidth(n: Int) = if (n == 0) 0.dp else buttonSize * n + gap * (n - 1) + sidePad * 2
     val startPx = with(density) { trayWidth(startActions.size).toPx() }
     val endPx = with(density) { trayWidth(endActions.size).toPx() }
+    val snapSpec = androidx.compose.animation.core.spring<Float>()
+    val decaySpec = androidx.compose.animation.rememberSplineBasedDecay<Float>()
+    val minThresholdPx = with(density) { 24.dp.toPx() }
     val state = remember(startPx, endPx) {
         AnchoredDraggableState(
             initialValue = Reveal.Settled,
@@ -76,7 +79,11 @@ fun SwipeActionRow(
                 if (startActions.isNotEmpty()) Reveal.Start at startPx
                 Reveal.Settled at 0f
                 if (endActions.isNotEmpty()) Reveal.End at -endPx
-            }
+            },
+            positionalThreshold = { distance: Float -> maxOf(minThresholdPx, kotlin.math.abs(distance) * 0.5f) },
+            velocityThreshold = { with(density) { 125.dp.toPx() } },
+            snapAnimationSpec = snapSpec,
+            decayAnimationSpec = decaySpec
         )
     }
     val scope = rememberCoroutineScope()
