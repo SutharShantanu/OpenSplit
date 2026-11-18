@@ -10,6 +10,9 @@ import com.opensplit.ui.components.LocalSnackbarController
 
 import com.opensplit.ui.components.AppLoadingIndicator
 
+import android.app.Activity
+import android.content.Intent
+import android.speech.RecognizerIntent
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
@@ -223,14 +226,17 @@ fun AddExpenseScreen(
             // No AI key: open on Manual Entry rather than a locked tab. Re-runs only if the lock changes.
             androidx.compose.runtime.LaunchedEffect(aiUnlocked) { if (!aiUnlocked) selectedEntryTab = 1 }
 
+            var aiNaturalInput by remember { mutableStateOf("") }
+            var isParsingText by remember { mutableStateOf(false) }
+
             // Receipt scanning via the user's AI provider; prefills merchant, total and items.
             val scope = rememberCoroutineScope()
             var isScanning by remember { mutableStateOf(false) }
             var scanStatus by remember { mutableStateOf<String?>(null) }
             // One scan path for every source: camera shot, gallery photo or a picked file. The image
             // is also attached to the expense so the receipt is kept, not just read.
-            val scanReceipt: (android.net.Uri?) -> Unit = { uri ->
-                android.util.Log.i("ReceiptScan", "scan uri=$uri")
+            val scanReceipt: (android.net.Uri?, String?) -> Unit = { uri, splitInstructions ->
+                android.util.Log.i("ReceiptScan", "scan uri=$uri instructions=$splitInstructions")
                 if (uri != null) {
                     pickedReceiptUri = uri
                     pickedReceiptName = "Receipt"
@@ -241,19 +247,37 @@ fun AddExpenseScreen(
                             context.contentResolver.openInputStream(uri)?.use { it.readBytes() }
                         }
                         val mime = context.contentResolver.getType(uri) ?: "image/jpeg"
-                        val receipt = if (bytes != null) aiService.parseReceipt(bytes, mime) else null
+                        val memberNames = members.map { it.displayName.ifBlank { it.email } }
+                        val receipt = if (bytes != null) aiService.parseReceipt(bytes, mime, splitInstructions, memberNames) else null
                         android.util.Log.i("ReceiptScan", "bytes=${bytes?.size} mime=$mime parsed=${receipt != null} aiAvailable=${aiService.isAvailable(AiFeature.RECEIPT_SCAN)}")
                         isScanning = false
                         if (receipt != null) {
                             if (description.isBlank()) receipt.merchant?.let { description = it }
-                            if (amountText.isBlank()) receipt.total?.let { amountText = it.toString() }
+                            if (amountText.isBlank()) receipt.total?.let { amountText = it.toString().removeSuffix(".0") }
                             if (receipt.items.isNotEmpty()) {
-                                itemizedList.addAll(receipt.items)
+                                val mappedItems = receipt.items.map { item ->
+                                    val matchedUids = members.filter { m ->
+                                        val mName = m.displayName.ifBlank { m.email }
+                                        item.assignedUids.any { assigned ->
+                                            mName.contains(assigned, ignoreCase = true) ||
+                                            assigned.contains(mName, ignoreCase = true)
+                                        }
+                                    }.map { it.uid }
+                                    item.copy(assignedUids = matchedUids)
+                                }
+                                itemizedList.clear()
+                                itemizedList.addAll(mappedItems)
                                 selectedSplitIndex = 4
                             }
+                            receipt.paidByName?.let { n ->
+                                members.firstOrNull {
+                                    val mName = it.displayName.ifBlank { it.email }
+                                    mName.contains(n, ignoreCase = true) || n.contains(mName, ignoreCase = true)
+                                }?.let { paidBy = it.uid }
+                            }
                             selectedEntryTab = 1
-                            scanStatus = if (receipt.lowConfidence) "Low confidence: the photo was hard to read. Check every field."
-                                else "Read ${receipt.items.size} items from receipt. Review and save."
+                            scanStatus = if (receipt.lowConfidence) "Low confidence: photo was hard to read. Review items."
+                                else "AI read receipt & mapped your split instructions!"
                             snackbar.showMessage(scanStatus!!)
                         } else if (!aiService.isAvailable(AiFeature.RECEIPT_SCAN)) {
                             scanStatus = "Receipt attached. Add an AI key in Settings to read it automatically."
@@ -263,13 +287,34 @@ fun AddExpenseScreen(
                     }
                 }
             }
-            val galleryPicker = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { scanReceipt(it) }
-            val filePicker = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { scanReceipt(it) }
+            val galleryPicker = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
+                if (uri != null) {
+                    pickedReceiptUri = uri
+                    pickedReceiptName = "Receipt"
+                    existingReceiptUrl = null
+                    scanReceipt(uri, aiNaturalInput.ifBlank { null })
+                }
+            }
+            val filePicker = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
+                if (uri != null) {
+                    pickedReceiptUri = uri
+                    pickedReceiptName = "Receipt"
+                    existingReceiptUrl = null
+                    scanReceipt(uri, aiNaturalInput.ifBlank { null })
+                }
+            }
             // Saveable: the camera app can push this activity out of memory; the URI must survive.
             var cameraReceiptUri by androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf<android.net.Uri?>(null) }
             val cameraCapture = rememberLauncherForActivityResult(ActivityResultContracts.TakePicture()) { ok ->
                 android.util.Log.i("ReceiptScan", "camera result ok=$ok uri=$cameraReceiptUri")
-                if (ok) scanReceipt(cameraReceiptUri) else snackbar.showMessage("No photo taken.")
+                if (ok && cameraReceiptUri != null) {
+                    pickedReceiptUri = cameraReceiptUri
+                    pickedReceiptName = "Receipt"
+                    existingReceiptUrl = null
+                    scanReceipt(cameraReceiptUri, aiNaturalInput.ifBlank { null })
+                } else if (!ok) {
+                    snackbar.showMessage("No photo taken.")
+                }
             }
             val openCamera = {
                 val file = java.io.File(context.cacheDir, "receipt_${System.currentTimeMillis()}.jpg")
@@ -279,6 +324,29 @@ fun AddExpenseScreen(
             }
             val cameraPermission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
                 if (granted) openCamera() else snackbar.showMessage("Camera permission is needed to scan a receipt.")
+            }
+
+            val speechRecognizerLauncher = rememberLauncherForActivityResult(
+                contract = ActivityResultContracts.StartActivityForResult()
+            ) { result ->
+                if (result.resultCode == Activity.RESULT_OK) {
+                    val spoken = result.data?.getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS)?.firstOrNull()
+                    if (!spoken.isNullOrBlank()) {
+                        aiNaturalInput = if (aiNaturalInput.isBlank()) spoken else "$aiNaturalInput $spoken"
+                    }
+                }
+            }
+
+            val startVoiceInput = {
+                val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
+                    putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
+                    putExtra(RecognizerIntent.EXTRA_PROMPT, "Explain who paid and how to split this expense...")
+                }
+                try {
+                    speechRecognizerLauncher.launch(intent)
+                } catch (e: Exception) {
+                    snackbar.showMessage("Voice input is not available on this device.")
+                }
             }
             var showReceiptSource by remember { mutableStateOf(false) }
             if (showReceiptSource) {
@@ -387,9 +455,6 @@ fun AddExpenseScreen(
 
             val isFormValid = description.isNotBlank() && totalAmount > 0 && splitResult != null && selectedParticipants.isNotEmpty() && payersValid && !isSaving
 
-            var aiNaturalInput by remember { mutableStateOf("") }
-            var isParsingText by remember { mutableStateOf(false) }
-
             com.opensplit.ui.components.FormLock(locked = isSaving) {
             Column(
                 modifier = Modifier
@@ -449,7 +514,7 @@ fun AddExpenseScreen(
                 }
 
                 if (selectedEntryTab == 0) { com.opensplit.ui.components.AiLocked(unlocked = aiUnlocked) { Column {
-                    // ---- AI ENTRY VIEW ----
+                    // ---- AI ENTRY & SMART SPLIT COMPOSER ----
                     Card(
                         modifier = Modifier.fillMaxWidth(),
                         shape = MaterialTheme.shapes.medium,
@@ -457,120 +522,196 @@ fun AddExpenseScreen(
                         border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
                     ) {
                         Column(modifier = Modifier.padding(16.dp)) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    SymbolIcon(
+                                        symbol = OpenSplitIcons.AutoAwesome,
+                                        contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.primary,
+                                        modifier = Modifier.size(16.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Text(
+                                        text = "Explain Split (Type or Speak)",
+                                        style = MaterialTheme.typography.titleSmall,
+                                        fontWeight = FontWeight.Bold,
+                                        color = MaterialTheme.colorScheme.onSurface
+                                    )
+                                }
+
+                                FilledTonalIconButton(
+                                    onClick = { startVoiceInput() },
+                                    shapes = com.opensplit.ui.theme.appIconButtonShapes(),
+                                    modifier = Modifier.size(36.dp),
+                                    colors = IconButtonDefaults.filledTonalIconButtonColors(
+                                        containerColor = MaterialTheme.colorScheme.primaryContainer,
+                                        contentColor = MaterialTheme.colorScheme.onPrimaryContainer
+                                    )
+                                ) {
+                                    SymbolIcon(OpenSplitIcons.Mic, contentDescription = "Voice Input", modifier = Modifier.size(18.dp))
+                                }
+                            }
+
+                            Spacer(modifier = Modifier.height(4.dp))
                             Text(
-                                text = "Describe expense naturally",
-                                style = MaterialTheme.typography.labelSmall,
+                                text = "Explain who paid and how to split between users or items, or tap the mic to speak.",
+                                style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
-                            Spacer(modifier = Modifier.height(8.dp))
+
+                            Spacer(modifier = Modifier.height(10.dp))
+
                             OutlinedTextField(
                                 value = aiNaturalInput,
                                 onValueChange = { aiNaturalInput = it },
                                 placeholder = {
                                     Text(
-                                        "e.g., \"Paid $124.50 for weekend groceries at Safeway and splitting it equally with Sarah and Michael.\"",
+                                        "e.g. \"Rahul paid 1400. Sarah and I split the wine, Raja doesn't drink, split food equally.\"",
                                         style = MaterialTheme.typography.bodyMedium,
                                         color = MaterialTheme.colorScheme.outline
                                     )
                                 },
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .heightIn(min = 100.dp),
-                                colors = OutlinedTextFieldDefaults.colors(
-                                    focusedBorderColor = androidx.compose.ui.graphics.Color.Transparent,
-                                    unfocusedBorderColor = androidx.compose.ui.graphics.Color.Transparent
-                                )
+                                    .heightIn(min = 96.dp),
+                                shape = MaterialTheme.shapes.small,
+                                trailingIcon = if (aiNaturalInput.isNotBlank()) {
+                                    {
+                                        IconButton(onClick = { aiNaturalInput = "" }) {
+                                            SymbolIcon(OpenSplitIcons.Close, contentDescription = "Clear", modifier = Modifier.size(16.dp))
+                                        }
+                                    }
+                                } else null
                             )
+
+                            Spacer(modifier = Modifier.height(10.dp))
+
+                            // Quick member mention chips
+                            Text(
+                                text = "Quick mentions:",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            Spacer(modifier = Modifier.height(6.dp))
                             Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.End
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .horizontalScroll(rememberScrollState()),
+                                horizontalArrangement = Arrangement.spacedBy(6.dp)
                             ) {
-                                IconButton(shapes = com.opensplit.ui.theme.appIconButtonShapes(), onClick = { snackbar.showMessage("Listening for voice input...") }) {
-                                    SymbolIcon(OpenSplitIcons.Activity, contentDescription = "Voice Input")
+                                members.forEach { member ->
+                                    val name = member.displayName.ifBlank { member.email.substringBefore('@') }
+                                    Surface(
+                                        shape = CircleShape,
+                                        color = MaterialTheme.colorScheme.surfaceContainerHighest,
+                                        border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)),
+                                        modifier = Modifier.clickable {
+                                            aiNaturalInput = if (aiNaturalInput.isBlank()) name else "$aiNaturalInput $name"
+                                        }
+                                    ) {
+                                        Text(
+                                            text = "+ $name",
+                                            style = MaterialTheme.typography.labelSmall,
+                                            fontWeight = FontWeight.SemiBold,
+                                            color = MaterialTheme.colorScheme.onSurface,
+                                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
+                                        )
+                                    }
+                                }
+                                Surface(
+                                    shape = CircleShape,
+                                    color = MaterialTheme.colorScheme.surfaceContainerHighest,
+                                    border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)),
+                                    modifier = Modifier.clickable {
+                                        aiNaturalInput = if (aiNaturalInput.isBlank()) "split equally" else "$aiNaturalInput split equally"
+                                    }
+                                ) {
+                                    Text(
+                                        text = "+ Split equally",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        fontWeight = FontWeight.SemiBold,
+                                        color = MaterialTheme.colorScheme.primary,
+                                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
+                                    )
                                 }
                             }
                         }
                     }
 
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(vertical = 4.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        HorizontalDivider(modifier = Modifier.weight(1f), color = MaterialTheme.colorScheme.outlineVariant)
-                        Text(
-                            text = "  OR  ",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            fontWeight = FontWeight.Bold
-                        )
-                        HorizontalDivider(modifier = Modifier.weight(1f), color = MaterialTheme.colorScheme.outlineVariant)
-                    }
+                    Spacer(modifier = Modifier.height(10.dp))
 
-                    // Receipt Upload Button / Card
+                    // Receipt Upload Card (Optional attachment)
                     Surface(
                         onClick = { showReceiptSource = true },
                         modifier = Modifier.fillMaxWidth(),
                         shape = MaterialTheme.shapes.medium,
-                        color = MaterialTheme.colorScheme.surfaceContainerLowest,
-                        border = androidx.compose.foundation.BorderStroke(2.dp, MaterialTheme.colorScheme.outlineVariant),
+                        color = if (pickedReceiptUri != null) MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.35f) else MaterialTheme.colorScheme.surfaceContainerLowest,
+                        border = androidx.compose.foundation.BorderStroke(
+                            width = if (pickedReceiptUri != null) 2.dp else 1.5.dp,
+                            color = if (pickedReceiptUri != null) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant
+                        ),
                         tonalElevation = 1.dp
                     ) {
-                        Column(
+                        Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(vertical = 24.dp, horizontal = 16.dp),
-                            horizontalAlignment = Alignment.CenterHorizontally
+                                .padding(16.dp),
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
                             Surface(
                                 shape = CircleShape,
                                 color = MaterialTheme.colorScheme.secondaryContainer,
-                                modifier = Modifier.size(56.dp)
+                                modifier = Modifier.size(46.dp)
                             ) {
                                 Box(contentAlignment = Alignment.Center) {
                                     SymbolIcon(
                                         symbol = OpenSplitIcons.ReceiptLong,
                                         contentDescription = null,
                                         tint = MaterialTheme.colorScheme.onSecondaryContainer,
-                                        modifier = Modifier.size(28.dp)
+                                        modifier = Modifier.size(24.dp)
                                     )
                                 }
                             }
-                            Spacer(modifier = Modifier.height(12.dp))
-                            Text(
-                                text = "Scan or Upload Receipt",
-                                style = MaterialTheme.typography.titleMedium,
-                                fontWeight = FontWeight.Bold
-                            )
-                            Spacer(modifier = Modifier.height(4.dp))
-                            Text(
-                                text = "AI will extract the amount, merchant, and items.",
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                textAlign = TextAlign.Center
-                            )
-                            if (isScanning) {
-                                Spacer(modifier = Modifier.height(12.dp))
-                                com.opensplit.ui.components.InlineBusy("Reading receipt…")
-                            } else scanStatus?.let {
-                                Spacer(modifier = Modifier.height(12.dp))
+                            Spacer(modifier = Modifier.width(14.dp))
+                            Column(modifier = Modifier.weight(1f)) {
                                 Text(
-                                    text = it,
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = if (it.startsWith("Couldn't")) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary,
-                                    textAlign = TextAlign.Center
+                                    text = if (pickedReceiptUri != null) "Receipt Attached" else "Attach or Scan Receipt (Optional)",
+                                    style = MaterialTheme.typography.titleSmall,
+                                    fontWeight = FontWeight.Bold
                                 )
+                                Text(
+                                    text = if (pickedReceiptUri != null) "Tap to change photo or remove" else "AI will extract all line items and apply your split",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                                if (isScanning) {
+                                    Spacer(modifier = Modifier.height(6.dp))
+                                    com.opensplit.ui.components.InlineBusy("Reading receipt & applying instructions…")
+                                }
+                            }
+                            if (pickedReceiptUri != null) {
+                                TextButton(
+                                    shapes = com.opensplit.ui.theme.appButtonShapes(),
+                                    onClick = { pickedReceiptUri = null }
+                                ) {
+                                    Text("Remove", color = MaterialTheme.colorScheme.error)
+                                }
                             }
                         }
                     }
 
-                    Spacer(modifier = Modifier.height(8.dp))
+                    Spacer(modifier = Modifier.height(12.dp))
 
                     Button(
                         shapes = androidx.compose.material3.ButtonDefaults.shapesFor(androidx.compose.material3.ButtonDefaults.MediumContainerHeight),
                         onClick = {
-                            if (aiNaturalInput.isNotBlank() && !isParsingText) {
+                            if (pickedReceiptUri != null && !isScanning) {
+                                scanReceipt(pickedReceiptUri, aiNaturalInput.ifBlank { null })
+                            } else if (aiNaturalInput.isNotBlank() && !isParsingText) {
                                 isParsingText = true
                                 scope.launch {
                                     val names = members.map { it.displayName.ifBlank { it.email } }
@@ -578,7 +719,7 @@ fun AddExpenseScreen(
                                         ?: AiHeuristics.parseExpenseText(aiNaturalInput, names)
                                     isParsingText = false
                                     if (parsed == null) {
-                                        snackbar.showMessage("Couldn't understand that. Try: 'Rahul paid 1200 for dinner'.")
+                                        snackbar.showMessage("Couldn't understand that. Try speaking or typing who paid and amounts.")
                                         return@launch
                                     }
                                     description = parsed.description
@@ -595,25 +736,33 @@ fun AddExpenseScreen(
                                     selectedEntryTab = 1
                                     snackbar.showMessage(
                                         if (parsed.source == com.opensplit.data.ai.ParsedExpense.Source.AI) "AI filled in the expense. Review and save."
-                                        else if (aiService.isDailyQuotaExhausted.value) "Daily free AI limit reached (20/20). Filled in with offline parser."
+                                        else if (aiService.isDailyQuotaExhausted.value) "Daily free AI limit reached. Filled in with offline parser."
                                         else "Filled in what could be read offline. Connect an AI key in Settings for cloud models."
                                     )
                                 }
                             } else {
-                                snackbar.showMessage("Enter an expense description or scan a receipt first.")
+                                snackbar.showMessage("Type or speak split instructions, or scan a receipt first.")
                             }
                         },
                         modifier = Modifier
                             .fillMaxWidth()
-                            .heightIn(min = androidx.compose.material3.ButtonDefaults.MediumContainerHeight)
+                            .heightIn(min = androidx.compose.material3.ButtonDefaults.MediumContainerHeight),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = MaterialTheme.colorScheme.primary,
+                            contentColor = MaterialTheme.colorScheme.onPrimary
+                        )
                     ) {
-                        if (isParsingText) {
+                        if (isParsingText || isScanning) {
                             AppLoadingIndicator(size = 20.dp, color = MaterialTheme.colorScheme.onPrimary)
                         } else {
                             SymbolIcon(OpenSplitIcons.AutoAwesome, contentDescription = null, modifier = Modifier.size(20.dp))
                         }
                         Spacer(modifier = Modifier.width(8.dp))
-                        Text("Process with AI", fontWeight = FontWeight.Bold)
+                        Text(
+                            text = if (isParsingText || isScanning) "Processing with AI…" else "Process with AI",
+                            style = MaterialTheme.typography.labelLarge,
+                            fontWeight = FontWeight.Bold
+                        )
                     }
                 } } } else {
                     // ---- MANUAL ENTRY VIEW ----
