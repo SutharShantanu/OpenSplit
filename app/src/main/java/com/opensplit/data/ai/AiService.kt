@@ -29,7 +29,8 @@ data class ParsedReceipt(
     val currency: String?,
     val dateIso: String?,
     val items: List<ExpenseItem>,
-    val lowConfidence: Boolean
+    val lowConfidence: Boolean,
+    val paidByName: String? = null
 )
 
 data class ParsedExpense(
@@ -307,13 +308,24 @@ class AiService(private val prefs: UserPreferencesRepository) {
         return parseStringArray(text)
     }
 
-    suspend fun parseReceipt(imageBytes: ByteArray, mime: String = "image/jpeg"): ParsedReceipt? {
+    suspend fun parseReceipt(
+        imageBytes: ByteArray,
+        mime: String = "image/jpeg",
+        splitInstructions: String? = null,
+        memberNames: List<String> = emptyList()
+    ): ParsedReceipt? {
+        val splitContext = if (!splitInstructions.isNullOrBlank()) {
+            "User split instructions: \"$splitInstructions\". Group members: ${memberNames.joinToString(", ")}. " +
+                "If instructions specify who paid, set \"paidBy\". For each item, set \"assignedTo\" to an array of member names who should pay for it based on the instructions. "
+        } else ""
+
         val text = ask(
             AiFeature.RECEIPT_SCAN,
             AiRequest(
-                "Read this receipt. Respond ONLY with JSON: {\"merchant\": string|null, \"total\": number|null, " +
-                    "\"currency\": ISO-4217 string|null, \"date\": \"YYYY-MM-DD\"|null, " +
-                    "\"items\": [{\"name\": string, \"price\": number}], \"confidence\": \"high\"|\"low\"}. " +
+                "Read this receipt. $splitContext" +
+                    "Respond ONLY with JSON: {\"merchant\": string|null, \"total\": number|null, " +
+                    "\"currency\": ISO-4217 string|null, \"date\": \"YYYY-MM-DD\"|null, \"paidBy\": member name|null, " +
+                    "\"items\": [{\"name\": string, \"price\": number, \"assignedTo\": [string]}], \"confidence\": \"high\"|\"low\"}. " +
                     "Prices are per line including quantity. Omit tax and tip lines from items.",
                 imageBytes = imageBytes, imageMime = mime, maxTokens = 1500
             )
@@ -375,7 +387,14 @@ class AiService(private val prefs: UserPreferencesRepository) {
             val items = (0 until arr.length()).mapNotNull { i ->
                 val it = arr.optJSONObject(i) ?: return@mapNotNull null
                 val name = it.optString("name").ifBlank { return@mapNotNull null }
-                ExpenseItem(id = UUID.randomUUID().toString(), name = name, price = it.optDouble("price", 0.0))
+                val assignedArr = it.optJSONArray("assignedTo") ?: JSONArray()
+                val assignedNames = (0 until assignedArr.length()).mapNotNull { assignedArr.optString(it).takeIf { s -> s.isNotBlank() } }
+                ExpenseItem(
+                    id = UUID.randomUUID().toString(),
+                    name = name,
+                    price = it.optDouble("price", 0.0),
+                    assignedUids = assignedNames
+                )
             }
             ParsedReceipt(
                 merchant = obj.optString("merchant").takeIf { it.isNotBlank() && it != "null" },
@@ -383,7 +402,8 @@ class AiService(private val prefs: UserPreferencesRepository) {
                 currency = obj.optString("currency").takeIf { it.length == 3 },
                 dateIso = obj.optString("date").takeIf { Regex("""\d{4}-\d{2}-\d{2}""").matches(it) },
                 items = items,
-                lowConfidence = obj.optString("confidence").equals("low", ignoreCase = true)
+                lowConfidence = obj.optString("confidence").equals("low", ignoreCase = true),
+                paidByName = obj.optString("paidBy").takeIf { it.isNotBlank() && it != "null" }
             )
         }.getOrNull()
 
