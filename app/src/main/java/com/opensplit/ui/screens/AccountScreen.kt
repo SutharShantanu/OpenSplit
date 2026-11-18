@@ -762,7 +762,7 @@ fun AccountOverviewScreen(
                                                     isDailyQuotaExhausted -> "Limit Reached"
                                                     userAiPlan.equals("ultra", ignoreCase = true) -> "Ultra AI"
                                                     userAiPlan.equals("pro", ignoreCase = true) -> "Pro AI"
-                                                    else -> "Free AI"
+                                                    else -> "Gemini AI"
                                                 },
                                                 style = MaterialTheme.typography.labelSmall,
                                                 fontWeight = FontWeight.Bold,
@@ -825,7 +825,7 @@ fun AccountOverviewScreen(
                                         } else when (userAiPlan.lowercase()) {
                                             "ultra" -> "Ultra AI Daily Quota"
                                             "pro" -> "Pro AI Daily Quota"
-                                            else -> "Free AI Daily Quota"
+                                            else -> "Daily AI Quota"
                                         },
                                         style = MaterialTheme.typography.labelMedium,
                                         fontWeight = FontWeight.SemiBold,
@@ -880,7 +880,7 @@ fun AccountOverviewScreen(
                                     } else if (userAiPlan.lowercase() != "free") {
                                         "${userAiPlan.replaceFirstChar { it.uppercase() }} tier · Resets daily at 00:00 UTC"
                                     } else {
-                                        "Resets daily at 00:00 UTC · 100% Free"
+                                        "Resets daily at 00:00 UTC · Zero Setup"
                                     },
                                     style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -966,7 +966,7 @@ fun AccountOverviewScreen(
                                     }
                                     AccountCategory.AI_PROVIDERS -> {
                                         if (aiProvider == com.opensplit.data.ai.CLOUD_FREE_PROVIDER_ID) {
-                                            val planName = userAiPlan.replaceFirstChar { it.uppercase() }
+                                            val planName = if (userAiPlan.equals("free", ignoreCase = true)) "Standard" else userAiPlan.replaceFirstChar { it.uppercase() }
                                             if (isDailyQuotaExhausted) "Limit reached" else "$planName (${dailyQuotaRemaining ?: dailyQuotaLimit}/$dailyQuotaLimit)"
                                         } else {
                                             val hasKey = aiProvider == "custom" || !providerApiKeys[aiProvider].isNullOrBlank()
@@ -1171,7 +1171,7 @@ fun AccountOverviewScreen(
                             val freed = com.opensplit.util.StorageStats.clearCache(storageContext)
                             cacheBytes = com.opensplit.util.StorageStats.cacheBytes(storageContext)
                             isClearingCache = false
-                            snackbar.showMessage("Cache cleared (freed ${com.opensplit.util.StorageStats.formatMb(freed)})")
+                            snackbar.showMessage("Cache cleared (${com.opensplit.util.StorageStats.formatMb(freed)})")
                         }
                     }
                 }

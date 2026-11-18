@@ -66,7 +66,7 @@ class AiProviderTest {
     }
 
     @Test
-    fun `cloud free provider extracts text and tokens`() {
+    fun `cloud provider extracts text and tokens`() {
         assertEquals(listOf("gemini-2.5-flash"), CloudFunctionAiProvider.parseModels(JSONObject()))
         val replyJson = JSONObject("""{"text":"Parsed text","tokens":42}""")
         assertEquals("Parsed text", CloudFunctionAiProvider.extractText(replyJson))

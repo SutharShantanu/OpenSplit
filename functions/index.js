@@ -126,7 +126,7 @@ exports.getDailyAiUsage = onCall({ cors: true }, async (request) => {
 });
 
 /**
- * Proxy for Gemini AI with Dynamic Free Daily Quota based on user plan (free: 20, pro: 100, ultra: 500).
+ * Proxy for Gemini AI with Dynamic Daily Quota based on user plan (standard: 20, pro: 100, ultra: 500).
  * Strictly NO pay-as-you-go: once limit is reached, calls are rejected at $0 token cost.
  */
 exports.callGeminiProxy = onCall({
@@ -134,7 +134,7 @@ exports.callGeminiProxy = onCall({
   maxInstances: 10,
 }, async (request) => {
   if (!request.auth || !request.auth.uid) {
-    throw new HttpsError("unauthenticated", "Please sign in with Google to use free AI features.");
+    throw new HttpsError("unauthenticated", "Please sign in with Google to use AI features.");
   }
   const uid = request.auth.uid;
   const { plan, dailyLimit } = await getUserAiPlanAndLimit(uid);
@@ -149,7 +149,7 @@ exports.callGeminiProxy = onCall({
     if (currentUsage >= dailyLimit) {
       throw new HttpsError(
         "resource-exhausted",
-        `Daily ${plan.toUpperCase()} AI limit reached (${dailyLimit}/${dailyLimit}). Resets tomorrow at 00:00 UTC. The app is 100% free with no pay-as-you-go; you can continue manually or add your own key in AI Settings.`
+        `Daily ${plan.toUpperCase()} AI limit reached (${dailyLimit}/${dailyLimit}). Resets tomorrow at 00:00 UTC with no pay-as-you-go; you can continue manually or add your own key in AI Settings.`
       );
     }
     transaction.set(usageDocRef, {
