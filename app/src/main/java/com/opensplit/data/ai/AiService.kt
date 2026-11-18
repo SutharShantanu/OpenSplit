@@ -52,6 +52,8 @@ data class ParsedExpense(
 class AiService(private val prefs: UserPreferencesRepository) {
 
     val dailyQuotaRemaining = kotlinx.coroutines.flow.MutableStateFlow<Int?>(null)
+    val dailyQuotaLimit = kotlinx.coroutines.flow.MutableStateFlow<Int>(20)
+    val userAiPlan = kotlinx.coroutines.flow.MutableStateFlow<String>("free")
     val isDailyQuotaExhausted = kotlinx.coroutines.flow.MutableStateFlow<Boolean>(false)
 
     suspend fun refreshDailyQuota() {
@@ -63,7 +65,11 @@ class AiService(private val prefs: UserPreferencesRepository) {
                 val result = functions.getHttpsCallable("getDailyAiUsage").call().await()
                 val data = result.data as? Map<*, *> ?: return@runCatching
                 val remaining = (data["remainingToday"] as? Number)?.toInt()
+                val limit = (data["dailyLimit"] as? Number)?.toInt() ?: 20
+                val plan = (data["plan"] as? String) ?: "free"
                 dailyQuotaRemaining.value = remaining
+                dailyQuotaLimit.value = limit
+                userAiPlan.value = plan
                 isDailyQuotaExhausted.value = (remaining ?: 1) <= 0
             }
         }

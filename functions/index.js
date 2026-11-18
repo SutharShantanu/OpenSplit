@@ -6,8 +6,6 @@ const admin = require("firebase-admin");
 admin.initializeApp();
 const db = admin.firestore();
 
-const DAILY_FREE_AI_LIMIT = 20;
-
 async function tokensFor(uids) {
   const docs = await Promise.all(uids.map((u) => db.collection("users").doc(u).get()));
   return docs.map((d) => d.get("fcmToken")).filter(Boolean);
@@ -88,28 +86,48 @@ exports.onActivityCreated = onDocumentCreated("groups/{groupId}/activity/{activi
   });
 });
 
+const TIER_LIMITS = {
+  free: 20,
+  pro: 100,
+  ultra: 500,
+};
+
+async function getUserAiPlanAndLimit(uid) {
+  try {
+    const userDoc = await db.collection("users").doc(uid).get();
+    const plan = (userDoc.exists && userDoc.data()?.plan) || "free";
+    const dailyLimit = TIER_LIMITS[plan] || TIER_LIMITS.free;
+    return { plan, dailyLimit };
+  } catch (e) {
+    return { plan: "free", dailyLimit: 20 };
+  }
+}
+
 /**
- * Checks the user's free daily AI quota without consuming a request.
+ * Checks the user's daily AI quota without consuming a request.
+ * Daily limit is dynamic based on user's plan: free (20), pro (100), ultra (500).
  */
 exports.getDailyAiUsage = onCall({ cors: true }, async (request) => {
   if (!request.auth || !request.auth.uid) {
-    return { authenticated: false, usedToday: 0, dailyLimit: DAILY_FREE_AI_LIMIT, remainingToday: DAILY_FREE_AI_LIMIT };
+    return { authenticated: false, plan: "free", usedToday: 0, dailyLimit: 20, remainingToday: 20 };
   }
   const uid = request.auth.uid;
+  const { plan, dailyLimit } = await getUserAiPlanAndLimit(uid);
   const today = new Date().toISOString().split("T")[0];
   const doc = await db.collection("users").doc(uid).collection("ai_usage").doc(today).get();
   const usedToday = doc.exists ? (doc.data().count || 0) : 0;
   return {
     authenticated: true,
+    plan,
     usedToday,
-    dailyLimit: DAILY_FREE_AI_LIMIT,
-    remainingToday: Math.max(0, DAILY_FREE_AI_LIMIT - usedToday)
+    dailyLimit,
+    remainingToday: Math.max(0, dailyLimit - usedToday)
   };
 });
 
 /**
- * Proxy for Gemini AI with 100% Free Daily Quota (20 calls/day).
- * Strictly NO pay-as-you-go: once 20 calls are reached, calls are rejected at $0 token cost.
+ * Proxy for Gemini AI with Dynamic Free Daily Quota based on user plan (free: 20, pro: 100, ultra: 500).
+ * Strictly NO pay-as-you-go: once limit is reached, calls are rejected at $0 token cost.
  */
 exports.callGeminiProxy = onCall({
   cors: true,
@@ -119,6 +137,7 @@ exports.callGeminiProxy = onCall({
     throw new HttpsError("unauthenticated", "Please sign in with Google to use free AI features.");
   }
   const uid = request.auth.uid;
+  const { plan, dailyLimit } = await getUserAiPlanAndLimit(uid);
 
   const today = new Date().toISOString().split("T")[0];
   const usageDocRef = db.collection("users").doc(uid).collection("ai_usage").doc(today);
@@ -127,10 +146,10 @@ exports.callGeminiProxy = onCall({
   await db.runTransaction(async (transaction) => {
     const doc = await transaction.get(usageDocRef);
     currentUsage = (doc.exists ? (doc.data().count || 0) : 0);
-    if (currentUsage >= DAILY_FREE_AI_LIMIT) {
+    if (currentUsage >= dailyLimit) {
       throw new HttpsError(
         "resource-exhausted",
-        `Daily free AI limit reached (${DAILY_FREE_AI_LIMIT}/${DAILY_FREE_AI_LIMIT}). Resets tomorrow at 00:00 UTC. The app is 100% free with no pay-as-you-go; you can continue manually or add your own key in AI Settings.`
+        `Daily ${plan.toUpperCase()} AI limit reached (${dailyLimit}/${dailyLimit}). Resets tomorrow at 00:00 UTC. The app is 100% free with no pay-as-you-go; you can continue manually or add your own key in AI Settings.`
       );
     }
     transaction.set(usageDocRef, {
@@ -185,8 +204,9 @@ exports.callGeminiProxy = onCall({
   return {
     text,
     tokens,
+    plan,
     usedToday: currentUsage + 1,
-    dailyLimit: DAILY_FREE_AI_LIMIT,
-    remainingToday: Math.max(0, DAILY_FREE_AI_LIMIT - (currentUsage + 1))
+    dailyLimit,
+    remainingToday: Math.max(0, dailyLimit - (currentUsage + 1))
   };
 });

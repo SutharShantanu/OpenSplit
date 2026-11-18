@@ -24,11 +24,13 @@ import androidx.compose.animation.togetherWith
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.border
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.*
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
@@ -146,6 +148,8 @@ fun AccountScreen(
     val aiUsage by viewModel.aiUsageFlow.collectAsStateWithLifecycle(initialValue = emptyMap())
     val aiTokens by viewModel.aiTokensFlow.collectAsStateWithLifecycle(initialValue = emptyMap())
     val dailyQuotaRemaining by appContainer.aiService.dailyQuotaRemaining.collectAsStateWithLifecycle()
+    val dailyQuotaLimit by appContainer.aiService.dailyQuotaLimit.collectAsStateWithLifecycle()
+    val userAiPlan by appContainer.aiService.userAiPlan.collectAsStateWithLifecycle()
     val isDailyQuotaExhausted by appContainer.aiService.isDailyQuotaExhausted.collectAsStateWithLifecycle()
     val scope = rememberCoroutineScope()
 
@@ -189,6 +193,8 @@ fun AccountScreen(
                             aiTokens = aiTokens,
                             isDailyQuotaExhausted = isDailyQuotaExhausted,
                             dailyQuotaRemaining = dailyQuotaRemaining,
+                            dailyQuotaLimit = dailyQuotaLimit,
+                            userAiPlan = userAiPlan,
                             onSelectCategory = { selectedCategory = it },
                             onSignOutClick = { showSignOutDialog = true },
                             onNavigateToHistory = { rootNavController.navigate("settlement_history") },
@@ -260,6 +266,8 @@ fun AccountScreen(
                                 onSetModel = { providerId, model -> viewModel.setProviderModel(providerId, model) },
                                 onTestKey = { providerId, key, endpoint, model, cb -> viewModel.testAiKey(providerId, key, endpoint, model, cb) },
                                 dailyQuotaRemaining = dailyQuotaRemaining,
+                                dailyQuotaLimit = dailyQuotaLimit,
+                                userAiPlan = userAiPlan,
                                 isDailyQuotaExhausted = isDailyQuotaExhausted,
                                 onRefreshQuota = { scope.launch { appContainer.aiService.refreshDailyQuota() } },
                                 onBack = { selectedCategory = null }
@@ -408,6 +416,8 @@ fun AccountOverviewScreen(
     aiTokens: Map<String, Int> = emptyMap(),
     isDailyQuotaExhausted: Boolean = false,
     dailyQuotaRemaining: Int? = null,
+    dailyQuotaLimit: Int = 20,
+    userAiPlan: String = "free",
     onSelectCategory: (AccountCategory) -> Unit,
     onSignOutClick: () -> Unit,
     onNavigateToHistory: () -> Unit,
@@ -580,123 +590,318 @@ fun AccountOverviewScreen(
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
             // ---------------------------------------------------------------------------------
-            // HERO PROFILE CARD (AVATAR + AUTH STATUS)
+            // HERO PROFILE CARD (AVATAR + AUTH STATUS + AI QUOTA STRIP)
             // ---------------------------------------------------------------------------------
             item {
+                val hasCustomKey = providerApiKeys[aiProvider]?.isNotBlank() == true
+                val maxQuota = dailyQuotaLimit
+                val remaining = dailyQuotaRemaining ?: (if (isDailyQuotaExhausted) 0 else maxQuota)
+                val quotaFraction = if (hasCustomKey) 1f else (remaining.toFloat() / maxQuota.toFloat()).coerceIn(0f, 1f)
+
                 Card(
                     shape = MaterialTheme.shapes.large,
                     colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh),
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 16.dp, vertical = 14.dp)
-                    ) {
-                        Box(modifier = Modifier.size(54.dp)) {
-                            Surface(
-                                modifier = Modifier.fillMaxSize(),
-                                shape = CircleShape,
-                                color = MaterialTheme.colorScheme.primaryContainer,
-                                border = BorderStroke(1.5.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.25f))
-                            ) {
-                                if (!data.user.photoUrl?.toString().isNullOrBlank()) {
-                                    AsyncImage(
-                                        model = data.user.photoUrl.toString(),
-                                        contentDescription = null,
-                                        modifier = Modifier.fillMaxSize(),
-                                        contentScale = ContentScale.Crop
+                    Column(modifier = Modifier.fillMaxWidth()) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 16.dp, vertical = 14.dp)
+                        ) {
+                            // Avatar with Expressive AI Aura ring
+                            Box(modifier = Modifier.size(56.dp), contentAlignment = Alignment.Center) {
+                                val aiRingBrush = Brush.sweepGradient(
+                                    listOf(
+                                        MaterialTheme.colorScheme.primary,
+                                        MaterialTheme.colorScheme.tertiary,
+                                        MaterialTheme.colorScheme.secondary,
+                                        MaterialTheme.colorScheme.primary
                                     )
-                                } else {
-                                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                                        Text(
-                                            (data.user.displayName ?: "U").take(1).uppercase(),
-                                            style = MaterialTheme.typography.titleLarge,
-                                            fontWeight = FontWeight.Bold,
-                                            color = MaterialTheme.colorScheme.onPrimaryContainer
+                                )
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxSize()
+                                        .border(
+                                            border = BorderStroke(
+                                                width = 2.dp,
+                                                brush = if (isDailyQuotaExhausted && !hasCustomKey) {
+                                                    Brush.linearGradient(
+                                                        listOf(
+                                                            MaterialTheme.colorScheme.outlineVariant,
+                                                            MaterialTheme.colorScheme.outlineVariant
+                                                        )
+                                                    )
+                                                } else {
+                                                    aiRingBrush
+                                                }
+                                            ),
+                                            shape = CircleShape
                                         )
+                                        .padding(3.dp)
+                                ) {
+                                    Surface(
+                                        modifier = Modifier.fillMaxSize(),
+                                        shape = CircleShape,
+                                        color = MaterialTheme.colorScheme.primaryContainer,
+                                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.15f))
+                                    ) {
+                                        if (!data.user.photoUrl?.toString().isNullOrBlank()) {
+                                            AsyncImage(
+                                                model = data.user.photoUrl.toString(),
+                                                contentDescription = null,
+                                                modifier = Modifier.fillMaxSize(),
+                                                contentScale = ContentScale.Crop
+                                            )
+                                        } else {
+                                            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                                                Text(
+                                                    (data.user.displayName ?: "U").take(1).uppercase(),
+                                                    style = MaterialTheme.typography.titleLarge,
+                                                    fontWeight = FontWeight.Bold,
+                                                    color = MaterialTheme.colorScheme.onPrimaryContainer
+                                                )
+                                            }
+                                        }
+                                    }
+                                }
+                                Surface(
+                                    shape = CircleShape,
+                                    color = androidx.compose.material3.MaterialTheme.colorScheme.success,
+                                    border = BorderStroke(2.dp, MaterialTheme.colorScheme.surfaceContainerHigh),
+                                    modifier = Modifier
+                                        .size(13.dp)
+                                        .align(Alignment.BottomEnd)
+                                ) {}
+                            }
+
+                            Spacer(modifier = Modifier.width(14.dp))
+
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = data.user.displayName ?: "User",
+                                    style = MaterialTheme.typography.titleMedium,
+                                    fontWeight = FontWeight.Bold,
+                                    maxLines = 1
+                                )
+                                if (!data.user.email.isNullOrBlank()) {
+                                    Text(
+                                        text = data.user.email,
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        maxLines = 1
+                                    )
+                                }
+                                Spacer(modifier = Modifier.height(6.dp))
+                                Row(
+                                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    // Auth badge
+                                    Surface(
+                                        shape = MaterialTheme.shapes.extraSmall,
+                                        color = MaterialTheme.colorScheme.surfaceContainerHighest
+                                    ) {
+                                        Row(
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            modifier = Modifier.padding(horizontal = 7.dp, vertical = 3.dp)
+                                        ) {
+                                            if (data.authProvider == "Google") {
+                                                androidx.compose.material3.Icon(
+                                                    painter = painterResource(id = R.drawable.ic_google_logo),
+                                                    contentDescription = null,
+                                                    tint = Color.Unspecified,
+                                                    modifier = Modifier.size(12.dp)
+                                                )
+                                            } else {
+                                                SymbolIcon(
+                                                    symbol = OpenSplitIcons.Verified,
+                                                    contentDescription = null,
+                                                    tint = MaterialTheme.colorScheme.primary,
+                                                    modifier = Modifier.size(12.dp)
+                                                )
+                                            }
+                                            Spacer(modifier = Modifier.width(4.dp))
+                                            Text(
+                                                text = "${data.authProvider} connected",
+                                                style = MaterialTheme.typography.labelSmall,
+                                                fontWeight = FontWeight.SemiBold,
+                                                color = MaterialTheme.colorScheme.onSurface
+                                            )
+                                        }
+                                    }
+
+                                    // AI Status Badge
+                                    Surface(
+                                        shape = MaterialTheme.shapes.extraSmall,
+                                        color = if (isDailyQuotaExhausted && !hasCustomKey) {
+                                            MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.7f)
+                                        } else {
+                                            MaterialTheme.colorScheme.primaryContainer
+                                        }
+                                    ) {
+                                        Row(
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            modifier = Modifier.padding(horizontal = 7.dp, vertical = 3.dp)
+                                        ) {
+                                            SymbolIcon(
+                                                symbol = OpenSplitIcons.AutoAwesome,
+                                                contentDescription = null,
+                                                tint = if (isDailyQuotaExhausted && !hasCustomKey) {
+                                                    MaterialTheme.colorScheme.onErrorContainer
+                                                } else {
+                                                    MaterialTheme.colorScheme.primary
+                                                },
+                                                modifier = Modifier.size(11.dp)
+                                            )
+                                            Spacer(modifier = Modifier.width(4.dp))
+                                            Text(
+                                                text = when {
+                                                    hasCustomKey -> "Gemini Pro"
+                                                    isDailyQuotaExhausted -> "Limit Reached"
+                                                    userAiPlan.equals("ultra", ignoreCase = true) -> "Ultra AI"
+                                                    userAiPlan.equals("pro", ignoreCase = true) -> "Pro AI"
+                                                    else -> "Free AI"
+                                                },
+                                                style = MaterialTheme.typography.labelSmall,
+                                                fontWeight = FontWeight.Bold,
+                                                color = if (isDailyQuotaExhausted && !hasCustomKey) {
+                                                    MaterialTheme.colorScheme.onErrorContainer
+                                                } else {
+                                                    MaterialTheme.colorScheme.onPrimaryContainer
+                                                }
+                                            )
+                                        }
                                     }
                                 }
                             }
-                            Surface(
-                                shape = CircleShape,
-                                color = androidx.compose.material3.MaterialTheme.colorScheme.success,
-                                border = BorderStroke(2.dp, MaterialTheme.colorScheme.surfaceContainerHigh),
-                                modifier = Modifier
-                                    .size(13.dp)
-                                    .align(Alignment.BottomEnd)
-                            ) {}
+
+                            Spacer(modifier = Modifier.width(8.dp))
+
+                            FilledTonalButton(
+                                onClick = { showEditNameDialog = true },
+                                shape = MaterialTheme.shapes.extraSmall,
+                                contentPadding = PaddingValues(horizontal = 14.dp, vertical = 8.dp),
+                                modifier = Modifier.defaultMinSize(minWidth = 48.dp, minHeight = 48.dp)
+                            ) {
+                                Text("Edit", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.SemiBold)
+                            }
                         }
 
-                        Spacer(modifier = Modifier.width(14.dp))
+                        // Subtle divider separating profile header from AI token/quota progress bar
+                        HorizontalDivider(
+                            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f),
+                            modifier = Modifier.padding(horizontal = 16.dp)
+                        )
 
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(
-                                text = data.user.displayName ?: "User",
-                                style = MaterialTheme.typography.titleMedium,
-                                fontWeight = FontWeight.Bold,
-                                maxLines = 1
-                            )
-                            if (!data.user.email.isNullOrBlank()) {
-                                Text(
-                                    text = data.user.email,
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    maxLines = 1
-                                )
-                            }
-                            Spacer(modifier = Modifier.height(4.dp))
-                            Surface(
-                                shape = MaterialTheme.shapes.extraSmall,
-                                color = MaterialTheme.colorScheme.surfaceContainerHighest
+                        // AI Quota & Token Progress Section
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable { onSelectCategory(AccountCategory.AI_PROVIDERS) }
+                                .padding(horizontal = 16.dp, vertical = 12.dp)
+                        ) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
                             ) {
-                                Row(
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
-                                ) {
-                                    if (data.authProvider == "Google") {
-                                        androidx.compose.material3.Icon(
-                                            painter = painterResource(id = R.drawable.ic_google_logo),
-                                            contentDescription = null,
-                                            tint = Color.Unspecified,
-                                            modifier = Modifier.size(13.dp)
-                                        )
-                                    } else {
-                                        SymbolIcon(
-                                            symbol = OpenSplitIcons.Verified,
-                                            contentDescription = null,
-                                            tint = MaterialTheme.colorScheme.primary,
-                                            modifier = Modifier.size(13.dp)
-                                        )
-                                    }
-                                    Spacer(modifier = Modifier.width(5.dp))
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    SymbolIcon(
+                                        symbol = OpenSplitIcons.AutoAwesome,
+                                        contentDescription = null,
+                                        tint = if (remaining <= 3 && !hasCustomKey) {
+                                            MaterialTheme.colorScheme.error
+                                        } else {
+                                            MaterialTheme.colorScheme.primary
+                                        },
+                                        modifier = Modifier.size(15.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(6.dp))
                                     Text(
-                                        text = "${data.authProvider} connected",
-                                        style = MaterialTheme.typography.labelSmall,
+                                        text = if (hasCustomKey) {
+                                            "Personal AI Key"
+                                        } else when (userAiPlan.lowercase()) {
+                                            "ultra" -> "Ultra AI Daily Quota"
+                                            "pro" -> "Pro AI Daily Quota"
+                                            else -> "Free AI Daily Quota"
+                                        },
+                                        style = MaterialTheme.typography.labelMedium,
                                         fontWeight = FontWeight.SemiBold,
                                         color = MaterialTheme.colorScheme.onSurface
                                     )
-                                    Spacer(modifier = Modifier.width(3.dp))
+                                }
+
+                                Text(
+                                    text = if (hasCustomKey) {
+                                        "Unlimited"
+                                    } else {
+                                        "$remaining / $maxQuota left"
+                                    },
+                                    style = MaterialTheme.typography.labelMedium.copy(fontFamily = com.opensplit.ui.theme.MoneyFontFamily),
+                                    fontWeight = FontWeight.Bold,
+                                    color = if (remaining <= 3 && !hasCustomKey) {
+                                        MaterialTheme.colorScheme.error
+                                    } else {
+                                        MaterialTheme.colorScheme.primary
+                                    }
+                                )
+                            }
+
+                            Spacer(modifier = Modifier.height(8.dp))
+
+                            LinearWavyProgressIndicator(
+                                progress = { quotaFraction },
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(8.dp)
+                                    .clip(CircleShape),
+                                color = if (remaining <= 3 && !hasCustomKey) {
+                                    MaterialTheme.colorScheme.error
+                                } else {
+                                    MaterialTheme.colorScheme.primary
+                                },
+                                trackColor = MaterialTheme.colorScheme.surfaceContainerHighest
+                            )
+
+                            Spacer(modifier = Modifier.height(6.dp))
+
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    text = if (hasCustomKey) {
+                                        "Unlimited requests with your key"
+                                    } else if (isDailyQuotaExhausted) {
+                                        "Limit reached · Resets at 00:00 UTC"
+                                    } else if (userAiPlan.lowercase() != "free") {
+                                        "${userAiPlan.replaceFirstChar { it.uppercase() }} tier · Resets daily at 00:00 UTC"
+                                    } else {
+                                        "Resets daily at 00:00 UTC · 100% Free"
+                                    },
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Text(
+                                        text = "AI Settings",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = MaterialTheme.colorScheme.primary,
+                                        fontWeight = FontWeight.SemiBold
+                                    )
+                                    Spacer(modifier = Modifier.width(2.dp))
                                     SymbolIcon(
-                                        symbol = OpenSplitIcons.Check,
+                                        symbol = OpenSplitIcons.ChevronRight,
                                         contentDescription = null,
                                         tint = MaterialTheme.colorScheme.primary,
-                                        modifier = Modifier.size(11.dp)
+                                        modifier = Modifier.size(12.dp)
                                     )
                                 }
                             }
-                        }
-
-                        Spacer(modifier = Modifier.width(8.dp))
-
-                        FilledTonalButton(
-                            onClick = { showEditNameDialog = true },
-                            shape = MaterialTheme.shapes.extraSmall,
-                            contentPadding = PaddingValues(horizontal = 14.dp, vertical = 8.dp),
-                            modifier = Modifier.defaultMinSize(minWidth = 48.dp, minHeight = 48.dp)
-                        ) {
-                            Text("Edit", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.SemiBold)
                         }
                     }
                 }
@@ -761,10 +966,11 @@ fun AccountOverviewScreen(
                                     }
                                     AccountCategory.AI_PROVIDERS -> {
                                         if (aiProvider == com.opensplit.data.ai.CLOUD_FREE_PROVIDER_ID) {
-                                            if (isDailyQuotaExhausted) "Limit reached" else "Free (${dailyQuotaRemaining ?: 20}/20)"
+                                            val planName = userAiPlan.replaceFirstChar { it.uppercase() }
+                                            if (isDailyQuotaExhausted) "Limit reached" else "$planName (${dailyQuotaRemaining ?: dailyQuotaLimit}/$dailyQuotaLimit)"
                                         } else {
                                             val hasKey = aiProvider == "custom" || !providerApiKeys[aiProvider].isNullOrBlank()
-                                            if (!hasKey) "Off" else aiProvider.replaceFirstChar { it.uppercase() }
+                                            if (!hasKey) "Off" else "${aiProvider.replaceFirstChar { it.uppercase() }} (Unlimited)"
                                         }
                                     }
                                     AccountCategory.NOTIFICATIONS -> "On"
