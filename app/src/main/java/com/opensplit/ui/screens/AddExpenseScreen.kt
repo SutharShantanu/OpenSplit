@@ -12,15 +12,37 @@ import com.opensplit.ui.components.AppLoadingIndicator
 
 import android.app.Activity
 import android.content.Intent
+import android.content.pm.PackageManager
+import android.os.Bundle
+import android.speech.RecognitionListener
 import android.speech.RecognizerIntent
+import android.speech.SpeechRecognizer
+import androidx.core.content.ContextCompat
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
+import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.scale
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.foundation.layout.*
 import androidx.compose.runtime.rememberCoroutineScope
 import com.opensplit.data.ai.AiHeuristics
@@ -326,26 +348,119 @@ fun AddExpenseScreen(
                 if (granted) openCamera() else snackbar.showMessage("Camera permission is needed to scan a receipt.")
             }
 
-            val speechRecognizerLauncher = rememberLauncherForActivityResult(
-                contract = ActivityResultContracts.StartActivityForResult()
-            ) { result ->
-                if (result.resultCode == Activity.RESULT_OK) {
-                    val spoken = result.data?.getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS)?.firstOrNull()
-                    if (!spoken.isNullOrBlank()) {
-                        aiNaturalInput = if (aiNaturalInput.isBlank()) spoken else "$aiNaturalInput $spoken"
-                    }
+            var isListening by remember { mutableStateOf(false) }
+            var rmsLevel by remember { mutableFloatStateOf(0f) }
+            var partialSpokenText by remember { mutableStateOf("") }
+
+            val speechRecognizer = remember(context) {
+                if (SpeechRecognizer.isRecognitionAvailable(context)) {
+                    SpeechRecognizer.createSpeechRecognizer(context)
+                } else null
+            }
+
+            DisposableEffect(speechRecognizer) {
+                onDispose {
+                    try {
+                        speechRecognizer?.destroy()
+                    } catch (_: Exception) {}
                 }
             }
 
-            val startVoiceInput = {
-                val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
-                    putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
-                    putExtra(RecognizerIntent.EXTRA_PROMPT, "Explain who paid and how to split this expense...")
+            val recognitionListener = remember {
+                object : RecognitionListener {
+                    override fun onReadyForSpeech(params: Bundle?) {
+                        isListening = true
+                    }
+                    override fun onBeginningOfSpeech() {}
+                    override fun onRmsChanged(rmsdB: Float) {
+                        rmsLevel = rmsdB
+                    }
+                    override fun onBufferReceived(buffer: ByteArray?) {}
+                    override fun onEndOfSpeech() {}
+                    override fun onError(error: Int) {
+                        isListening = false
+                        rmsLevel = 0f
+                        partialSpokenText = ""
+                        if (error != SpeechRecognizer.ERROR_NO_MATCH && error != SpeechRecognizer.ERROR_SPEECH_TIMEOUT) {
+                            android.util.Log.w("SpeechRecognizer", "Error code: $error")
+                        }
+                    }
+                    override fun onResults(results: Bundle?) {
+                        val matches = results?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
+                        val spoken = matches?.firstOrNull()
+                        if (!spoken.isNullOrBlank()) {
+                            aiNaturalInput = if (aiNaturalInput.isBlank()) spoken else "$aiNaturalInput $spoken"
+                        }
+                        isListening = false
+                        rmsLevel = 0f
+                        partialSpokenText = ""
+                    }
+                    override fun onPartialResults(partialResults: Bundle?) {
+                        val matches = partialResults?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
+                        val partial = matches?.firstOrNull()
+                        if (!partial.isNullOrBlank()) {
+                            partialSpokenText = partial
+                        }
+                    }
+                    override fun onEvent(eventType: Int, params: Bundle?) {}
                 }
+            }
+
+            val startListening: () -> Unit = {
+                if (speechRecognizer != null) {
+                    val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
+                        putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
+                        putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, true)
+                        putExtra(RecognizerIntent.EXTRA_MAX_RESULTS, 3)
+                    }
+                    try {
+                        speechRecognizer.setRecognitionListener(recognitionListener)
+                        speechRecognizer.startListening(intent)
+                        isListening = true
+                        partialSpokenText = ""
+                        rmsLevel = 0f
+                    } catch (e: Exception) {
+                        isListening = false
+                        snackbar.showMessage("Speech recognition error: ${e.message}")
+                    }
+                } else {
+                    snackbar.showMessage("Speech recognition is not available on this device.")
+                }
+            }
+
+            val stopListening: () -> Unit = {
                 try {
-                    speechRecognizerLauncher.launch(intent)
-                } catch (e: Exception) {
-                    snackbar.showMessage("Voice input is not available on this device.")
+                    speechRecognizer?.stopListening()
+                } catch (_: Exception) {}
+                isListening = false
+                rmsLevel = 0f
+                partialSpokenText = ""
+            }
+
+            val micPermissionLauncher = rememberLauncherForActivityResult(
+                ActivityResultContracts.RequestPermission()
+            ) { granted ->
+                if (granted) {
+                    startListening()
+                } else {
+                    snackbar.showMessage("Microphone permission is needed to speak split instructions.")
+                }
+            }
+
+            val toggleVoiceInput: () -> Unit = {
+                if (isListening) {
+                    stopListening()
+                } else {
+                    val hasMicPermission = ContextCompat.checkSelfPermission(
+                        context,
+                        android.Manifest.permission.RECORD_AUDIO
+                    ) == PackageManager.PERMISSION_GRANTED
+
+                    if (hasMicPermission) {
+                        startListening()
+                    } else {
+                        micPermissionLauncher.launch(android.Manifest.permission.RECORD_AUDIO)
+                    }
                 }
             }
             var showReceiptSource by remember { mutableStateOf(false) }
@@ -543,16 +658,33 @@ fun AddExpenseScreen(
                                     )
                                 }
 
+                                val micTransition = rememberInfiniteTransition(label = "mic_pulse")
+                                val micScale by micTransition.animateFloat(
+                                    initialValue = 1f,
+                                    targetValue = 1.15f,
+                                    animationSpec = infiniteRepeatable(
+                                        animation = tween(600, easing = FastOutSlowInEasing),
+                                        repeatMode = RepeatMode.Reverse
+                                    ),
+                                    label = "mic_scale"
+                                )
+
                                 FilledTonalIconButton(
-                                    onClick = { startVoiceInput() },
+                                    onClick = { toggleVoiceInput() },
                                     shapes = com.opensplit.ui.theme.appIconButtonShapes(),
-                                    modifier = Modifier.size(36.dp),
+                                    modifier = Modifier
+                                        .size(36.dp)
+                                        .then(if (isListening) Modifier.scale(micScale) else Modifier),
                                     colors = IconButtonDefaults.filledTonalIconButtonColors(
-                                        containerColor = MaterialTheme.colorScheme.primaryContainer,
-                                        contentColor = MaterialTheme.colorScheme.onPrimaryContainer
+                                        containerColor = if (isListening) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primaryContainer,
+                                        contentColor = if (isListening) MaterialTheme.colorScheme.onError else MaterialTheme.colorScheme.onPrimaryContainer
                                     )
                                 ) {
-                                    SymbolIcon(OpenSplitIcons.Mic, contentDescription = "Voice Input", modifier = Modifier.size(18.dp))
+                                    SymbolIcon(
+                                        if (isListening) OpenSplitIcons.Stop else OpenSplitIcons.Mic,
+                                        contentDescription = if (isListening) "Stop Listening" else "Voice Input",
+                                        modifier = Modifier.size(18.dp)
+                                    )
                                 }
                             }
 
@@ -562,6 +694,84 @@ fun AddExpenseScreen(
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
+
+                            AnimatedVisibility(
+                                visible = isListening,
+                                enter = expandVertically() + fadeIn(),
+                                exit = shrinkVertically() + fadeOut()
+                            ) {
+                                Column(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(vertical = 10.dp)
+                                        .clip(MaterialTheme.shapes.medium)
+                                        .background(MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.85f))
+                                        .padding(14.dp)
+                                ) {
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Row(verticalAlignment = Alignment.CenterVertically) {
+                                            val dotTransition = rememberInfiniteTransition(label = "dot_pulse")
+                                            val dotAlpha by dotTransition.animateFloat(
+                                                initialValue = 0.35f,
+                                                targetValue = 1f,
+                                                animationSpec = infiniteRepeatable(
+                                                    animation = tween(450, easing = FastOutSlowInEasing),
+                                                    repeatMode = RepeatMode.Reverse
+                                                ),
+                                                label = "dot_alpha"
+                                            )
+                                            Box(
+                                                modifier = Modifier
+                                                    .size(10.dp)
+                                                    .clip(CircleShape)
+                                                    .background(MaterialTheme.colorScheme.error.copy(alpha = dotAlpha))
+                                            )
+                                            Spacer(modifier = Modifier.width(8.dp))
+                                            Text(
+                                                text = "Listening… Speak now",
+                                                style = MaterialTheme.typography.labelMedium,
+                                                fontWeight = FontWeight.Bold,
+                                                color = MaterialTheme.colorScheme.onSurface
+                                            )
+                                        }
+
+                                        FilledTonalButton(
+                                            onClick = { stopListening() },
+                                            shape = MaterialTheme.shapes.extraSmall,
+                                            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 2.dp),
+                                            modifier = Modifier.height(28.dp)
+                                        ) {
+                                            Text("Done", style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold)
+                                        }
+                                    }
+
+                                    Spacer(modifier = Modifier.height(10.dp))
+
+                                    // Real-time Audio Equalizer / Waveform Visualizer
+                                    AudioWaveformVisualizer(
+                                        rmsLevel = rmsLevel,
+                                        isListening = isListening,
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .height(40.dp)
+                                    )
+
+                                    if (partialSpokenText.isNotBlank()) {
+                                        Spacer(modifier = Modifier.height(8.dp))
+                                        Text(
+                                            text = "\"$partialSpokenText\"",
+                                            style = MaterialTheme.typography.bodySmall,
+                                            fontWeight = FontWeight.SemiBold,
+                                            color = MaterialTheme.colorScheme.primary,
+                                            maxLines = 2
+                                        )
+                                    }
+                                }
+                            }
 
                             Spacer(modifier = Modifier.height(10.dp))
 
@@ -1616,5 +1826,72 @@ private class CurrencyAmountVisualTransformation(private val currencyCode: Strin
         }
 
         return TransformedText(AnnotatedString(transformed), offsetMapping)
+    }
+}
+
+@Composable
+private fun AudioWaveformVisualizer(
+    rmsLevel: Float,
+    isListening: Boolean,
+    modifier: Modifier = Modifier,
+    barCount: Int = 28,
+    primaryColor: androidx.compose.ui.graphics.Color = MaterialTheme.colorScheme.primary,
+    secondaryColor: androidx.compose.ui.graphics.Color = MaterialTheme.colorScheme.tertiary
+) {
+    val infiniteTransition = rememberInfiniteTransition(label = "audio_bars")
+    val phase by infiniteTransition.animateFloat(
+        initialValue = 0f,
+        targetValue = (2 * Math.PI).toFloat(),
+        animationSpec = infiniteRepeatable(
+            animation = tween(1400, easing = LinearEasing),
+            repeatMode = RepeatMode.Restart
+        ),
+        label = "phase"
+    )
+
+    val animatedRms by animateFloatAsState(
+        targetValue = rmsLevel.coerceIn(0f, 10f),
+        animationSpec = spring(stiffness = Spring.StiffnessHigh),
+        label = "rms"
+    )
+
+    Canvas(
+        modifier = modifier
+            .fillMaxWidth()
+            .height(40.dp)
+    ) {
+        val width = size.width
+        val height = size.height
+        val totalSpacing = width * 0.28f
+        val barSpacing = totalSpacing / (barCount - 1).coerceAtLeast(1)
+        val barWidth = (width - totalSpacing) / barCount
+        val minBarHeight = 4.dp.toPx()
+        val maxBarHeight = height - 4.dp.toPx()
+
+        val normalizedRms = (animatedRms / 10f).coerceIn(0f, 1f)
+
+        for (i in 0 until barCount) {
+            val progress = i.toFloat() / (barCount - 1).coerceAtLeast(1)
+            val window = Math.sin(Math.PI * progress).toFloat()
+
+            val wave = (Math.sin(phase + i * 0.45).toFloat() * 0.5f + 0.5f)
+            val idleWave = 0.2f * wave
+            val activeWave = (idleWave + 0.8f * normalizedRms * (0.6f + 0.4f * wave)) * window
+
+            val currentBarHeight = (minBarHeight + (maxBarHeight - minBarHeight) * activeWave)
+                .coerceIn(minBarHeight, maxBarHeight)
+
+            val x = i * (barWidth + barSpacing)
+            val y = (height - currentBarHeight) / 2f
+
+            val color = if (i % 2 == 0) primaryColor else secondaryColor
+
+            drawRoundRect(
+                color = color,
+                topLeft = Offset(x, y),
+                size = Size(barWidth, currentBarHeight),
+                cornerRadius = CornerRadius(barWidth / 2f, barWidth / 2f)
+            )
+        }
     }
 }
