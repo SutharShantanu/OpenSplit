@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
@@ -31,11 +32,13 @@ import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -52,6 +55,7 @@ import androidx.compose.ui.unit.dp
 import com.opensplit.data.ai.AI_PROVIDERS_CATALOG
 import com.opensplit.data.ai.AiFeature
 import com.opensplit.data.ai.AiProviderInfo
+import com.opensplit.data.ai.CLOUD_FREE_PROVIDER_ID
 import com.opensplit.ui.components.responsiveContentWidth
 import com.opensplit.data.ai.AiService
 import com.opensplit.ui.components.SettingsGroupCard
@@ -82,16 +86,19 @@ fun AiProvidersSubScreen(
     onToggleFeature: (String, Boolean) -> Unit,
     onSetModel: (String, String) -> Unit,
     onTestKey: (providerId: String, key: String, endpoint: String?, model: String?, onResult: (Result<AiService.AiTestResult>) -> Unit) -> Unit,
+    dailyQuotaRemaining: Int? = null,
+    isDailyQuotaExhausted: Boolean = false,
+    onRefreshQuota: () -> Unit = {},
     onBack: () -> Unit
 ) {
     val context = LocalContext.current
     val saved: List<AiProviderInfo> = AI_PROVIDERS_CATALOG.filter { p ->
-        (p.id == "custom" && p.id == activeProvider) || (p.id != "custom" && !providerApiKeys[p.id].isNullOrBlank())
+        p.id != CLOUD_FREE_PROVIDER_ID && ((p.id == "custom" && p.id == activeProvider) || (p.id != "custom" && !providerApiKeys[p.id].isNullOrBlank()))
     }.sortedBy { if (it.id == activeProvider) 0 else 1 }
 
-    // Add-key form; hidden until asked for, or when nothing is configured yet.
-    var formOpen by remember { mutableStateOf(saved.isEmpty()) }
-    var formProvider by remember { mutableStateOf(AI_PROVIDERS_CATALOG.first { it.id != "custom" }) }
+    // Add-key form; hidden until asked for.
+    var formOpen by remember { mutableStateOf(false) }
+    var formProvider by remember { mutableStateOf(AI_PROVIDERS_CATALOG.first { it.id != "custom" && it.id != CLOUD_FREE_PROVIDER_ID }) }
     var keyInput by remember { mutableStateOf("") }
     var endpointInput by remember { mutableStateOf(customEndpoint) }
     var showKey by remember { mutableStateOf(false) }
@@ -110,8 +117,11 @@ fun AiProvidersSubScreen(
                 TextButton(shapes = com.opensplit.ui.theme.appButtonShapes(), colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error), onClick = {
                     pendingRemove = null
                     onSaveProviderKey(p.id, "")
-                    // Removing the active key hands over to the next saved one.
-                    if (p.id == activeProvider) saved.firstOrNull { it.id != p.id }?.let { onSelectProvider(it.id) }
+                    // Removing the active key hands over to the next saved one or free plan.
+                    if (p.id == activeProvider) {
+                        val next = saved.firstOrNull { it.id != p.id }?.id ?: CLOUD_FREE_PROVIDER_ID
+                        onSelectProvider(next)
+                    }
                 }) { Text("Remove") }
             },
             dismissButton = { TextButton(shapes = com.opensplit.ui.theme.appButtonShapes(), onClick = { pendingRemove = null }) { Text("Cancel") } }
@@ -139,9 +149,67 @@ fun AiProvidersSubScreen(
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
             item {
-                SettingsGroupCard(title = "API Keys", icon = OpenSplitIcons.Key) {
+                LaunchedEffect(Unit) {
+                    onRefreshQuota()
+                }
+                SettingsGroupCard(title = "OpenSplit Free AI", icon = OpenSplitIcons.AutoAwesome) {
+                    Column(modifier = Modifier.padding(16.dp)) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = "Google Gemini 2.5 Flash",
+                                    style = MaterialTheme.typography.titleMedium,
+                                    fontWeight = FontWeight.Bold
+                                )
+                                Text(
+                                    text = "20 free daily requests · 100% Free",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                            Surface(
+                                shape = MaterialTheme.shapes.small,
+                                color = if (isDailyQuotaExhausted) MaterialTheme.colorScheme.errorContainer else MaterialTheme.colorScheme.primaryContainer,
+                                contentColor = if (isDailyQuotaExhausted) MaterialTheme.colorScheme.onErrorContainer else MaterialTheme.colorScheme.onPrimaryContainer
+                            ) {
+                                Text(
+                                    text = if (isDailyQuotaExhausted) "Daily Limit Reached" else "${dailyQuotaRemaining ?: 20}/20 remaining",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    fontWeight = FontWeight.Bold,
+                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                                )
+                            }
+                        }
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            text = if (isDailyQuotaExhausted)
+                                "You have used all 20 of your free daily requests. Quota resets tomorrow at 00:00 UTC. The app is completely free with no pay-as-you-go. You can continue entering expenses manually or add your own custom API key below for unlimited requests."
+                            else
+                                "Provided free by OpenSplit. Zero setup, no credit cards, and strictly no pay-as-you-go. Resets daily at 00:00 UTC.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = if (isDailyQuotaExhausted) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        if (activeProvider != CLOUD_FREE_PROVIDER_ID) {
+                            Spacer(modifier = Modifier.height(12.dp))
+                            OutlinedButton(
+                                shapes = com.opensplit.ui.theme.appButtonShapes(),
+                                onClick = { onSelectProvider(CLOUD_FREE_PROVIDER_ID) }
+                            ) {
+                                Text("Use OpenSplit Free AI")
+                            }
+                        }
+                    }
+                }
+            }
+
+            item {
+                SettingsGroupCard(title = "Custom API Keys (Optional)", icon = OpenSplitIcons.Key) {
                     Text(
-                        if (saved.isEmpty()) "Pick a service, paste its API key and run the test. Keys stay on this device, encrypted."
+                        if (saved.isEmpty()) "Want more than 20 requests per day? You can connect your own free API key from Google AI Studio, Anthropic, or OpenAI. Personal keys are stored encrypted on this device."
                         else "The active key answers first. If it fails (quota, outage, retired model) the next one is tried automatically.",
                         style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.padding(16.dp)
@@ -167,10 +235,13 @@ fun AiProvidersSubScreen(
                     }
                     if (!formOpen) {
                         SettingsGroupDivider()
-                        OutlinedButton(shapes = com.opensplit.ui.theme.appButtonShapes(), onClick = { openForm(AI_PROVIDERS_CATALOG.first { it.id !in saved.map { s -> s.id } && it.id != "custom" } ) }, modifier = Modifier.fillMaxWidth().padding(16.dp)) {
-                            SymbolIcon(OpenSplitIcons.Add, contentDescription = null)
-                            Spacer(Modifier.width(8.dp))
-                            Text("Add new API key")
+                        val availableToAdd = AI_PROVIDERS_CATALOG.filter { it.id != CLOUD_FREE_PROVIDER_ID && it.id !in saved.map { s -> s.id } && it.id != "custom" }
+                        if (availableToAdd.isNotEmpty()) {
+                            OutlinedButton(shapes = com.opensplit.ui.theme.appButtonShapes(), onClick = { openForm(availableToAdd.first()) }, modifier = Modifier.fillMaxWidth().padding(16.dp)) {
+                                SymbolIcon(OpenSplitIcons.Add, contentDescription = null)
+                                Spacer(Modifier.width(8.dp))
+                                Text("Add new API key")
+                            }
                         }
                     }
                 }
@@ -187,7 +258,7 @@ fun AiProvidersSubScreen(
                                 modifier = Modifier.fillMaxWidth().menuAnchor(androidx.compose.material3.ExposedDropdownMenuAnchorType.PrimaryNotEditable)
                             )
                             ExposedDropdownMenu(expanded = providerMenu, onDismissRequest = { providerMenu = false }) {
-                                AI_PROVIDERS_CATALOG.forEach { p ->
+                                AI_PROVIDERS_CATALOG.filter { it.id != CLOUD_FREE_PROVIDER_ID }.forEach { p ->
                                     DropdownMenuItem(
                                         text = { Column { Text(p.name); Text(p.description, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1) } },
                                         onClick = { formProvider = p; providerMenu = false; testMessage = null }

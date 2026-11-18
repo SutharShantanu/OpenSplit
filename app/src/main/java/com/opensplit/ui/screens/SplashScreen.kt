@@ -28,7 +28,7 @@ import kotlinx.coroutines.launch
 
 /**
  * SCREEN 01 — Splash Screen
- * Full-screen launch splash for openSplit.
+ * Full-screen launch splash for OpenSplit.
  * Colours come from the active theme (palette + light/dark): primary-container background with a
  * soft primary glow, the logo in a primary circle, wordmark and tagline in on-primary-container.
  * Spring scale animation from 0.8 to 1.0. Auto advances after 1.5s.
@@ -92,7 +92,7 @@ fun SplashScreen(onTimeout: () -> Unit) {
             ) {
                 SymbolIcon(
                     symbol = OpenSplitIcons.PieChart,
-                    contentDescription = "openSplit Logo",
+                    contentDescription = "OpenSplit Logo",
                     tint = MaterialTheme.colorScheme.onPrimary,
                     modifier = Modifier.size(48.dp)
                 )
@@ -102,7 +102,7 @@ fun SplashScreen(onTimeout: () -> Unit) {
 
             // Wordmark
             Text(
-                text = "openSplit",
+                text = "OpenSplit",
                 style = MaterialTheme.typography.headlineLarge,
                 color = MaterialTheme.colorScheme.onPrimaryContainer
             )

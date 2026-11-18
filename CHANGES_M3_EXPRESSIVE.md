@@ -28,13 +28,16 @@ The complete 12-part technical implementation changelog is available at:
 | **M3E-P3-01** | `Haptics` | [AddExpenseScreen.kt](file:///home/shantanu/Documents/OpenSplit/app/src/main/java/com/opensplit/ui/screens/AddExpenseScreen.kt) | Added tactile feedback on amount typing and shares increment/decrement. |
 | **M3E-P3-03** | `Data Mgmt` | [RecentlyDeletedScreen.kt](file:///home/shantanu/Documents/OpenSplit/app/src/main/java/com/opensplit/ui/screens/RecentlyDeletedScreen.kt) | Implemented "Empty trash" action with confirmation dialog. |
 | **Phase 4** | `New Feature` | [AddExpenseScreen.kt](file:///home/shantanu/Documents/OpenSplit/app/src/main/java/com/opensplit/ui/screens/AddExpenseScreen.kt) | Added interactive Itemized Tax & Tip Proportional Calculator with live recalculation and sync. |
+| **Free Gemini AI** | `AI Architecture` | [index.js](file:///home/shantanu/Documents/OpenSplit/functions/index.js), [AiService.kt](file:///home/shantanu/Documents/OpenSplit/app/src/main/java/com/opensplit/data/ai/AiService.kt), [AiSettings.kt](file:///home/shantanu/Documents/OpenSplit/app/src/main/java/com/opensplit/ui/screens/AiSettings.kt) | Cloud Function proxy providing 20 free daily Gemini AI requests per user. Strictly 100% free with no pay-as-you-go; auto-halts on quota exhaustion until next-day reset. |
+| **Font Streamline** | `Typography` | [Type.kt](file:///home/shantanu/Documents/OpenSplit/app/src/main/java/com/opensplit/ui/theme/Type.kt), [build.gradle.kts](file:///home/shantanu/Documents/OpenSplit/app/build.gradle.kts) | Removed non-bundled downloadable Google Fonts (Source Sans 3, Nunito, Poppins, Inter, Montserrat, Serif, Roboto); standardizing exclusively on bundled variable `Google Sans Flex` and `JetBrains Mono`. |
+| **Brand Case Fix** | `Brand / Splash` | [SplashScreen.kt](file:///home/shantanu/Documents/OpenSplit/app/src/main/java/com/opensplit/ui/screens/SplashScreen.kt), [WelcomeScreen.kt](file:///home/shantanu/Documents/OpenSplit/app/src/main/java/com/opensplit/ui/screens/auth/WelcomeScreen.kt) | Standardized casing to PascalCase `"OpenSplit"` across splash screen wordmark, accessibility descriptions, and onboarding. |
 | **Hardware** | `Bugfix` | [QrScannerView.kt](file:///home/shantanu/Documents/OpenSplit/app/src/main/java/com/opensplit/ui/components/QrScannerView.kt) | Configured CameraX `COMPATIBLE` texture mode to prevent crashes on Nothing OS 2.6 / 3.0 devices. |
 
 ---
 
 ## 2. Verification Summary
 
-- **Unit Tests:** 33 / 33 passed (`./gradlew testDebugUnitTest`).
-- **Release Compilation:** Successfully built minified `app-release.apk` (6.8 MB, `versionCode=45`) using R8 and release signing.
+- **Unit Tests:** 34 / 34 passed (`./gradlew testDebugUnitTest`).
+- **Release Compilation:** Successfully built minified `app-release.apk` (6.8 MB, `versionCode=47`) using R8 and release signing.
 - **Physical Device:** Tested on Nothing Phone (2a) Plus (`00365767F005601`).
 - **Git Status:** Both `main` and `payment-detection` branches are in sync and pushed to GitHub.

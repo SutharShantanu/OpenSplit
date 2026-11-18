@@ -152,7 +152,7 @@ class UserPreferencesRepositoryImpl(private val context: Context) : UserPreferen
 
     override val aiProviderFlow: Flow<String> = context.dataStore.data
         .map { preferences ->
-            preferences[AI_PROVIDER_KEY] ?: "anthropic"
+            preferences[AI_PROVIDER_KEY] ?: com.opensplit.data.ai.CLOUD_FREE_PROVIDER_ID
         }
 
     override suspend fun setAiProvider(provider: String) {

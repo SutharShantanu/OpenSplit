@@ -58,10 +58,19 @@ class AiProviderTest {
 
     @Test
     fun `provider registry routes openai-compatible ids together`() {
+        assertEquals(CloudFunctionAiProvider, AiProvider.forProvider(CLOUD_FREE_PROVIDER_ID))
         assertEquals(OpenAiCompatibleProvider, AiProvider.forProvider("groq"))
         assertEquals(OpenAiCompatibleProvider, AiProvider.forProvider("custom"))
         assertEquals(AnthropicProvider, AiProvider.forProvider("anthropic"))
         assertEquals(GeminiProvider, AiProvider.forProvider("gemini"))
+    }
+
+    @Test
+    fun `cloud free provider extracts text and tokens`() {
+        assertEquals(listOf("gemini-2.5-flash"), CloudFunctionAiProvider.parseModels(JSONObject()))
+        val replyJson = JSONObject("""{"text":"Parsed text","tokens":42}""")
+        assertEquals("Parsed text", CloudFunctionAiProvider.extractText(replyJson))
+        assertEquals(42, CloudFunctionAiProvider.extractTokens(replyJson))
     }
 
     @Test

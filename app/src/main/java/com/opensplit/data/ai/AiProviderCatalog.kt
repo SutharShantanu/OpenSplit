@@ -13,7 +13,20 @@ data class AiProviderInfo(
     val testModel: String = defaultModel
 )
 
+const val CLOUD_FREE_PROVIDER_ID = "cloud_free"
+
+val CLOUD_FREE_PROVIDER_INFO = AiProviderInfo(
+    id = CLOUD_FREE_PROVIDER_ID,
+    name = "OpenSplit Free AI (Gemini)",
+    description = "Daily free Gemini AI (20 requests/day). 100% free with no pay-as-you-go.",
+    defaultModel = "gemini-2.5-flash",
+    defaultBaseUrl = "cloud_functions",
+    helpUrl = "https://github.com/SutharShantanu/OpenSplit",
+    testModel = "gemini-2.5-flash"
+)
+
 val AI_PROVIDERS_CATALOG = listOf(
+    CLOUD_FREE_PROVIDER_INFO,
     AiProviderInfo(
         id = "anthropic",
         name = "Anthropic Claude",

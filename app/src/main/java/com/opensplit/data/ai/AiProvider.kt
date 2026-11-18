@@ -1,6 +1,7 @@
 package com.opensplit.data.ai
 
 import android.util.Base64
+import kotlinx.coroutines.tasks.await
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
@@ -66,6 +67,10 @@ abstract class AiProvider {
         }
     }
 
+    open suspend fun completeAsync(client: OkHttpClient, config: AiConfig, request: AiRequest): AiReply {
+        return complete(client, config, request)
+    }
+
     private fun errorMessage(body: String, code: Int): String = runCatching {
         val err = JSONObject(body).optJSONObject("error")
         err?.optString("message")?.takeIf { it.isNotBlank() }
@@ -80,11 +85,56 @@ abstract class AiProvider {
                 .build()
         }
         fun forProvider(id: String): AiProvider = when (id) {
+            CLOUD_FREE_PROVIDER_ID -> CloudFunctionAiProvider
             "gemini" -> GeminiProvider
             "anthropic" -> AnthropicProvider
             else -> OpenAiCompatibleProvider
         }
         fun base64(bytes: ByteArray): String = Base64.encodeToString(bytes, Base64.NO_WRAP)
+    }
+}
+
+/** OpenSplit Free AI via Firebase Cloud Function (Gemini 2.5 Flash with daily quota). */
+object CloudFunctionAiProvider : AiProvider() {
+    override fun url(config: AiConfig) = "cloud_function://callGeminiProxy"
+    override fun headers(config: AiConfig) = emptyMap<String, String>()
+    override fun buildBody(config: AiConfig, request: AiRequest) = JSONObject()
+    override fun extractText(body: JSONObject) = body.optString("text")
+    override fun extractTokens(body: JSONObject) = body.optInt("tokens").takeIf { it > 0 }
+    override fun modelsUrl(config: AiConfig) = ""
+    override fun parseModels(body: JSONObject) = listOf("gemini-2.5-flash")
+
+    override suspend fun completeAsync(client: OkHttpClient, config: AiConfig, request: AiRequest): AiReply {
+        val auth = com.google.firebase.auth.FirebaseAuth.getInstance()
+        if (auth.currentUser == null) {
+            throw AiException("Please sign in with Google to use free AI features.")
+        }
+        val functions = com.google.firebase.functions.FirebaseFunctions.getInstance()
+        val data = hashMapOf<String, Any>(
+            "prompt" to request.prompt,
+            "maxTokens" to request.maxTokens
+        )
+        if (request.imageBytes != null) {
+            data["imageBase64"] = Base64.encodeToString(request.imageBytes, Base64.NO_WRAP)
+            data["imageMime"] = request.imageMime
+        }
+
+        try {
+            val taskResult = functions.getHttpsCallable("callGeminiProxy").call(data).await()
+            val res = taskResult.data as? Map<*, *>
+                ?: throw AiException("Invalid response from AI server")
+            val text = res["text"] as? String ?: ""
+            val tokens = (res["tokens"] as? Number)?.toInt()
+            return AiReply(text, tokens)
+        } catch (e: Exception) {
+            if (e is com.google.firebase.functions.FirebaseFunctionsException) {
+                if (e.code == com.google.firebase.functions.FirebaseFunctionsException.Code.RESOURCE_EXHAUSTED) {
+                    throw AiException("Daily free AI limit reached (20/20). Resets tomorrow at 00:00 UTC. The app is 100% free with no pay-as-you-go; you can continue manually or add your own key in Settings.", 429)
+                }
+                throw AiException(e.message ?: "AI service error", 500)
+            }
+            throw e
+        }
     }
 }
 
