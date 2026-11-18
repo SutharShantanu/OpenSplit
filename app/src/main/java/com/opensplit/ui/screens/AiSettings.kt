@@ -159,7 +159,7 @@ fun AiProvidersSubScreen(
                     "pro" -> "OpenSplit Pro AI"
                     else -> "OpenSplit AI"
                 }
-                val tierLabel = if (userAiPlan.equals("free", ignoreCase = true)) "Standard Tier" else "${userAiPlan.replaceFirstChar { it.uppercase() }} Tier"
+                val tierLabel = if (userAiPlan.equals("free", ignoreCase = true)) "Standard Plan" else "${userAiPlan.replaceFirstChar { it.uppercase() }} Plan"
                 SettingsGroupCard(title = planDisplayName, icon = OpenSplitIcons.AutoAwesome) {
                     Column(modifier = Modifier.padding(16.dp)) {
                         Row(

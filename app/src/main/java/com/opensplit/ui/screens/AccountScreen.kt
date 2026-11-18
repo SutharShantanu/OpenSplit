@@ -758,11 +758,11 @@ fun AccountOverviewScreen(
                                             Spacer(modifier = Modifier.width(4.dp))
                                             Text(
                                                 text = when {
-                                                    hasCustomKey -> "Gemini Pro"
-                                                    isDailyQuotaExhausted -> "Limit Reached"
-                                                    userAiPlan.equals("ultra", ignoreCase = true) -> "Ultra AI"
-                                                    userAiPlan.equals("pro", ignoreCase = true) -> "Pro AI"
-                                                    else -> "Gemini AI"
+                                                    hasCustomKey -> "Custom Plan"
+                                                    userAiPlan.equals("ultra", ignoreCase = true) -> "Ultra Plan"
+                                                    userAiPlan.equals("pro", ignoreCase = true) -> "Pro Plan"
+                                                    userAiPlan.equals("free", ignoreCase = true) || userAiPlan.isBlank() -> "Standard Plan"
+                                                    else -> "${userAiPlan.replaceFirstChar { it.uppercase() }} Plan"
                                                 },
                                                 style = MaterialTheme.typography.labelSmall,
                                                 fontWeight = FontWeight.Bold,
@@ -878,9 +878,9 @@ fun AccountOverviewScreen(
                                     } else if (isDailyQuotaExhausted) {
                                         "Limit reached · Resets at 00:00 UTC"
                                     } else if (userAiPlan.lowercase() != "free") {
-                                        "${userAiPlan.replaceFirstChar { it.uppercase() }} tier · Resets daily at 00:00 UTC"
+                                        "${userAiPlan.replaceFirstChar { it.uppercase() }} plan · Resets daily at 00:00 UTC"
                                     } else {
-                                        "Resets daily at 00:00 UTC · Zero Setup"
+                                        "Standard plan · Resets daily at 00:00 UTC"
                                     },
                                     style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
