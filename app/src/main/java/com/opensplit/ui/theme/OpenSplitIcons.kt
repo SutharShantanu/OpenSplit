@@ -120,6 +120,8 @@ object OpenSplitIcons {
     val Straighten             = Symbol(0xe41c) // straighten
     val Percent                = Symbol(0xeb58) // percent
     val Mic                    = Symbol(0xe31d) // mic
+    val MicOff                 = Symbol(0xe02b) // mic_off
+    val Stop                   = Symbol(0xe047) // stop
     val QrCode                 = Symbol(0xf206) // qr_code_scanner
     val PersonAdd              = Symbol(0xea4d) // person_add
     val Notification           = Symbol(0xe7f5) // notifications
