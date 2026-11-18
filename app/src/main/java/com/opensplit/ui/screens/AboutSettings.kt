@@ -122,7 +122,7 @@ fun AboutSupportSubScreen(
                         )
                         Spacer(modifier = Modifier.height(8.dp))
                         Text(
-                            text = "Free, open-source group expense sharing & debt optimization.",
+                            text = "Open-source group expense sharing & debt optimization.",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )

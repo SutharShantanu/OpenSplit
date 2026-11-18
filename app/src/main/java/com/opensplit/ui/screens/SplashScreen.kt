@@ -111,7 +111,7 @@ fun SplashScreen(onTimeout: () -> Unit) {
 
             // Tagline
             Text(
-                text = "Split smarter. Stay free.",
+                text = "Split smarter. Together.",
                 style = MaterialTheme.typography.bodyLarge,
                 color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.75f)
             )

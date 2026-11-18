@@ -17,8 +17,8 @@ const val CLOUD_FREE_PROVIDER_ID = "cloud_free"
 
 val CLOUD_FREE_PROVIDER_INFO = AiProviderInfo(
     id = CLOUD_FREE_PROVIDER_ID,
-    name = "OpenSplit Free AI (Gemini)",
-    description = "Daily free Gemini AI (20 requests/day). 100% free with no pay-as-you-go.",
+    name = "OpenSplit AI (Gemini)",
+    description = "Built-in Gemini AI with daily quota. Zero setup and no pay-as-you-go.",
     defaultModel = "gemini-2.5-flash",
     defaultBaseUrl = "cloud_functions",
     helpUrl = "https://github.com/SutharShantanu/OpenSplit",
@@ -47,7 +47,7 @@ val AI_PROVIDERS_CATALOG = listOf(
     AiProviderInfo(
         id = "gemini",
         name = "Google Gemini",
-        description = "Fast multimodal models with a generous free tier.",
+        description = "Fast multimodal models with generous usage limits.",
         defaultModel = "gemini-2.5-flash",
         defaultBaseUrl = "https://generativelanguage.googleapis.com/v1beta",
         helpUrl = "https://aistudio.google.com/app/apikey"

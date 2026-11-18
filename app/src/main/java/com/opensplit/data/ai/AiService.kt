@@ -175,7 +175,7 @@ class AiService(private val prefs: UserPreferencesRepository) {
                 return it.text
             }.onFailure { e ->
                 lastError = e.message
-                if (e.message?.contains("Daily free AI limit reached") == true || (e as? AiException)?.status == 429) {
+                if (e.message?.contains("Daily AI limit reached") == true || e.message?.contains("Daily free AI limit reached") == true || (e as? AiException)?.status == 429) {
                     isDailyQuotaExhausted.value = true
                     dailyQuotaRemaining.value = 0
                 }
@@ -228,9 +228,9 @@ class AiService(private val prefs: UserPreferencesRepository) {
         if (providerId == CLOUD_FREE_PROVIDER_ID) {
             val auth = com.google.firebase.auth.FirebaseAuth.getInstance()
             return if (auth.currentUser != null) {
-                Result.success(AiTestResult("gemini-2.5-flash", "OpenSplit Cloud Function active (20 free requests/day)."))
+                Result.success(AiTestResult("gemini-2.5-flash", "OpenSplit Cloud Function active ($dailyQuotaLimit requests/day)."))
             } else {
-                Result.failure(AiException("Please sign in with Google to use free AI features."))
+                Result.failure(AiException("Please sign in with Google to use AI features."))
             }
         }
         val info = AI_PROVIDERS_CATALOG.firstOrNull { it.id == providerId }

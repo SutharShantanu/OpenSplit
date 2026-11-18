@@ -206,7 +206,7 @@ fun DataBackupSubScreen(
                                     clearedResult = null
                                     coroutineScope.launch {
                                         val freed = onClearCache()
-                                        clearedResult = "✓ Freed ${com.opensplit.util.StorageStats.formatMb(freed)}"
+                                        clearedResult = "✓ Cleared ${com.opensplit.util.StorageStats.formatMb(freed)}"
                                         isClearing = false
                                     }
                                 }

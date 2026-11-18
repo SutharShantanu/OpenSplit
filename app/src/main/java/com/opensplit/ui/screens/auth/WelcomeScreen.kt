@@ -39,7 +39,7 @@ import kotlinx.coroutines.launch
  * Onboarding Carousel (3 Slides) + Mobile Login Screen
  * - Slide 1: Track expenses together (secondary-container #e8def9 illustration card)
  * - Slide 2: Splitting just got smarter (primary-container #6750a4 card with AI auto_awesome)
- * - Slide 3: Always free. No hidden plans. (tertiary-fixed #ffd9e3 celebration card)
+ * - Slide 3: Always open. No hidden plans. (tertiary-fixed #ffd9e3 celebration card)
  * - Login: Google Sign-In button, atmospheric blur backdrop, clean legal links.
  */
 @Composable
@@ -388,7 +388,7 @@ private fun OnboardingSlide2() {
     }
 }
 
-/** SCREEN 04 — Onboarding Slide 3: Free Forever */
+/** SCREEN 04 — Onboarding Slide 3: Always Open & Transparent */
 @Composable
 private fun OnboardingSlide3() {
     Column(
@@ -425,7 +425,7 @@ private fun OnboardingSlide3() {
                     }
                     Spacer(modifier = Modifier.height(16.dp))
                     Text(
-                        text = "₹0 / $0 Free Forever",
+                        text = "₹0 / $0 Forever",
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.onTertiaryContainer
@@ -437,7 +437,7 @@ private fun OnboardingSlide3() {
         Spacer(modifier = Modifier.height(28.dp))
 
         Text(
-            text = "Always free. No hidden plans.",
+            text = "Always open. No hidden plans.",
             style = MaterialTheme.typography.headlineMedium,
             fontWeight = FontWeight.Bold,
             color = MaterialTheme.colorScheme.onSurface,
@@ -447,7 +447,7 @@ private fun OnboardingSlide3() {
         Spacer(modifier = Modifier.height(12.dp))
 
         Text(
-            text = "All splitting, settling, and group management features are free forever. AI features work when you add your own provider API key.",
+            text = "All splitting, settling, and group management features are unrestricted. Built-in Gemini AI is ready to use instantly.",
             style = MaterialTheme.typography.bodyLarge,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             textAlign = TextAlign.Center,

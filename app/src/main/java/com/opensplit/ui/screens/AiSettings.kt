@@ -157,8 +157,9 @@ fun AiProvidersSubScreen(
                 val planDisplayName = when (userAiPlan.lowercase()) {
                     "ultra" -> "OpenSplit Ultra AI"
                     "pro" -> "OpenSplit Pro AI"
-                    else -> "OpenSplit Free AI"
+                    else -> "OpenSplit AI"
                 }
+                val tierLabel = if (userAiPlan.equals("free", ignoreCase = true)) "Standard Tier" else "${userAiPlan.replaceFirstChar { it.uppercase() }} Tier"
                 SettingsGroupCard(title = planDisplayName, icon = OpenSplitIcons.AutoAwesome) {
                     Column(modifier = Modifier.padding(16.dp)) {
                         Row(
@@ -173,7 +174,7 @@ fun AiProvidersSubScreen(
                                     fontWeight = FontWeight.Bold
                                 )
                                 Text(
-                                    text = "$dailyQuotaLimit daily requests · ${userAiPlan.replaceFirstChar { it.uppercase() }} Tier",
+                                    text = "$dailyQuotaLimit daily requests · $tierLabel",
                                     style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
@@ -194,9 +195,9 @@ fun AiProvidersSubScreen(
                         Spacer(modifier = Modifier.height(8.dp))
                         Text(
                             text = if (isDailyQuotaExhausted)
-                                "You have used all $dailyQuotaLimit of your daily requests for your ${userAiPlan.replaceFirstChar { it.uppercase() }} tier. Quota resets tomorrow at 00:00 UTC. The app is completely free with no pay-as-you-go. You can continue entering expenses manually or add your own custom API key below for unlimited requests."
+                                "You have used all $dailyQuotaLimit of your daily requests for your $tierLabel. Quota resets tomorrow at 00:00 UTC with zero pay-as-you-go. You can continue entering expenses manually or add your own custom API key below for unlimited requests."
                             else
-                                "Provided free by OpenSplit. Zero setup, no credit cards, and strictly no pay-as-you-go. Resets daily at 00:00 UTC.",
+                                "Provided by OpenSplit. Zero setup, no credit cards, and strictly no pay-as-you-go. Resets daily at 00:00 UTC.",
                             style = MaterialTheme.typography.bodySmall,
                             color = if (isDailyQuotaExhausted) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -216,7 +217,7 @@ fun AiProvidersSubScreen(
             item {
                 SettingsGroupCard(title = "Custom API Keys (Optional)", icon = OpenSplitIcons.Key) {
                     Text(
-                        if (saved.isEmpty()) "Want unlimited requests, or want to use Gemini Pro, Claude 3.5 Sonnet, or GPT-4o? You can connect your own free or paid API key from Google AI Studio, Anthropic, or OpenAI. Personal keys are stored encrypted on this device."
+                        if (saved.isEmpty()) "Want unlimited requests, or want to use Gemini Pro, Claude 3.5 Sonnet, or GPT-4o? You can connect your own developer API key from Google AI Studio, Anthropic, or OpenAI. Personal keys are stored encrypted on this device."
                         else "The active key answers first. If it fails (quota, outage, retired model) the next one is tried automatically.",
                         style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.padding(16.dp)

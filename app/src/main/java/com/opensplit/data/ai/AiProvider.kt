@@ -94,7 +94,7 @@ abstract class AiProvider {
     }
 }
 
-/** OpenSplit Free AI via Firebase Cloud Function (Gemini 2.5 Flash with daily quota). */
+/** OpenSplit AI via Firebase Cloud Function (Gemini 2.5 Flash with daily quota). */
 object CloudFunctionAiProvider : AiProvider() {
     override fun url(config: AiConfig) = "cloud_function://callGeminiProxy"
     override fun headers(config: AiConfig) = emptyMap<String, String>()
@@ -107,7 +107,7 @@ object CloudFunctionAiProvider : AiProvider() {
     override suspend fun completeAsync(client: OkHttpClient, config: AiConfig, request: AiRequest): AiReply {
         val auth = com.google.firebase.auth.FirebaseAuth.getInstance()
         if (auth.currentUser == null) {
-            throw AiException("Please sign in with Google to use free AI features.")
+            throw AiException("Please sign in with Google to use AI features.")
         }
         val functions = com.google.firebase.functions.FirebaseFunctions.getInstance()
         val data = hashMapOf<String, Any>(
@@ -129,7 +129,7 @@ object CloudFunctionAiProvider : AiProvider() {
         } catch (e: Exception) {
             if (e is com.google.firebase.functions.FirebaseFunctionsException) {
                 if (e.code == com.google.firebase.functions.FirebaseFunctionsException.Code.RESOURCE_EXHAUSTED) {
-                    throw AiException("Daily free AI limit reached (20/20). Resets tomorrow at 00:00 UTC. The app is 100% free with no pay-as-you-go; you can continue manually or add your own key in Settings.", 429)
+                    throw AiException(e.message ?: "Daily AI limit reached. Resets tomorrow at 00:00 UTC with no pay-as-you-go; you can continue manually or add your own key in Settings.", 429)
                 }
                 throw AiException(e.message ?: "AI service error", 500)
             }
