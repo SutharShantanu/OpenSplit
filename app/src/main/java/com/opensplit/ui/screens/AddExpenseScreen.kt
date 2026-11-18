@@ -43,6 +43,13 @@ import androidx.compose.ui.draw.scale
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.geometry.center
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.foundation.layout.*
 import androidx.compose.runtime.rememberCoroutineScope
 import com.opensplit.data.ai.AiHeuristics
@@ -658,34 +665,11 @@ fun AddExpenseScreen(
                                     )
                                 }
 
-                                val micTransition = rememberInfiniteTransition(label = "mic_pulse")
-                                val micScale by micTransition.animateFloat(
-                                    initialValue = 1f,
-                                    targetValue = 1.15f,
-                                    animationSpec = infiniteRepeatable(
-                                        animation = tween(600, easing = FastOutSlowInEasing),
-                                        repeatMode = RepeatMode.Reverse
-                                    ),
-                                    label = "mic_scale"
+                                VoiceVisualizerIconButton(
+                                    isListening = isListening,
+                                    rmsLevel = rmsLevel,
+                                    onClick = { toggleVoiceInput() }
                                 )
-
-                                FilledTonalIconButton(
-                                    onClick = { toggleVoiceInput() },
-                                    shapes = com.opensplit.ui.theme.appIconButtonShapes(),
-                                    modifier = Modifier
-                                        .size(36.dp)
-                                        .then(if (isListening) Modifier.scale(micScale) else Modifier),
-                                    colors = IconButtonDefaults.filledTonalIconButtonColors(
-                                        containerColor = if (isListening) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primaryContainer,
-                                        contentColor = if (isListening) MaterialTheme.colorScheme.onError else MaterialTheme.colorScheme.onPrimaryContainer
-                                    )
-                                ) {
-                                    SymbolIcon(
-                                        if (isListening) OpenSplitIcons.Stop else OpenSplitIcons.Mic,
-                                        contentDescription = if (isListening) "Stop Listening" else "Voice Input",
-                                        modifier = Modifier.size(18.dp)
-                                    )
-                                }
                             }
 
                             Spacer(modifier = Modifier.height(4.dp))
@@ -695,84 +679,6 @@ fun AddExpenseScreen(
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
 
-                            AnimatedVisibility(
-                                visible = isListening,
-                                enter = expandVertically() + fadeIn(),
-                                exit = shrinkVertically() + fadeOut()
-                            ) {
-                                Column(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(vertical = 10.dp)
-                                        .clip(MaterialTheme.shapes.medium)
-                                        .background(MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.85f))
-                                        .padding(14.dp)
-                                ) {
-                                    Row(
-                                        modifier = Modifier.fillMaxWidth(),
-                                        horizontalArrangement = Arrangement.SpaceBetween,
-                                        verticalAlignment = Alignment.CenterVertically
-                                    ) {
-                                        Row(verticalAlignment = Alignment.CenterVertically) {
-                                            val dotTransition = rememberInfiniteTransition(label = "dot_pulse")
-                                            val dotAlpha by dotTransition.animateFloat(
-                                                initialValue = 0.35f,
-                                                targetValue = 1f,
-                                                animationSpec = infiniteRepeatable(
-                                                    animation = tween(450, easing = FastOutSlowInEasing),
-                                                    repeatMode = RepeatMode.Reverse
-                                                ),
-                                                label = "dot_alpha"
-                                            )
-                                            Box(
-                                                modifier = Modifier
-                                                    .size(10.dp)
-                                                    .clip(CircleShape)
-                                                    .background(MaterialTheme.colorScheme.error.copy(alpha = dotAlpha))
-                                            )
-                                            Spacer(modifier = Modifier.width(8.dp))
-                                            Text(
-                                                text = "Listening… Speak now",
-                                                style = MaterialTheme.typography.labelMedium,
-                                                fontWeight = FontWeight.Bold,
-                                                color = MaterialTheme.colorScheme.onSurface
-                                            )
-                                        }
-
-                                        FilledTonalButton(
-                                            onClick = { stopListening() },
-                                            shape = MaterialTheme.shapes.extraSmall,
-                                            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 2.dp),
-                                            modifier = Modifier.height(28.dp)
-                                        ) {
-                                            Text("Done", style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold)
-                                        }
-                                    }
-
-                                    Spacer(modifier = Modifier.height(10.dp))
-
-                                    // Real-time Audio Equalizer / Waveform Visualizer
-                                    AudioWaveformVisualizer(
-                                        rmsLevel = rmsLevel,
-                                        isListening = isListening,
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .height(40.dp)
-                                    )
-
-                                    if (partialSpokenText.isNotBlank()) {
-                                        Spacer(modifier = Modifier.height(8.dp))
-                                        Text(
-                                            text = "\"$partialSpokenText\"",
-                                            style = MaterialTheme.typography.bodySmall,
-                                            fontWeight = FontWeight.SemiBold,
-                                            color = MaterialTheme.colorScheme.primary,
-                                            maxLines = 2
-                                        )
-                                    }
-                                }
-                            }
-
                             Spacer(modifier = Modifier.height(10.dp))
 
                             OutlinedTextField(
@@ -780,11 +686,47 @@ fun AddExpenseScreen(
                                 onValueChange = { aiNaturalInput = it },
                                 placeholder = {
                                     Text(
-                                        "e.g. \"Rahul paid 1400. Sarah and I split the wine, Raja doesn't drink, split food equally.\"",
+                                        text = if (isListening && partialSpokenText.isNotBlank()) "\"$partialSpokenText\""
+                                        else if (isListening) "Listening… Speak split details"
+                                        else "e.g. \"Rahul paid 1400. Sarah and I split the wine, Raja doesn't drink, split food equally.\"",
                                         style = MaterialTheme.typography.bodyMedium,
-                                        color = MaterialTheme.colorScheme.outline
+                                        color = if (isListening) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline
                                     )
                                 },
+                                supportingText = if (isListening) {
+                                    {
+                                        Row(
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            modifier = Modifier.padding(top = 2.dp)
+                                        ) {
+                                            val dotTransition = rememberInfiniteTransition(label = "live_dot")
+                                            val dotAlpha by dotTransition.animateFloat(
+                                                initialValue = 0.35f,
+                                                targetValue = 1f,
+                                                animationSpec = infiniteRepeatable(
+                                                    animation = tween(400, easing = FastOutSlowInEasing),
+                                                    repeatMode = RepeatMode.Reverse
+                                                ),
+                                                label = "dot_alpha"
+                                            )
+                                            Box(
+                                                modifier = Modifier
+                                                    .size(8.dp)
+                                                    .clip(CircleShape)
+                                                    .background(MaterialTheme.colorScheme.primary.copy(alpha = dotAlpha))
+                                            )
+                                            Spacer(modifier = Modifier.width(6.dp))
+                                            Text(
+                                                text = if (partialSpokenText.isNotBlank()) "\"$partialSpokenText\"" else "Listening… Speak now · Tap voice icon to stop",
+                                                style = MaterialTheme.typography.labelSmall,
+                                                color = MaterialTheme.colorScheme.primary,
+                                                fontWeight = FontWeight.Medium,
+                                                maxLines = 1,
+                                                overflow = TextOverflow.Ellipsis
+                                            )
+                                        }
+                                    }
+                                } else null,
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .heightIn(min = 96.dp),
@@ -1830,23 +1772,37 @@ private class CurrencyAmountVisualTransformation(private val currencyCode: Strin
 }
 
 @Composable
-private fun AudioWaveformVisualizer(
-    rmsLevel: Float,
+private fun VoiceVisualizerIconButton(
     isListening: Boolean,
-    modifier: Modifier = Modifier,
-    barCount: Int = 28,
-    primaryColor: androidx.compose.ui.graphics.Color = MaterialTheme.colorScheme.primary,
-    secondaryColor: androidx.compose.ui.graphics.Color = MaterialTheme.colorScheme.tertiary
+    rmsLevel: Float,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
 ) {
-    val infiniteTransition = rememberInfiniteTransition(label = "audio_bars")
+    val haptics = androidx.compose.ui.platform.LocalHapticFeedback.current
+    val primaryColor = MaterialTheme.colorScheme.primary
+    val tertiaryColor = MaterialTheme.colorScheme.tertiary
+    val containerIdle = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.75f)
+    val containerActive = MaterialTheme.colorScheme.primaryContainer
+
+    val infiniteTransition = rememberInfiniteTransition(label = "voice_visualizer")
     val phase by infiniteTransition.animateFloat(
         initialValue = 0f,
         targetValue = (2 * Math.PI).toFloat(),
         animationSpec = infiniteRepeatable(
-            animation = tween(1400, easing = LinearEasing),
+            animation = tween(1200, easing = LinearEasing),
             repeatMode = RepeatMode.Restart
         ),
         label = "phase"
+    )
+
+    val pulseScale by infiniteTransition.animateFloat(
+        initialValue = 1f,
+        targetValue = 1.07f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(500, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "pulse_scale"
     )
 
     val animatedRms by animateFloatAsState(
@@ -1855,42 +1811,102 @@ private fun AudioWaveformVisualizer(
         label = "rms"
     )
 
-    Canvas(
+    val normalizedRms = (animatedRms / 10f).coerceIn(0f, 1f)
+
+    Box(
         modifier = modifier
-            .fillMaxWidth()
-            .height(40.dp)
+            .size(52.dp)
+            .semantics {
+                this.role = Role.Button
+                this.contentDescription = if (isListening) "Stop voice input" else "Voice input"
+            }
+            .clickable(
+                interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() },
+                indication = null,
+                onClick = {
+                    haptics.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.TextHandleMove)
+                    onClick()
+                }
+            ),
+        contentAlignment = Alignment.Center
     ) {
-        val width = size.width
-        val height = size.height
-        val totalSpacing = width * 0.28f
-        val barSpacing = totalSpacing / (barCount - 1).coerceAtLeast(1)
-        val barWidth = (width - totalSpacing) / barCount
-        val minBarHeight = 4.dp.toPx()
-        val maxBarHeight = height - 4.dp.toPx()
+        Canvas(modifier = Modifier.fillMaxSize()) {
+            val center = size.center
+            val baseRadius = 21.dp.toPx()
+            val coreRadius = if (isListening) baseRadius * pulseScale else baseRadius
 
-        val normalizedRms = (animatedRms / 10f).coerceIn(0f, 1f)
+            if (isListening) {
+                // Outer acoustic wave ripple 1
+                val r1 = coreRadius + (3.dp.toPx() + 6.dp.toPx() * normalizedRms) *
+                    (0.7f + 0.3f * kotlin.math.sin(phase))
+                drawCircle(
+                    color = primaryColor.copy(alpha = (0.28f + 0.32f * normalizedRms) * 0.75f),
+                    radius = r1,
+                    center = center,
+                    style = Stroke(width = 1.8.dp.toPx())
+                )
 
-        for (i in 0 until barCount) {
-            val progress = i.toFloat() / (barCount - 1).coerceAtLeast(1)
-            val window = Math.sin(Math.PI * progress).toFloat()
+                // Outer acoustic wave ripple 2
+                val r2 = coreRadius + (6.dp.toPx() + 11.dp.toPx() * normalizedRms) *
+                    (0.6f + 0.4f * kotlin.math.sin(phase + 1.6f))
+                drawCircle(
+                    color = tertiaryColor.copy(alpha = (0.16f + 0.24f * normalizedRms) * 0.65f),
+                    radius = r2,
+                    center = center,
+                    style = Stroke(width = 1.4.dp.toPx())
+                )
+            }
 
-            val wave = (Math.sin(phase + i * 0.45).toFloat() * 0.5f + 0.5f)
-            val idleWave = 0.2f * wave
-            val activeWave = (idleWave + 0.8f * normalizedRms * (0.6f + 0.4f * wave)) * window
+            // Core Button Background
+            drawCircle(
+                color = if (isListening) containerActive else containerIdle,
+                radius = coreRadius,
+                center = center
+            )
 
-            val currentBarHeight = (minBarHeight + (maxBarHeight - minBarHeight) * activeWave)
-                .coerceIn(minBarHeight, maxBarHeight)
+            // Core Border
+            drawCircle(
+                color = if (isListening) primaryColor else primaryColor.copy(alpha = 0.35f),
+                radius = coreRadius,
+                center = center,
+                style = Stroke(width = if (isListening) 1.8.dp.toPx() else 1.2.dp.toPx())
+            )
 
-            val x = i * (barWidth + barSpacing)
-            val y = (height - currentBarHeight) / 2f
+            if (isListening) {
+                // Audio Equalizer in the center
+                val barCount = 4
+                val barWidth = 3.2.dp.toPx()
+                val barSpacing = 2.6.dp.toPx()
+                val totalEqualizerWidth = barCount * barWidth + (barCount - 1) * barSpacing
+                val startX = center.x - totalEqualizerWidth / 2f
+                val minHeight = 4.dp.toPx()
+                val maxHeight = 20.dp.toPx()
 
-            val color = if (i % 2 == 0) primaryColor else secondaryColor
+                for (i in 0 until barCount) {
+                    val wave = kotlin.math.sin(phase * 1.6f + i * 1.1f) * 0.5f + 0.5f
+                    val barActivity = (0.22f * wave + 0.78f * normalizedRms * (0.6f + 0.4f * wave)).coerceIn(0.08f, 1f)
+                    val currentHeight = minHeight + (maxHeight - minHeight) * barActivity
+                    val barX = startX + i * (barWidth + barSpacing)
+                    val barY = center.y - currentHeight / 2f
+                    val color = if (i % 2 == 0) primaryColor else tertiaryColor
 
-            drawRoundRect(
-                color = color,
-                topLeft = Offset(x, y),
-                size = Size(barWidth, currentBarHeight),
-                cornerRadius = CornerRadius(barWidth / 2f, barWidth / 2f)
+                    drawRoundRect(
+                        color = color,
+                        topLeft = Offset(barX, barY),
+                        size = Size(barWidth, currentHeight),
+                        cornerRadius = CornerRadius(barWidth / 2f, barWidth / 2f)
+                    )
+                }
+            }
+        }
+
+        if (!isListening) {
+            SymbolIcon(
+                symbol = OpenSplitIcons.Mic,
+                contentDescription = null,
+                tint = primaryColor,
+                filled = true,
+                modifier = Modifier.size(22.dp)
             )
         }
     }
