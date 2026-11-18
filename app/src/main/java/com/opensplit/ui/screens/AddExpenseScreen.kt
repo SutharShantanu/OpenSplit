@@ -595,7 +595,8 @@ fun AddExpenseScreen(
                                     selectedEntryTab = 1
                                     snackbar.showMessage(
                                         if (parsed.source == com.opensplit.data.ai.ParsedExpense.Source.AI) "AI filled in the expense. Review and save."
-                                        else "Filled in what could be read offline. Add an AI key in Settings for smarter parsing."
+                                        else if (aiService.isDailyQuotaExhausted.value) "Daily free AI limit reached (20/20). Filled in with offline parser."
+                                        else "Filled in what could be read offline. Connect an AI key in Settings for cloud models."
                                     )
                                 }
                             } else {

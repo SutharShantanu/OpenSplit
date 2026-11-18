@@ -136,7 +136,7 @@ fun AccountScreen(
     val theme by viewModel.themeFlow.collectAsStateWithLifecycle(initialValue = "system")
     val dynamicColor by viewModel.dynamicColorFlow.collectAsStateWithLifecycle(initialValue = Build.VERSION.SDK_INT >= Build.VERSION_CODES.S)
     val notificationsEnabled by viewModel.notificationsEnabledFlow.collectAsStateWithLifecycle(initialValue = true)
-    val aiProvider by viewModel.aiProviderFlow.collectAsStateWithLifecycle(initialValue = "openai")
+    val aiProvider by viewModel.aiProviderFlow.collectAsStateWithLifecycle(initialValue = com.opensplit.data.ai.CLOUD_FREE_PROVIDER_ID)
     val providerApiKeys by viewModel.providerApiKeysFlow.collectAsStateWithLifecycle(initialValue = emptyMap())
     val customEndpoint by viewModel.customEndpointFlow.collectAsStateWithLifecycle(initialValue = "http://localhost:11434/v1")
     val customModel by viewModel.customModelFlow.collectAsStateWithLifecycle(initialValue = "llama3:latest")
@@ -145,6 +145,9 @@ fun AccountScreen(
     val providerModels by viewModel.providerModelsFlow.collectAsStateWithLifecycle(initialValue = emptyMap())
     val aiUsage by viewModel.aiUsageFlow.collectAsStateWithLifecycle(initialValue = emptyMap())
     val aiTokens by viewModel.aiTokensFlow.collectAsStateWithLifecycle(initialValue = emptyMap())
+    val dailyQuotaRemaining by appContainer.aiService.dailyQuotaRemaining.collectAsStateWithLifecycle()
+    val isDailyQuotaExhausted by appContainer.aiService.isDailyQuotaExhausted.collectAsStateWithLifecycle()
+    val scope = rememberCoroutineScope()
 
     var selectedCategory by rememberSaveable { mutableStateOf<AccountCategory?>(null) }
     // Keeps the overview's scroll position and search text while a category is open.
@@ -184,6 +187,8 @@ fun AccountScreen(
                             providerApiKeys = providerApiKeys,
                             aiUsage = aiUsage,
                             aiTokens = aiTokens,
+                            isDailyQuotaExhausted = isDailyQuotaExhausted,
+                            dailyQuotaRemaining = dailyQuotaRemaining,
                             onSelectCategory = { selectedCategory = it },
                             onSignOutClick = { showSignOutDialog = true },
                             onNavigateToHistory = { rootNavController.navigate("settlement_history") },
@@ -254,6 +259,9 @@ fun AccountScreen(
                                 onToggleFeature = { f, on -> viewModel.setAiFeatureEnabled(f, on) },
                                 onSetModel = { providerId, model -> viewModel.setProviderModel(providerId, model) },
                                 onTestKey = { providerId, key, endpoint, model, cb -> viewModel.testAiKey(providerId, key, endpoint, model, cb) },
+                                dailyQuotaRemaining = dailyQuotaRemaining,
+                                isDailyQuotaExhausted = isDailyQuotaExhausted,
+                                onRefreshQuota = { scope.launch { appContainer.aiService.refreshDailyQuota() } },
                                 onBack = { selectedCategory = null }
                             )
                         }
@@ -398,6 +406,8 @@ fun AccountOverviewScreen(
     providerApiKeys: Map<String, String>,
     aiUsage: Map<String, Int> = emptyMap(),
     aiTokens: Map<String, Int> = emptyMap(),
+    isDailyQuotaExhausted: Boolean = false,
+    dailyQuotaRemaining: Int? = null,
     onSelectCategory: (AccountCategory) -> Unit,
     onSignOutClick: () -> Unit,
     onNavigateToHistory: () -> Unit,
@@ -750,8 +760,12 @@ fun AccountOverviewScreen(
                                         "${CurrencyFormatter.getCurrencyFlag(data.defaultCurrency)} ${data.defaultCurrency} (${CurrencyFormatter.getCurrencySymbol(data.defaultCurrency)})"
                                     }
                                     AccountCategory.AI_PROVIDERS -> {
-                                        val hasKey = aiProvider == "custom" || !providerApiKeys[aiProvider].isNullOrBlank()
-                                        if (!hasKey) "Off" else aiProvider.replaceFirstChar { it.uppercase() }
+                                        if (aiProvider == com.opensplit.data.ai.CLOUD_FREE_PROVIDER_ID) {
+                                            if (isDailyQuotaExhausted) "Limit reached" else "Free (${dailyQuotaRemaining ?: 20}/20)"
+                                        } else {
+                                            val hasKey = aiProvider == "custom" || !providerApiKeys[aiProvider].isNullOrBlank()
+                                            if (!hasKey) "Off" else aiProvider.replaceFirstChar { it.uppercase() }
+                                        }
                                     }
                                     AccountCategory.NOTIFICATIONS -> "On"
                                     AccountCategory.PAYMENT_DETECTION -> androidx.compose.ui.platform.LocalContext.current.let { ctx ->

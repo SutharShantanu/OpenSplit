@@ -379,7 +379,7 @@ private fun OnboardingSlide2() {
         Spacer(modifier = Modifier.height(12.dp))
 
         Text(
-            text = "Describe an expense in plain words, scan a receipt, or let AI do the math. AI features use your own API key — openSplit never sees it.",
+            text = "Describe an expense in plain words, scan a receipt, or let AI do the math. AI features use your own API key — OpenSplit never sees it.",
             style = MaterialTheme.typography.bodyLarge,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             textAlign = TextAlign.Center,
@@ -526,7 +526,7 @@ private fun LoginView(
                 Spacer(modifier = Modifier.height(20.dp))
 
                 Text(
-                    text = "openSplit",
+                    text = "OpenSplit",
                     style = MaterialTheme.typography.headlineSmall,
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.primary

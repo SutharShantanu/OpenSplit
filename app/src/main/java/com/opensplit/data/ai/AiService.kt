@@ -4,6 +4,7 @@ import com.opensplit.domain.model.ExpenseItem
 import com.opensplit.domain.model.SplitType
 import com.opensplit.domain.repository.UserPreferencesRepository
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
@@ -50,6 +51,24 @@ data class ParsedExpense(
  */
 class AiService(private val prefs: UserPreferencesRepository) {
 
+    val dailyQuotaRemaining = kotlinx.coroutines.flow.MutableStateFlow<Int?>(null)
+    val isDailyQuotaExhausted = kotlinx.coroutines.flow.MutableStateFlow<Boolean>(false)
+
+    suspend fun refreshDailyQuota() {
+        val auth = com.google.firebase.auth.FirebaseAuth.getInstance()
+        if (auth.currentUser == null) return
+        withContext(Dispatchers.IO) {
+            runCatching {
+                val functions = com.google.firebase.functions.FirebaseFunctions.getInstance()
+                val result = functions.getHttpsCallable("getDailyAiUsage").call().await()
+                val data = result.data as? Map<*, *> ?: return@runCatching
+                val remaining = (data["remainingToday"] as? Number)?.toInt()
+                dailyQuotaRemaining.value = remaining
+                isDailyQuotaExhausted.value = (remaining ?: 1) <= 0
+            }
+        }
+    }
+
     /** Fully resolved config for the active provider, or null when AI is off or has no key. */
     suspend fun activeConfig(): AiConfig? {
         if (!prefs.aiEnabledFlow.first()) return null
@@ -58,6 +77,11 @@ class AiService(private val prefs: UserPreferencesRepository) {
     }
 
     suspend fun configFor(providerId: String, keyOverride: String? = null, modelOverride: String? = null, baseUrlOverride: String? = null): AiConfig? {
+        if (providerId == CLOUD_FREE_PROVIDER_ID) {
+            val auth = com.google.firebase.auth.FirebaseAuth.getInstance()
+            if (auth.currentUser == null) return null
+            return AiConfig(CLOUD_FREE_PROVIDER_ID, "cloud_proxy", "gemini-2.5-flash", "cloud_functions")
+        }
         val info = AI_PROVIDERS_CATALOG.firstOrNull { it.id == providerId } ?: return null
         val key = keyOverride ?: prefs.providerApiKeysFlow.first()[providerId].orEmpty()
         if (key.isBlank() && providerId != "custom") return null
@@ -74,8 +98,11 @@ class AiService(private val prefs: UserPreferencesRepository) {
         enabled && feature.name !in disabled && hasAnyKey(provider, keys)
     }
 
-    private fun hasAnyKey(activeProvider: String, keys: Map<String, String>) =
-        activeProvider == "custom" || keys.any { (id, k) -> id != "custom" && k.isNotBlank() }
+    private fun hasAnyKey(activeProvider: String, keys: Map<String, String>): Boolean {
+        val auth = com.google.firebase.auth.FirebaseAuth.getInstance()
+        val isCloudFreeAvailable = auth.currentUser != null
+        return isCloudFreeAvailable || activeProvider == "custom" || keys.any { (id, k) -> id != "custom" && k.isNotBlank() }
+    }
 
     /**
      * Providers to try, in order: the active one first, then every other provider that has a key
@@ -84,8 +111,26 @@ class AiService(private val prefs: UserPreferencesRepository) {
     suspend fun fallbackOrder(): List<String> {
         val active = prefs.aiProviderFlow.first()
         val keys = prefs.providerApiKeysFlow.first()
-        val others = AI_PROVIDERS_CATALOG.map { it.id }.filter { it != active && it != "custom" && !keys[it].isNullOrBlank() }
-        return (if (active == "custom" || !keys[active].isNullOrBlank()) listOf(active) else emptyList()) + others
+        val auth = com.google.firebase.auth.FirebaseAuth.getInstance()
+        val hasCloudFree = auth.currentUser != null
+
+        val list = mutableListOf<String>()
+        if (active == CLOUD_FREE_PROVIDER_ID && hasCloudFree) {
+            list.add(CLOUD_FREE_PROVIDER_ID)
+        } else if (active == "custom" || !keys[active].isNullOrBlank()) {
+            list.add(active)
+        }
+
+        AI_PROVIDERS_CATALOG.forEach { p ->
+            if (p.id != active && p.id != "custom" && p.id != CLOUD_FREE_PROVIDER_ID && !keys[p.id].isNullOrBlank()) {
+                list.add(p.id)
+            }
+        }
+
+        if (hasCloudFree && CLOUD_FREE_PROVIDER_ID !in list) {
+            list.add(CLOUD_FREE_PROVIDER_ID)
+        }
+        return list
     }
 
     suspend fun isAvailable(feature: AiFeature): Boolean = availability(feature).first()
@@ -115,7 +160,7 @@ class AiService(private val prefs: UserPreferencesRepository) {
         for (id in fallbackOrder()) {
             val config = configFor(id) ?: continue
             val reply = withContext(Dispatchers.IO) {
-                runCatching { AiProvider.forProvider(config.providerId).complete(AiProvider.httpClient, config, request) }
+                runCatching { AiProvider.forProvider(config.providerId).completeAsync(AiProvider.httpClient, config, request) }
             }
             reply.onSuccess {
                 prefs.incrementAiUsage(config.providerId, it.tokens ?: 0)
@@ -123,12 +168,16 @@ class AiService(private val prefs: UserPreferencesRepository) {
                 return it.text
             }.onFailure { e ->
                 lastError = e.message
+                if (e.message?.contains("Daily free AI limit reached") == true || (e as? AiException)?.status == 429) {
+                    isDailyQuotaExhausted.value = true
+                    dailyQuotaRemaining.value = 0
+                }
                 android.util.Log.w("AiService", "${feature.name} via ${config.providerId}/${config.model} failed: ${e.message}; trying next key")
                 // Retired model: adopt the replacement the provider names and retry this key once.
                 val next = suggestedModel(e.message)
-                if (next != null && next != config.model) {
+                if (next != null && next != config.model && config.providerId != CLOUD_FREE_PROVIDER_ID) {
                     val healed = withContext(Dispatchers.IO) {
-                        runCatching { AiProvider.forProvider(config.providerId).complete(AiProvider.httpClient, config.copy(model = next), request) }
+                        runCatching { AiProvider.forProvider(config.providerId).completeAsync(AiProvider.httpClient, config.copy(model = next), request) }
                     }
                     healed.onSuccess {
                         if (config.providerId == "custom") prefs.setCustomModel(next) else prefs.setProviderModel(config.providerId, next)
@@ -169,6 +218,14 @@ class AiService(private val prefs: UserPreferencesRepository) {
      * model list is fetched, a sensible candidate is tried, and a "retired, use X" error is followed once.
      */
     suspend fun testKey(providerId: String, key: String, baseUrl: String?, model: String?): Result<AiTestResult> {
+        if (providerId == CLOUD_FREE_PROVIDER_ID) {
+            val auth = com.google.firebase.auth.FirebaseAuth.getInstance()
+            return if (auth.currentUser != null) {
+                Result.success(AiTestResult("gemini-2.5-flash", "OpenSplit Cloud Function active (20 free requests/day)."))
+            } else {
+                Result.failure(AiException("Please sign in with Google to use free AI features."))
+            }
+        }
         val info = AI_PROVIDERS_CATALOG.firstOrNull { it.id == providerId }
             ?: return Result.failure(AiException("Unknown provider"))
         val base = baseUrl ?: info.defaultBaseUrl
