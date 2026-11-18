@@ -165,6 +165,10 @@ fun AccountScreen(
         onSubScreenChanged(selectedCategory != null)
     }
 
+    LaunchedEffect(Unit) {
+        appContainer.aiService.refreshDailyQuota()
+    }
+
     var showSignOutDialog by remember { mutableStateOf(false) }
     var showDeleteAccountDialog by remember { mutableStateOf(false) }
     var showExportBottomSheet by remember { mutableStateOf(false) }
@@ -270,6 +274,7 @@ fun AccountScreen(
                                 userAiPlan = userAiPlan,
                                 isDailyQuotaExhausted = isDailyQuotaExhausted,
                                 onRefreshQuota = { scope.launch { appContainer.aiService.refreshDailyQuota() } },
+                                onUpdatePlan = { newPlan -> scope.launch { appContainer.aiService.updateUserPlan(newPlan) } },
                                 onBack = { selectedCategory = null }
                             )
                         }

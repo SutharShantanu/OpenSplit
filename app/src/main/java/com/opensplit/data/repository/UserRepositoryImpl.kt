@@ -29,7 +29,10 @@ class UserRepositoryImpl(
                         displayName = obj.getString("displayName"),
                         email = obj.optString("email", ""),
                         photoUrl = obj.optString("photoUrl").ifBlank { null },
-                        defaultCurrency = obj.optString("defaultCurrency", "INR")
+                        defaultCurrency = obj.optString("defaultCurrency", "INR"),
+                        upiId = obj.optString("upiId").ifBlank { null },
+                        plan = obj.optString("plan", "standard"),
+                        dailyLimit = if (obj.has("dailyLimit")) obj.optInt("dailyLimit") else null
                     )
                 } catch (e: Exception) {
                     // Ignore malformed cache entry
@@ -51,6 +54,9 @@ class UserRepositoryImpl(
                 put("email", user.email)
                 put("photoUrl", user.photoUrl ?: "")
                 put("defaultCurrency", user.defaultCurrency)
+                put("upiId", user.upiId ?: "")
+                put("plan", user.plan)
+                if (user.dailyLimit != null) put("dailyLimit", user.dailyLimit)
             }.toString()
             prefs?.edit()?.putString(user.uid, json)?.apply()
         } catch (e: Exception) {

@@ -12,5 +12,9 @@ data class User(
     val fcmToken: String? = null,
     val lastSeenActivityTimestamp: Timestamp? = null,
     /** UPI VPA (name@bank) friends pay to from Settle Up. */
-    val upiId: String? = null
+    val upiId: String? = null,
+    /** Subscription/AI plan: "standard", "pro", "ultra". */
+    val plan: String = "standard",
+    /** Optional custom daily AI request limit (overrides default plan limit). */
+    val dailyLimit: Int? = null
 )
