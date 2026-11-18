@@ -4,6 +4,7 @@ import com.opensplit.domain.model.ExpenseItem
 import com.opensplit.domain.model.SplitType
 import com.opensplit.domain.repository.UserPreferencesRepository
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
@@ -54,20 +55,77 @@ class AiService(private val prefs: UserPreferencesRepository) {
 
     val dailyQuotaRemaining = kotlinx.coroutines.flow.MutableStateFlow<Int?>(null)
     val dailyQuotaLimit = kotlinx.coroutines.flow.MutableStateFlow<Int>(20)
-    val userAiPlan = kotlinx.coroutines.flow.MutableStateFlow<String>("free")
+    val userAiPlan = kotlinx.coroutines.flow.MutableStateFlow<String>("standard")
     val isDailyQuotaExhausted = kotlinx.coroutines.flow.MutableStateFlow<Boolean>(false)
+
+    init {
+        com.google.firebase.auth.FirebaseAuth.getInstance().addAuthStateListener { auth ->
+            if (auth.currentUser != null) {
+                kotlinx.coroutines.CoroutineScope(Dispatchers.IO).launch {
+                    refreshDailyQuota()
+                }
+            }
+        }
+    }
+
+    suspend fun updateUserPlan(newPlan: String, customLimit: Int? = null): Result<Unit> {
+        val auth = com.google.firebase.auth.FirebaseAuth.getInstance()
+        val uid = auth.currentUser?.uid ?: return Result.failure(Exception("Not signed in"))
+        return withContext(Dispatchers.IO) {
+            runCatching {
+                val updates = mutableMapOf<String, Any>("plan" to newPlan.lowercase())
+                if (customLimit != null) {
+                    updates["dailyLimit"] = customLimit
+                }
+                com.google.firebase.firestore.FirebaseFirestore.getInstance()
+                    .collection("users")
+                    .document(uid)
+                    .set(updates, com.google.firebase.firestore.SetOptions.merge())
+                    .await()
+                userAiPlan.value = newPlan.lowercase()
+                dailyQuotaLimit.value = customLimit ?: when (newPlan.lowercase()) {
+                    "ultra" -> 500
+                    "pro" -> 100
+                    else -> 20
+                }
+                refreshDailyQuota()
+            }
+        }
+    }
 
     suspend fun refreshDailyQuota() {
         val auth = com.google.firebase.auth.FirebaseAuth.getInstance()
-        if (auth.currentUser == null) return
+        val uid = auth.currentUser?.uid ?: return
         withContext(Dispatchers.IO) {
+            // Fast path: check Firestore user doc directly for plan and custom limits
+            runCatching {
+                val userDoc = com.google.firebase.firestore.FirebaseFirestore.getInstance()
+                    .collection("users")
+                    .document(uid)
+                    .get()
+                    .await()
+                if (userDoc.exists()) {
+                    val rawPlan = userDoc.getString("plan")
+                        ?: if (userDoc.getBoolean("isPro") == true) "pro" else "standard"
+                    val customLimit = userDoc.getLong("dailyLimit")?.toInt()
+                    val planLimit = when (rawPlan.lowercase()) {
+                        "ultra" -> 500
+                        "pro" -> 100
+                        else -> 20
+                    }
+                    userAiPlan.value = rawPlan
+                    dailyQuotaLimit.value = customLimit ?: planLimit
+                }
+            }
+
+            // Real-time daily usage counting from Cloud Function
             runCatching {
                 val functions = com.google.firebase.functions.FirebaseFunctions.getInstance()
                 val result = functions.getHttpsCallable("getDailyAiUsage").call().await()
                 val data = result.data as? Map<*, *> ?: return@runCatching
                 val remaining = (data["remainingToday"] as? Number)?.toInt()
-                val limit = (data["dailyLimit"] as? Number)?.toInt() ?: 20
-                val plan = (data["plan"] as? String) ?: "free"
+                val limit = (data["dailyLimit"] as? Number)?.toInt() ?: dailyQuotaLimit.value
+                val plan = (data["plan"] as? String) ?: userAiPlan.value
                 dailyQuotaRemaining.value = remaining
                 dailyQuotaLimit.value = limit
                 userAiPlan.value = plan

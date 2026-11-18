@@ -88,6 +88,7 @@ exports.onActivityCreated = onDocumentCreated("groups/{groupId}/activity/{activi
 
 const TIER_LIMITS = {
   free: 20,
+  standard: 20,
   pro: 100,
   ultra: 500,
 };
@@ -95,11 +96,15 @@ const TIER_LIMITS = {
 async function getUserAiPlanAndLimit(uid) {
   try {
     const userDoc = await db.collection("users").doc(uid).get();
-    const plan = (userDoc.exists && userDoc.data()?.plan) || "free";
-    const dailyLimit = TIER_LIMITS[plan] || TIER_LIMITS.free;
+    const data = userDoc.exists ? userDoc.data() : null;
+    const rawPlan = (data?.plan || (data?.isPro ? "pro" : "standard")).toLowerCase();
+    const plan = (rawPlan === "free" || !TIER_LIMITS[rawPlan]) ? "standard" : rawPlan;
+    const dailyLimit = (typeof data?.dailyLimit === "number" && data.dailyLimit > 0)
+      ? data.dailyLimit
+      : (TIER_LIMITS[plan] || TIER_LIMITS.standard);
     return { plan, dailyLimit };
   } catch (e) {
-    return { plan: "free", dailyLimit: 20 };
+    return { plan: "standard", dailyLimit: 20 };
   }
 }
 
