@@ -48,7 +48,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
-import com.opensplit.ui.components.FilterChip
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
@@ -92,7 +91,6 @@ fun AiProvidersSubScreen(
     userAiPlan: String = "free",
     isDailyQuotaExhausted: Boolean = false,
     onRefreshQuota: () -> Unit = {},
-    onUpdatePlan: (String) -> Unit = {},
     onBack: () -> Unit
 ) {
     val context = LocalContext.current
@@ -203,38 +201,27 @@ fun AiProvidersSubScreen(
                             style = MaterialTheme.typography.bodySmall,
                             color = if (isDailyQuotaExhausted) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant
                         )
-                        Spacer(modifier = Modifier.height(14.dp))
-                        Text(
-                            text = "Plan Tier (Dynamic Quota):",
-                            style = MaterialTheme.typography.labelMedium,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.onSurface
-                        )
-                        Spacer(modifier = Modifier.height(6.dp))
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        Spacer(modifier = Modifier.height(12.dp))
+                        Surface(
+                            shape = MaterialTheme.shapes.small,
+                            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                            modifier = Modifier.fillMaxWidth()
                         ) {
-                            listOf(
-                                Triple("standard", "Standard", "20/day"),
-                                Triple("pro", "Pro", "100/day"),
-                                Triple("ultra", "Ultra", "500/day")
-                            ).forEach { (planKey, planTitle, planQuota) ->
-                                val isSelected = userAiPlan.equals(planKey, ignoreCase = true) ||
-                                    (planKey == "standard" && (userAiPlan.equals("free", ignoreCase = true) || userAiPlan.isBlank()))
-                                FilterChip(
-                                    selected = isSelected,
-                                    onClick = { onUpdatePlan(planKey) },
-                                    label = {
-                                        Column(
-                                            modifier = Modifier.padding(vertical = 4.dp),
-                                            horizontalAlignment = Alignment.CenterHorizontally
-                                        ) {
-                                            Text(planTitle, fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium)
-                                            Text(planQuota, style = MaterialTheme.typography.labelSmall)
-                                        }
-                                    },
-                                    modifier = Modifier.weight(1f)
+                            Row(
+                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    text = "Current Plan",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                                Text(
+                                    text = tierLabel,
+                                    style = MaterialTheme.typography.labelMedium,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.primary
                                 )
                             }
                         }

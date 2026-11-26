@@ -274,7 +274,6 @@ fun AccountScreen(
                                 userAiPlan = userAiPlan,
                                 isDailyQuotaExhausted = isDailyQuotaExhausted,
                                 onRefreshQuota = { scope.launch { appContainer.aiService.refreshDailyQuota() } },
-                                onUpdatePlan = { newPlan -> scope.launch { appContainer.aiService.updateUserPlan(newPlan) } },
                                 onBack = { selectedCategory = null }
                             )
                         }
